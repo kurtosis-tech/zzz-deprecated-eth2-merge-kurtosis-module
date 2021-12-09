@@ -16,8 +16,6 @@ RUN go mod download
 # Copy the code into the container
 COPY . .
 
-RUN go test ./...
-
 # Build the application
 RUN GOOS=linux go build -o kurtosis-module.bin ./kurtosis-module/main.go
 
