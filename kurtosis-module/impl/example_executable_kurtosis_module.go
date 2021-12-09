@@ -1,36 +1,26 @@
 package impl
 
 import (
-	"encoding/json"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
+	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"github.com/sirupsen/logrus"
-	"math/rand"
-	"time"
+	"io"
+	"os"
+	"path"
 )
 
-var (
-	tipsRepository = []string{
-		"Everything not saved will be lost.",
-		"Don't pet a burning dog.",
-		"Even a broken clock is right twice a day.",
-		"If no one comes from the future to stop you from doing it, then how bad of a decision can it really be?",
-		"Never fall in love with a tennis player. Love means nothing to them.",
-		"If you ever get caught sleeping on the job, slowly raise your head and say 'In Jesus' name, Amen'",
-		"Never trust in an electrician with no eyebrows",
-		"If you sleep until lunch time, you can save the breakfast money.",
-	}
+const (
+	gethExecutionDataSetupServiceId services.ServiceID = "geth-execution-data-setup"
+	gethExecutionDataSetupImage = "parithoshj/geth:merge-2219d7b'"
+
+	// The filepath inside the module where static files live
+	staticFilesFilepath = "/static-files"
+
+	genesisJsonFilename = "genesis.json"
+
+	// The name of the shared directory (shared with the setup container) where Geth execution data will go
+	executionDataDirname = "execution-data"
 )
-
-// Parameters that the execute command accepts, serialized as JSON
-type ExecuteParams struct {
-	IWantATip bool `json:"iWantATip"`
-}
-
-// Result that the execute command returns, serialized as JSON
-type ExecuteResult struct {
-	Tip string `json:"tip"`
-}
 
 type ExampleExecutableKurtosisModule struct {
 }
@@ -40,34 +30,53 @@ func NewExampleExecutableKurtosisModule() *ExampleExecutableKurtosisModule {
 }
 
 func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
-	logrus.Infof("Received serialized execute params '%v'", serializedParams)
-	serializedParamsBytes := []byte(serializedParams)
-	var params ExecuteParams
-	if err := json.Unmarshal(serializedParamsBytes, &params); err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred deserializing the serialized execute params string '%v'", serializedParams)
-	}
+	gethExecutionDataSetupContainerConfigSupplier := getGethExecutionDataSetupContainerConfigSupplier()
 
-	resultObj := &ExecuteResult{
-		Tip: getRandomTip(params.IWantATip),
-	}
-
-	result, err := json.Marshal(resultObj)
+	_, err := enclaveCtx.AddService(gethExecutionDataSetupServiceId, gethExecutionDataSetupContainerConfigSupplier)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred serializing the result object '%+v'", resultObj)
+		return "", stacktrace.Propagate(err, "An error occurred adding the Geth execution data setup container")
 	}
-	stringResult := string(result)
 
-	logrus.Info("Execution successful")
-	return stringResult, nil
+	return "{}", nil
 }
 
-func getRandomTip(shouldGiveAdvice bool) string {
-	var tip string
-	if shouldGiveAdvice {
-		rand.Seed(time.Now().Unix())
-		tip = tipsRepository[rand.Intn(len(tipsRepository))]
-	} else {
-		tip = "The module won't enlighten you today."
+func getGethExecutionDataSetupContainerConfigSupplier() func(string, *services.SharedPath) (*services.ContainerConfig, error) {
+	genesisJsonOnModuleContainerFilepath := path.Join(staticFilesFilepath, genesisJsonFilename)
+
+	result := func(privateIpAddr string, sharedPath *services.SharedPath) (*services.ContainerConfig, error) {
+		genesisJsonOnSetupContainerSharedPath := sharedPath.GetChildPath(genesisJsonFilename)
+
+		srcFp, err := os.Open(genesisJsonOnModuleContainerFilepath)
+		if err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred opening the genesis JSON file '%v' on the module container", genesisJsonOnModuleContainerFilepath)
+		}
+
+		destFilepath := genesisJsonOnSetupContainerSharedPath.GetAbsPathOnThisContainer()
+		destFp, err := os.Create(destFilepath)
+		if err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred opening the destination filepath '%v' on the module container", destFilepath)
+		}
+
+		if _, err := io.Copy(srcFp, destFp); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying the genesis file from the module container to the shared directory of the execution setup container")
+		}
+
+		executionDataSharedPath := sharedPath.GetChildPath(executionDataDirname)
+		executionDataOnModuleContainerDirpath := executionDataSharedPath.GetAbsPathOnThisContainer()
+		if err := os.Mkdir(executionDataOnModuleContainerDirpath, os.ModeDir); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred creating the execution data directory '%v' on the module container", executionDataOnModuleContainerDirpath)
+		}
+
+		cmdArgs := []string{
+			"--datadir=" + executionDataSharedPath.GetAbsPathOnServiceContainer(),
+			"init",
+			genesisJsonOnSetupContainerSharedPath.GetAbsPathOnServiceContainer(),
+		}
+
+		result := services.NewContainerConfigBuilder(gethExecutionDataSetupImage).WithCmdOverride(cmdArgs).Build()
+
+		return result, nil
 	}
-	return tip
+
+	return result
 }
