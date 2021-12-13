@@ -35,7 +35,7 @@ fi
 dockerfile_filepath="${root_dirpath}/${MODULE_DIRNAME}/Dockerfile"
 image_name="${IMAGE_ORG_AND_REPO}:${docker_tag}"
 echo "Building Kurtosis module into a Docker image named '${image_name}'..."
-if ! docker build --progress=plain -t "${image_name}" -f "${dockerfile_filepath}" "${root_dirpath}"; then
+if ! docker build -t "${image_name}" -f "${dockerfile_filepath}" "${root_dirpath}"; then
   echo "Error: Docker build of the Kurtosis module failed" >&2
   exit 1
 fi
