@@ -8,16 +8,22 @@ import (
 type ExecutionLayerClientLauncher interface {
 	LaunchBootNode(
 		enclaveCtx *enclaves.EnclaveContext,
+		serviceId services.ServiceID,
 		networkId string,
 		genesisJsonFilepathOnModuleContainer string,
-	) (*services.ServiceContext, string, error)
+	) (
+		resultClientCtx *ExecutionLayerClientContext,
+		resultErr error,
+	)
 
-	/*
 	LaunchChildNode(
 		enclaveCtx *enclaves.EnclaveContext,
+		serviceId services.ServiceID,
 		networkId string,
 		genesisJsonFilepathOnModuleContainer string,
-		bootNodeEnr string,
-	) (*services.ServiceContext, error)
-	 */
+		bootnodeEnode string,
+	) (
+		resultClientCtx *ExecutionLayerClientContext,
+		resultErr error,
+	)
 }

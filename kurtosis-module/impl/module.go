@@ -41,8 +41,11 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		geth_el_client_launcher.NewGethELClientLauncher(),
 	)
 
-	if err := elNetwork.AddNode(); err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred adding the first EL client node")
+	// TODO Make this dynamic
+	for i := 0; i < 3; i++ {
+		if err := elNetwork.AddNode(); err != nil {
+			return "", stacktrace.Propagate(err, "An error occurred adding EL client node %v", i)
+		}
 	}
 
 	/*

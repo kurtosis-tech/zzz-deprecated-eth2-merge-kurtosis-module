@@ -1,16 +1,23 @@
 package geth_el_client_launcher
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	"github.com/sirupsen/logrus"
 	"io"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 const (
-	serviceId services.ServiceID = "geth-el-client"
 	imageName = "kurtosistech/go-ethereum:d99ac5a7d"
 
 	rpcPortNum       uint16 = 8545
@@ -29,7 +36,16 @@ const (
 	// The dirpath of the execution data directory on the client container
 	executionDataDirpathOnClientContainer = "/execution-data"
 
-	getNodeEnrCommandSuccessExitCode = 0
+
+	jsonContentTypeHeader = "application/json"
+	rpcRequestTimeout = 5 * time.Second
+
+	getNodeInfoRpcRequestBody = `{"jsonrpc":"2.0","method": "admin_nodeInfo","params":[],"id":1}`
+	getNodeInfoMaxRetries = 10
+	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
+
+	// To start a bootnode, we provide this string to the launchNode function
+	bootnodeEnodeStrForStartingBootnode = ""
 )
 var usedPorts = map[string]*services.PortSpec{
 	RpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
@@ -38,13 +54,6 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
 var entrypointArgs = []string{"sh", "-c"}
-var getNodeEnrCmd = []string{
-	"geth",
-	"attach",
-	executionDataDirpathOnClientContainer + "/geth.ipc",
-	"--exec",
-	"admin.nodeInfo.enr",
-}
 
 type GethELClientLauncher struct {}
 
@@ -52,36 +61,78 @@ func NewGethELClientLauncher() *GethELClientLauncher {
 	return &GethELClientLauncher{}
 }
 
-func (launcher *GethELClientLauncher) LaunchBootNode(enclaveCtx *enclaves.EnclaveContext, networkId string, genesisJsonFilepathOnModuleContainer string) (*services.ServiceContext, string, error) {
-	containerConfigSupplier := getGethELContainerConfigSupplier(genesisJsonFilepathOnModuleContainer, networkId)
-	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+func (launcher *GethELClientLauncher) LaunchBootNode(
+	enclaveCtx *enclaves.EnclaveContext,
+	serviceId services.ServiceID,
+	networkId string,
+	genesisJsonFilepathOnModuleContainer string,
+) (
+	resultClientCtx *el_client_network.ExecutionLayerClientContext,
+	resultErr error,
+) {
+	clientCtx, err := launchNode(enclaveCtx, serviceId, networkId, genesisJsonFilepathOnModuleContainer, bootnodeEnodeStrForStartingBootnode)
 	if err != nil {
-		return nil, "", stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
+		return nil, stacktrace.Propagate(err, "An error occurred starting boot node with service ID '%v'", serviceId)
 	}
-
-	exitCode, output, err := serviceCtx.ExecCommand(getNodeEnrCmd)
-	if err != nil {
-		return nil, "", stacktrace.Propagate(
-			err,
-			"An error occurred running command '%v' to get the node's ENR",
-			strings.Join(getNodeEnrCmd, " "),
-		)
-	}
-	if exitCode != getNodeEnrCommandSuccessExitCode {
-		return nil, "", stacktrace.NewError(
-			"Command '%v' to get the node's ENR returned non-%v exit code %v and output logs: %v",
-			strings.Join(getNodeEnrCmd, " "),
-			getNodeEnrCommandSuccessExitCode,
-			exitCode,
-			output,
-		)
-	}
-	nodeEnr := output
-
-	return serviceCtx, nodeEnr, nil
+	return clientCtx, nil
 }
 
-func getGethELContainerConfigSupplier(genesisJsonOnModuleContainerFilepath string, networkId string) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
+func (launcher *GethELClientLauncher) LaunchChildNode(
+	enclaveCtx *enclaves.EnclaveContext,
+	serviceId services.ServiceID,
+	networkId string,
+	genesisJsonFilepathOnModuleContainer string,
+	bootnodeEnode string,
+) (
+	resultClientCtx *el_client_network.ExecutionLayerClientContext,
+	resultErr error,
+) {
+	clientCtx, err := launchNode(enclaveCtx, serviceId, networkId, genesisJsonFilepathOnModuleContainer, bootnodeEnode)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred starting child node with service ID '%v' connected to boot node with enode '%v'", serviceId, bootnodeEnode)
+	}
+	return clientCtx, nil
+}
+
+
+// ====================================================================================================
+//                                       Private Helper Methods
+// ====================================================================================================
+func launchNode(
+	enclaveCtx *enclaves.EnclaveContext,
+	serviceId services.ServiceID,
+	networkId string,
+	genesisJsonFilepathOnModuleContainer string,
+	bootnodeEnode string, // NOTE: If this is emptystring, the node will be launched as a bootnode
+) (
+	resultClientCtx *el_client_network.ExecutionLayerClientContext,
+	resultErr error,
+) {
+	containerConfigSupplier := getContainerConfigSupplier(genesisJsonFilepathOnModuleContainer, networkId, bootnodeEnode)
+	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
+	}
+
+	nodeInfo, err := getNodeInfoWithRetry(serviceCtx.GetPrivateIPAddress())
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
+	}
+
+	result := el_client_network.NewExecutionLayerClientContext(
+		serviceCtx,
+		nodeInfo.ENR,
+		nodeInfo.Enode,
+	)
+
+	return result, nil
+}
+
+func getContainerConfigSupplier(
+	genesisJsonOnModuleContainerFilepath string,
+	networkId string,
+	bootnodeEnode string, // NOTE: If this is emptystring, the node will be configured as a bootnode
+) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		genesisJsonOnModuleContainerSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
 
@@ -117,13 +168,20 @@ func getGethELContainerConfigSupplier(genesisJsonOnModuleContainerFilepath strin
 			"--catalyst",
 			"--http",
 			"--http.addr=" + privateIpAddr,
-			"--http.api=engine,net,eth",
+			// WARNING: The admin info endpoint is enabled so that we can easily get ENR/enode, which means
+			//  that users should NOT store private information in these Kurtosis nodes!
+			"--http.api=admin,engine,net,eth",
 			"--ws",
 			"--ws.api=engine,net,eth",
 			"--allow-insecure-unlock",
 			"--nat=extip:" + privateIpAddr,
-			// "--bootnodes=" + strings.Join(bootnodeEnodes, ","),
 			"--verbosity=3",
+		}
+		if bootnodeEnode != bootnodeEnodeStrForStartingBootnode {
+			commandArgs = append(
+				commandArgs,
+				"--bootnodes=" + bootnodeEnode,
+			)
 		}
 		commandStr := strings.Join(commandArgs, " ")
 
@@ -140,4 +198,54 @@ func getGethELContainerConfigSupplier(genesisJsonOnModuleContainerFilepath strin
 		return containerConfig, nil
 	}
 	return result
+}
+
+func getNodeInfoWithRetry(privateIpAddr string) (*NodeInfo, error) {
+	nodeInfo := new(NodeInfo)
+	for i := 0; i < getNodeInfoMaxRetries; i++ {
+		if err := sendRpcCall(privateIpAddr, getNodeInfoRpcRequestBody, nodeInfo); err == nil {
+			return nodeInfo, nil
+		} else {
+			logrus.Debugf("Getting the node info via RPC failed with error: %v", err)
+		}
+		time.Sleep(getNodeInfoTimeBetweenRetries)
+	}
+	return nil, stacktrace.NewError("Couldn't get the node's info even after %v retries with %v between retries", getNodeInfoMaxRetries, getNodeInfoTimeBetweenRetries)
+}
+
+func sendRpcCall(privateIpAddr string, requestBody string, targetStruct interface{}) error {
+	url := fmt.Sprintf("http://%v:%v", privateIpAddr, rpcPortNum)
+	var jsonByteArray = []byte(requestBody)
+
+	logrus.Debugf("Sending RPC call to '%v' with JSON body '%v'...", url, requestBody)
+
+	client := http.Client{
+		Timeout: rpcRequestTimeout,
+	}
+	resp, err := client.Post(url, jsonContentTypeHeader, bytes.NewBuffer(jsonByteArray))
+	if err != nil {
+		return stacktrace.Propagate(err, "Failed to send RPC request to Geth node with private IP '%v'", privateIpAddr)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return stacktrace.NewError(
+			"Received non-%v status code '%v' on RPC request to Geth node with private IP '%v'",
+			http.StatusOK,
+			resp.StatusCode,
+			privateIpAddr,
+		)
+	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return stacktrace.Propagate(err, "Error reading the RPC call response body")
+	}
+	bodyString := string(bodyBytes)
+	logrus.Tracef("Response for RPC call %v: %v", requestBody, bodyString)
+
+	json.Unmarshal(bodyBytes, targetStruct)
+	if err := json.Unmarshal(bodyBytes, targetStruct); err != nil {
+		return stacktrace.Propagate(err, "Error JSON-parsing Geth node RPC response string '%v' into a struct", bodyString)
+	}
+	return nil
 }
