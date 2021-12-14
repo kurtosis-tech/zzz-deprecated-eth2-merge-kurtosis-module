@@ -11,7 +11,7 @@ import (
 
 const (
 	serviceId services.ServiceID = "geth-el-client"
-	imageName = "parithoshj/geth:merge-dd90624"
+	imageName = "kurtosistech/go-ethereum:d99ac5a7d"
 
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
@@ -94,7 +94,7 @@ func getGethELContainerConfigSupplier(genesisJsonOnModuleContainerFilepath strin
 			"--allow-insecure-unlock",
 			"--nat=extip:" + externalIpAddress,
 			"--bootnodes=" + strings.Join(bootnodeEnodes, ","),
-			"--verbosity=5",
+			"--verbosity=3",
 		}
 		commandStr := strings.Join(commandArgs, " ")
 
