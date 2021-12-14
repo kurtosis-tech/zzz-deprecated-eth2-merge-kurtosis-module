@@ -1,4 +1,4 @@
-package geth_el_client
+package geth_el_client_launcher
 
 import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
@@ -28,6 +28,8 @@ const (
 
 	// The dirpath of the execution data directory on the client container
 	executionDataDirpathOnClientContainer = "/execution-data"
+
+	getNodeEnrCommandSuccessExitCode = 0
 )
 var usedPorts = map[string]*services.PortSpec{
 	RpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
@@ -36,23 +38,50 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
 var entrypointArgs = []string{"sh", "-c"}
-
-func LaunchGethELClient(
-	enclaveCtx *enclaves.EnclaveContext,
-	genesisJsonFilepath string,
-	networkId string,
-	externalIpAddress string,
-	bootnodeEnodes []string,
-) (*services.ServiceContext, error) {
-	containerConfigSupplier := getGethELContainerConfigSupplier(genesisJsonFilepath, networkId, externalIpAddress, bootnodeEnodes)
-	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
-	}
-	return serviceCtx, nil
+var getNodeEnrCmd = []string{
+	"geth",
+	"attach",
+	executionDataDirpathOnClientContainer + "/geth.ipc",
+	"--exec",
+	"admin.nodeInfo.enr",
 }
 
-func getGethELContainerConfigSupplier(genesisJsonOnModuleContainerFilepath string, networkId string, externalIpAddress string, bootnodeEnodes []string) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
+type GethELClientLauncher struct {}
+
+func NewGethELClientLauncher() *GethELClientLauncher {
+	return &GethELClientLauncher{}
+}
+
+func (launcher *GethELClientLauncher) LaunchBootNode(enclaveCtx *enclaves.EnclaveContext, networkId string, genesisJsonFilepathOnModuleContainer string) (*services.ServiceContext, string, error) {
+	containerConfigSupplier := getGethELContainerConfigSupplier(genesisJsonFilepathOnModuleContainer, networkId)
+	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	if err != nil {
+		return nil, "", stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
+	}
+
+	exitCode, output, err := serviceCtx.ExecCommand(getNodeEnrCmd)
+	if err != nil {
+		return nil, "", stacktrace.Propagate(
+			err,
+			"An error occurred running command '%v' to get the node's ENR",
+			strings.Join(getNodeEnrCmd, " "),
+		)
+	}
+	if exitCode != getNodeEnrCommandSuccessExitCode {
+		return nil, "", stacktrace.NewError(
+			"Command '%v' to get the node's ENR returned non-%v exit code %v and output logs: %v",
+			strings.Join(getNodeEnrCmd, " "),
+			getNodeEnrCommandSuccessExitCode,
+			exitCode,
+			output,
+		)
+	}
+	nodeEnr := output
+
+	return serviceCtx, nodeEnr, nil
+}
+
+func getGethELContainerConfigSupplier(genesisJsonOnModuleContainerFilepath string, networkId string) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		genesisJsonOnModuleContainerSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
 
@@ -87,13 +116,13 @@ func getGethELContainerConfigSupplier(genesisJsonOnModuleContainerFilepath strin
 			"--networkid=" + networkId,
 			"--catalyst",
 			"--http",
-			"--http.addr=0.0.0.0",
+			"--http.addr=" + privateIpAddr,
 			"--http.api=engine,net,eth",
 			"--ws",
 			"--ws.api=engine,net,eth",
 			"--allow-insecure-unlock",
-			"--nat=extip:" + externalIpAddress,
-			"--bootnodes=" + strings.Join(bootnodeEnodes, ","),
+			"--nat=extip:" + privateIpAddr,
+			// "--bootnodes=" + strings.Join(bootnodeEnodes, ","),
 			"--verbosity=3",
 		}
 		commandStr := strings.Join(commandArgs, " ")

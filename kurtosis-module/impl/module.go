@@ -1,8 +1,8 @@
 package impl
 
 import (
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/geth_el_client"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/lighthouse_cl_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/geth_el_client_launcher"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
 )
@@ -10,8 +10,11 @@ import (
 const (
 	consensusConfigDataDirpathOnModuleContainer = "/static-files/consensus_config_data"
 
+	// genesisJsonFilepath = "/static-files/merge-devnet3-genesis.json"
 	genesisJsonFilepath = "/static-files/genesis.json"
-	networkId = "1337602"
+	// networkId = "1337602" // The merge-devnet IP address
+	networkId = "3151908"
+
 	// externalIpAddress = "189.216.206.108"
 	externalIpAddress = "185.247.70.125"
 	bootnodeEnr = "enr:-Iq4QKuNB_wHmWon7hv5HntHiSsyE1a6cUTK1aT7xDSU_hNTLW3R4mowUboCsqYoh1kN9v3ZoSu_WuvW9Aw0tQ0Dxv6GAXxQ7Nv5gmlkgnY0gmlwhLKAlv6Jc2VjcDI1NmsxoQK6S-Cii_KmfFdUJL2TANL3ksaKUnNXvTCv1tLwXs0QgIN1ZHCCIyk"
@@ -31,6 +34,18 @@ func NewExampleExecutableKurtosisModule() *ExampleExecutableKurtosisModule {
 }
 
 func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
+	elNetwork := el_client_network.NewExecutionLayerNetwork(
+		enclaveCtx,
+		networkId,
+		genesisJsonFilepath,
+		geth_el_client_launcher.NewGethELClientLauncher(),
+	)
+
+	if err := elNetwork.AddNode(); err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred adding the first EL client node")
+	}
+
+	/*
 	gethElClientServiceCtx, err := geth_el_client.LaunchGethELClient(
 		enclaveCtx,
 		genesisJsonFilepath,
@@ -59,6 +74,8 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the Lighthouse CL client")
 	}
+
+	 */
 
 	return "{}", nil
 }
