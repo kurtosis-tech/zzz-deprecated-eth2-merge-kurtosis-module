@@ -10,7 +10,6 @@ import (
 
 const (
 	serviceId services.ServiceID = "lighthouse-cl-client"
-	// imageName = "sigp/lighthouse:kintsugi"
 	imageName = "sigp/lighthouse:latest-unstable"
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
@@ -83,18 +82,22 @@ func getContainerConfigSupplier(
 		}
 
 		configDataDirpathOnService := configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer()
+		// NOTE: We DON'T want the following flags; when they're not set, the node's external IP address is auto-detected
+		//  from the peers it communicates with but when they're set they basically say "override the autodetection and
+		//  use what I specify instead." This requires having a know external IP address and port, which we definitely won't
+		//  have with a network running in Kurtosis.
+		//    "--disable-enr-auto-update",
+		//    "--enr-address=" + externalIpAddress,
+		//    "--enr-udp-port",
+		//    fmt.Sprintf("%v", enrPortNum),
+		//    "--enr-tcp-port",
+		//    fmt.Sprintf("%v", enrPortNum),
 		cmdArgs := []string{
 			"lighthouse",
 			"--debug-level=info",
 			"--datadir=" + consensusDataDirpathOnServiceContainer,
 			"--testnet-dir=" + configDataDirpathOnService,
 			"bn",
-			// "--disable-enr-auto-update",
-			// "--enr-address=" + externalIpAddress,
-			// "--enr-udp-port",
-			// fmt.Sprintf("%v", enrPortNum), 	// TODO What is this??
-			// "--enr-tcp-port",
-			// fmt.Sprintf("%v", enrPortNum), 	// TODO What is this??
 			"--eth1",
 			"--boot-nodes=" + bootNodeEnr,
 			"--http",

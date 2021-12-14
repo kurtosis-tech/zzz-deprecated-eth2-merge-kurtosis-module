@@ -11,8 +11,7 @@ import (
 
 const (
 	serviceId services.ServiceID = "geth-el-client"
-	// imageName = "parithoshj/geth:merge-dd90624"
-	imageName = "eth2-geth"
+	imageName = "kurtosistech/go-ethereum:d99ac5a7d"
 
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
