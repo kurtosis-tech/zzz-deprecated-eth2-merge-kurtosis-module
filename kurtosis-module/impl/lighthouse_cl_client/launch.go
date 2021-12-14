@@ -89,12 +89,12 @@ func getContainerConfigSupplier(
 			"--datadir=" + consensusDataDirpathOnServiceContainer,
 			"--testnet-dir=" + configDataDirpathOnService,
 			"bn",
-			"--disable-enr-auto-update",
-			"--enr-address=" + externalIpAddress,
-			"--enr-udp-port",
-			fmt.Sprintf("%v", enrPortNum), 	// TODO What is this??
-			"--enr-tcp-port",
-			fmt.Sprintf("%v", enrPortNum), 	// TODO What is this??
+			// "--disable-enr-auto-update",
+			// "--enr-address=" + externalIpAddress,
+			// "--enr-udp-port",
+			// fmt.Sprintf("%v", enrPortNum), 	// TODO What is this??
+			// "--enr-tcp-port",
+			// fmt.Sprintf("%v", enrPortNum), 	// TODO What is this??
 			"--eth1",
 			"--boot-nodes=" + bootNodeEnr,
 			"--http",
