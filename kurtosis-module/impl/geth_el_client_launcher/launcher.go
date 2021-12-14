@@ -30,6 +30,11 @@ const (
 	tcpDiscoveryPortId = "tcp-discovery"
 	udpDiscoveryPortId = "udp-discovery"
 
+	// NOTE: This can't be 0x00000....000
+	// See: https://github.com/ethereum/go-ethereum/issues/19547
+	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
+	numMiningThreads = 3
+
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
 	sharedGenesisJsonRelFilepath = "genesis.json"
 
@@ -163,11 +168,14 @@ func getContainerConfigSupplier(
 			genesisJsonOnModuleContainerSharedPath.GetAbsPathOnServiceContainer(),
 			"&&",
 			"geth",
+			"--mine",
+			"--miner.etherbase=" + miningRewardsAccount,
+			fmt.Sprintf("--miner.threads=%v", numMiningThreads),
 			"--datadir="  + executionDataDirpathOnClientContainer,
 			"--networkid=" + networkId,
 			"--catalyst",
 			"--http",
-			"--http.addr=" + privateIpAddr,
+			"--http.addr=0.0.0.0",
 			// WARNING: The admin info endpoint is enabled so that we can easily get ENR/enode, which means
 			//  that users should NOT store private information in these Kurtosis nodes!
 			"--http.api=admin,engine,net,eth",
@@ -200,17 +208,17 @@ func getContainerConfigSupplier(
 	return result
 }
 
-func getNodeInfoWithRetry(privateIpAddr string) (*NodeInfo, error) {
-	nodeInfo := new(NodeInfo)
+func getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
+	getNodeInfoResponse := new(GetNodeInfoResponse)
 	for i := 0; i < getNodeInfoMaxRetries; i++ {
-		if err := sendRpcCall(privateIpAddr, getNodeInfoRpcRequestBody, nodeInfo); err == nil {
-			return nodeInfo, nil
+		if err := sendRpcCall(privateIpAddr, getNodeInfoRpcRequestBody, getNodeInfoResponse); err == nil {
+			return getNodeInfoResponse.Result, nil
 		} else {
 			logrus.Debugf("Getting the node info via RPC failed with error: %v", err)
 		}
 		time.Sleep(getNodeInfoTimeBetweenRetries)
 	}
-	return nil, stacktrace.NewError("Couldn't get the node's info even after %v retries with %v between retries", getNodeInfoMaxRetries, getNodeInfoTimeBetweenRetries)
+	return NodeInfo{}, stacktrace.NewError("Couldn't get the node's info even after %v retries with %v between retries", getNodeInfoMaxRetries, getNodeInfoTimeBetweenRetries)
 }
 
 func sendRpcCall(privateIpAddr string, requestBody string, targetStruct interface{}) error {
