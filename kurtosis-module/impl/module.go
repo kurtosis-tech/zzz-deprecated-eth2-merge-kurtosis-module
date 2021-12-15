@@ -9,6 +9,8 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
+	"path"
+	"text/template"
 
 	// "path"
 	// "text/template"
@@ -18,6 +20,8 @@ const (
 	networkId = "3151908"
 
 	staticFilesDirpath                    = "/static-files"
+	gethGenesisGenerationConfigYmlTemplateFilepath = staticFilesDirpath + "/el/genesis-config.yaml.tmpl"
+	clGenesisGenerationConfigYmlTemplateFilepath = staticFilesDirpath + "/cl/config.yaml.tmpl"
 	nethermindGenesisJsonTemplateFilepath = staticFilesDirpath + "/nethermind-genesis.json.tmpl"
 
 	totalTerminalDifficulty         = 60000000 //This value is the one that the genesis generator creates in the genesis file
@@ -43,7 +47,20 @@ func NewExampleExecutableKurtosisModule() *ExampleExecutableKurtosisModule {
 
 func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
 	logrus.Info("Generating genesis information for EL & CL clients...")
-	_, gethGenesisJsonFilepath, clClientConfigDataDirpath, err := ethereum_genesis_generator.LaunchEthereumGenesisGenerator(enclaveCtx)
+	gethGenesisConfigTemplate, err := parseTemplate(gethGenesisGenerationConfigYmlTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing the Geth genesis generation config YAML template")
+	}
+	clGenesisConfigTemplate, err := parseTemplate(clGenesisGenerationConfigYmlTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing the CL genesis generation config YAML template")
+	}
+	gethGenesisJsonFilepath, clClientConfigDataDirpath, err := ethereum_genesis_generator.GenerateELAndCLGenesisConfig(
+		enclaveCtx,
+		gethGenesisConfigTemplate,
+		clGenesisConfigTemplate,
+		networkId,
+	)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis generator Service")
 	}
@@ -137,3 +154,16 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	return "{}", nil
 }
 
+func parseTemplate(filepath string) (*template.Template, error) {
+	tmpl, err := template.New(
+		// For some reason, the template name has to match the basename of the file:
+		//  https://stackoverflow.com/questions/49043292/error-template-is-an-incomplete-or-empty-template
+		path.Base(filepath),
+	).Parse(
+		filepath,
+	)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred parsing template file '%v'", filepath)
+	}
+	return tmpl, nil
+}

@@ -69,9 +69,9 @@ type clGenesisConfigTemplateData struct {
 
 func GenerateELAndCLGenesisConfig(
 	enclaveCtx *enclaves.EnclaveContext,
-	elGenesisConfigYmlTemplate template.Template,
-	clGenesisConfigYmlTemplate template.Template,
-	networkId uint32,
+	elGenesisConfigYmlTemplate *template.Template,
+	clGenesisConfigYmlTemplate *template.Template,
+	networkId string,
 ) (
 	resultGethELGenesisJSONFilepath string,
 	resultCLConfigDataDirpath string,
@@ -126,15 +126,15 @@ func GenerateELAndCLGenesisConfig(
 }
 
 func getContainerConfigSupplier(
-	gethGenesisConfigYmlTemplate template.Template,
-	clGenesisConfigYmlTemplate template.Template,
-	networkId uint32,
+	gethGenesisConfigYmlTemplate *template.Template,
+	clGenesisConfigYmlTemplate *template.Template,
+	networkId string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	elTemplateData := elGenesisConfigTemplateData{
-		NetworkId: fmt.Sprintf("%v", networkId),
+		NetworkId: networkId,
 	}
 	clTemplateData := clGenesisConfigTemplateData{
-		NetworkId: fmt.Sprintf("%v", networkId),
+		NetworkId: networkId,
 	}
 
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
