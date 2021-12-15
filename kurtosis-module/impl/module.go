@@ -8,6 +8,8 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/ethereum_genesis_generator"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
+	"github.com/sirupsen/logrus"
+
 	// "path"
 	// "text/template"
 )
@@ -40,10 +42,12 @@ func NewExampleExecutableKurtosisModule() *ExampleExecutableKurtosisModule {
 }
 
 func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
+	logrus.Info("Generating genesis information for EL & CL clients...")
 	_, gethGenesisJsonFilepath, clClientConfigDataDirpath, err := ethereum_genesis_generator.LaunchEthereumGenesisGenerator(enclaveCtx)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis generator Service")
 	}
+	logrus.Info("Successfully generated genesis information for EL & CL clients")
 
 	// TODO Nethermind template-filling here
 	/*
@@ -60,6 +64,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	}
 	 */
 
+	logrus.Info("Launching a network of EL clients...")
 	gethClientLauncher := geth.NewGethELClientLauncher(gethGenesisJsonFilepath)
 	elNetwork := el_client_network.NewExecutionLayerNetwork(
 		enclaveCtx,
@@ -76,7 +81,9 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		}
 		allElClientContexts = append(allElClientContexts, elClientCtx)
 	}
+	logrus.Info("Successfully launched a network of EL clients")
 
+	logrus.Info("Launching a network of CL clients...")
 	lighthouseClientLauncher := lighthouse.NewLighthouseCLClientLauncher(clClientConfigDataDirpath)
 	clNetwork := cl_client_network.NewConsensusLayerNetwork(
 		enclaveCtx,
@@ -92,6 +99,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		}
 
 	}
+	logrus.Info("Successfully launched a network of CL clients")
 
 
 	/*
