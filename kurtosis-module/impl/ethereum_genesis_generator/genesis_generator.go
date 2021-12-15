@@ -18,9 +18,9 @@ const (
 	webserverPortId            = "webserver"
 	webserverPortNumber uint16 = 8000
 
-	waitForStartupTimeBetweenPolls = 100
-	waitForStartupMaxPolls         = 1000
-	waitInitialDelayMilliseconds   = 1500
+	waitForStartupMillisBetweenPolls = 1000
+	waitForStartupMaxPolls           = 10
+	waitInitialDelayMilliseconds     = 1500
 
 	healthCheckUrlSlug = ""
 	healthyValue       = ""
@@ -88,7 +88,7 @@ func GenerateELAndCLGenesisConfig(
 	}
 
 	//We wait for the web-service to be available as an indicator that the files were generated
-	err = enclaveCtx.WaitForHttpGetEndpointAvailability(serviceId, uint32(webserverPortNumber), healthCheckUrlSlug, waitInitialDelayMilliseconds, waitForStartupMaxPolls, waitForStartupTimeBetweenPolls, healthyValue)
+	err = enclaveCtx.WaitForHttpGetEndpointAvailability(serviceId, uint32(webserverPortNumber), healthCheckUrlSlug, waitInitialDelayMilliseconds, waitForStartupMaxPolls, waitForStartupMillisBetweenPolls, healthyValue)
 	if err != nil {
 		return "", "", stacktrace.Propagate(err, "An error occurred checking service availability")
 	}

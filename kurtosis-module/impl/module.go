@@ -159,7 +159,7 @@ func parseTemplate(filepath string) (*template.Template, error) {
 		// For some reason, the template name has to match the basename of the file:
 		//  https://stackoverflow.com/questions/49043292/error-template-is-an-incomplete-or-empty-template
 		path.Base(filepath),
-	).Parse(
+	).ParseFiles(
 		filepath,
 	)
 	if err != nil {
