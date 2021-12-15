@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	//imageName                    = "skylenet/ethereum-genesis-generator:latest"
-	imageName                    = "genesis-generator:latest"  //TODO replace this image for a custom image from kurtosis docker hub
+	imageName                    = "kurtosistech/ethereum-genesis-generator"
 	serviceId services.ServiceID = "eth-genesis-generator"
 
 	webserverPortId            = "webserver"

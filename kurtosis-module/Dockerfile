@@ -27,6 +27,9 @@ WORKDIR /run
 # Copy the code into the container
 COPY --from=builder /build/kurtosis-module.bin .
 
+# Copy local static files inside the Kurtosis module image
+COPY kurtosis-module/static_files /static-files
+
 # Execute module
 CMD ./kurtosis-module.bin
 
