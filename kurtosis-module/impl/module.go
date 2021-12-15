@@ -2,15 +2,21 @@ package impl
 
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
-	geth_el_client_launcher2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network/geth_el_client_launcher"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/ethereum_genesis_generator"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
+	// "path"
+	// "text/template"
 )
 
 const (
 	// networkId = "1337602" // The merge-devnet IP address
 	networkId = "3151908"
+
+	staticFilesDirpath                    = "/static-files"
+	nethermindGenesisJsonTemplateFilepath = staticFilesDirpath + "/nethermind-genesis.json.tmpl"
+
 	externalIpAddress = "185.247.70.125"
 	bootnodeEnr = "enr:-Iq4QKuNB_wHmWon7hv5HntHiSsyE1a6cUTK1aT7xDSU_hNTLW3R4mowUboCsqYoh1kN9v3ZoSu_WuvW9Aw0tQ0Dxv6GAXxQ7Nv5gmlkgnY0gmlwhLKAlv6Jc2VjcDI1NmsxoQK6S-Cii_KmfFdUJL2TANL3ksaKUnNXvTCv1tLwXs0QgIN1ZHCCIyk"
 	totalTerminalDifficulty = 60000000 //This value is the one that the genesis generator creates in the genesis file
@@ -34,18 +40,31 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		return "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis generator Service")
 	}
 
+	// TODO Nethermind template-filling here
+	/*
+	tmpl, err := template.New(templateFilename).ParseFiles(templateFilepath)
+	template.New(
+		// For some reason, the template name has to match the basename of the file:
+		//  https://stackoverflow.com/questions/49043292/error-template-is-an-incomplete-or-empty-template
+		path.Base(nethermindGenesisJsonTemplateFilepath),
+	).Parse(
+		gethGenesisJsonFilepath,
+	)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis JSON template file '%v'", nethermindGenesisJsonTemplateFilepath)
+	}
+	 */
+
+	gethClientLauncher := geth.NewGethELClientLauncher(gethGenesisJsonFilepath)
 	elNetwork := el_client_network.NewExecutionLayerNetwork(
 		enclaveCtx,
 		networkId,
-		gethGenesisJsonFilepath,
-		geth_el_client_launcher2.NewGethELClientLauncher(),
+		gethClientLauncher,
 	)
 
-	// TODO Make this dynamic
-	for i := 0; i < 3; i++ {
-		if err := elNetwork.AddNode(); err != nil {
-			return "", stacktrace.Propagate(err, "An error occurred adding EL client node %v", i)
-		}
+	// TODO Make the number of nodes a dynamic argument
+	if err := elNetwork.AddNode(); err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred adding the EL client node")
 	}
 
 	/*

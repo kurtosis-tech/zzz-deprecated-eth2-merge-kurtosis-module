@@ -17,7 +17,6 @@ const (
 type ExecutionLayerNetwork struct {
 	enclaveCtx *enclaves.EnclaveContext
 	networkId string
-	genesisJsonFilepathOnModuleContainer string
 
 	// TODO refactor to have an ID so we can launch different clients
 	elClientLauncher ExecutionLayerClientLauncher
@@ -27,11 +26,10 @@ type ExecutionLayerNetwork struct {
 	mutex         *sync.Mutex
 }
 
-func NewExecutionLayerNetwork(enclaveCtx *enclaves.EnclaveContext, networkId string, genesisJsonFilepathOnModuleContainer string, elClientLauncher ExecutionLayerClientLauncher) *ExecutionLayerNetwork {
+func NewExecutionLayerNetwork(enclaveCtx *enclaves.EnclaveContext, networkId string, elClientLauncher ExecutionLayerClientLauncher) *ExecutionLayerNetwork {
 	return &ExecutionLayerNetwork{
 		enclaveCtx:                           enclaveCtx,
 		networkId:                            networkId,
-		genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer,
 		elClientLauncher:                     elClientLauncher,
 		nodeClientCtx:                        map[uint32]*ExecutionLayerClientContext{},
 		nextNodeIndex:                        bootnodeNodeIndex,
@@ -48,7 +46,11 @@ func (network *ExecutionLayerNetwork) AddNode() error {
 	var newClientCtx *ExecutionLayerClientContext
 	var nodeLaunchErr error
 	if network.nextNodeIndex == bootnodeNodeIndex {
-		newClientCtx, nodeLaunchErr = network.elClientLauncher.LaunchBootNode(network.enclaveCtx, serviceId, network.networkId, network.genesisJsonFilepathOnModuleContainer)
+		newClientCtx, nodeLaunchErr = network.elClientLauncher.LaunchBootNode(
+			network.enclaveCtx,
+			serviceId,
+			network.networkId,
+		)
 	} else {
 		bootnodeClientCtx, found := network.nodeClientCtx[bootnodeNodeIndex]
 		if !found {
@@ -58,7 +60,6 @@ func (network *ExecutionLayerNetwork) AddNode() error {
 			network.enclaveCtx,
 			serviceId,
 			network.networkId,
-			network.genesisJsonFilepathOnModuleContainer,
 			bootnodeClientCtx.GetEnode(),
 		)
 	}

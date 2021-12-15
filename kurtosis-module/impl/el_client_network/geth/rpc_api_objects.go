@@ -1,4 +1,4 @@
-package geth_el_client_launcher
+package geth
 
 type GetNodeInfoResponse struct {
 	Result NodeInfo `json:"result"`

@@ -1,4 +1,4 @@
-package geth_el_client_launcher
+package geth
 
 import (
 	"bytes"
@@ -60,22 +60,23 @@ var usedPorts = map[string]*services.PortSpec{
 }
 var entrypointArgs = []string{"sh", "-c"}
 
-type GethELClientLauncher struct {}
+type GethELClientLauncher struct {
+	genesisJsonFilepathOnModuleContainer string
+}
 
-func NewGethELClientLauncher() *GethELClientLauncher {
-	return &GethELClientLauncher{}
+func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string) *GethELClientLauncher {
+	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer}
 }
 
 func (launcher *GethELClientLauncher) LaunchBootNode(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	networkId string,
-	genesisJsonFilepathOnModuleContainer string,
 ) (
 	resultClientCtx *el_client_network.ExecutionLayerClientContext,
 	resultErr error,
 ) {
-	clientCtx, err := launchNode(enclaveCtx, serviceId, networkId, genesisJsonFilepathOnModuleContainer, bootnodeEnodeStrForStartingBootnode)
+	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, networkId, bootnodeEnodeStrForStartingBootnode)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred starting boot node with service ID '%v'", serviceId)
 	}
@@ -86,13 +87,12 @@ func (launcher *GethELClientLauncher) LaunchChildNode(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	networkId string,
-	genesisJsonFilepathOnModuleContainer string,
 	bootnodeEnode string,
 ) (
 	resultClientCtx *el_client_network.ExecutionLayerClientContext,
 	resultErr error,
 ) {
-	clientCtx, err := launchNode(enclaveCtx, serviceId, networkId, genesisJsonFilepathOnModuleContainer, bootnodeEnode)
+	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, networkId, bootnodeEnode)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred starting child node with service ID '%v' connected to boot node with enode '%v'", serviceId, bootnodeEnode)
 	}
@@ -103,17 +103,16 @@ func (launcher *GethELClientLauncher) LaunchChildNode(
 // ====================================================================================================
 //                                       Private Helper Methods
 // ====================================================================================================
-func launchNode(
+func (launcher *GethELClientLauncher) launchNode(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	networkId string,
-	genesisJsonFilepathOnModuleContainer string,
 	bootnodeEnode string, // NOTE: If this is emptystring, the node will be launched as a bootnode
 ) (
 	resultClientCtx *el_client_network.ExecutionLayerClientContext,
 	resultErr error,
 ) {
-	containerConfigSupplier := getContainerConfigSupplier(genesisJsonFilepathOnModuleContainer, networkId, bootnodeEnode)
+	containerConfigSupplier := launcher.getContainerConfigSupplier(networkId, bootnodeEnode)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
@@ -133,17 +132,16 @@ func launchNode(
 	return result, nil
 }
 
-func getContainerConfigSupplier(
-	genesisJsonOnModuleContainerFilepath string,
+func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	networkId string,
 	bootnodeEnode string, // NOTE: If this is emptystring, the node will be configured as a bootnode
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		genesisJsonOnModuleContainerSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
 
-		srcFp, err := os.Open(genesisJsonOnModuleContainerFilepath)
+		srcFp, err := os.Open(launcher.genesisJsonFilepathOnModuleContainer)
 		if err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred opening the genesis JSON file '%v' on the module container", genesisJsonOnModuleContainerFilepath)
+			return nil, stacktrace.Propagate(err, "An error occurred opening the genesis JSON file '%v' on the module container", launcher.genesisJsonFilepathOnModuleContainer)
 		}
 
 		destFilepath := genesisJsonOnModuleContainerSharedPath.GetAbsPathOnThisContainer()
@@ -156,7 +154,7 @@ func getContainerConfigSupplier(
 			return nil, stacktrace.Propagate(
 				err,
 				"An error occurred copying the genesis file from the module container '%v' to the shared directory of the client container '%v'",
-				genesisJsonOnModuleContainerFilepath,
+				launcher.genesisJsonFilepathOnModuleContainer,
 				destFilepath,
 			)
 		}
