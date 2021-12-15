@@ -2,8 +2,8 @@ package impl
 
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
+	geth_el_client_launcher2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network/geth_el_client_launcher"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/ethereum_genesis_generator"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/geth_el_client_launcher"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
 )
@@ -38,7 +38,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		enclaveCtx,
 		networkId,
 		gethGenesisJsonFilepath,
-		geth_el_client_launcher.NewGethELClientLauncher(),
+		geth_el_client_launcher2.NewGethELClientLauncher(),
 	)
 
 	// TODO Make this dynamic

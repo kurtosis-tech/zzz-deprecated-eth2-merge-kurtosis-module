@@ -1,7 +1,7 @@
 package geth_el_client_launcher
 
 type GetNodeInfoResponse struct {
-	Result NodeInfo	`json:"result"`
+	Result NodeInfo `json:"result"`
 }
 
 type NodeInfo struct {

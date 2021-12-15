@@ -28,7 +28,7 @@ const (
 var usedPorts = map[string]*services.PortSpec{
 	enrTcpPortID: services.NewPortSpec(enrPortNum, services.PortProtocol_TCP),
 	enrUdpPortID: services.NewPortSpec(enrPortNum, services.PortProtocol_UDP),
-	httpPortID: services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
+	httpPortID:   services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 }
 
 func LaunchLighthouseCLClient(
