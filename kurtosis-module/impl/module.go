@@ -1,5 +1,4 @@
 package impl
-
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/lighthouse"
@@ -20,8 +19,9 @@ const (
 	networkId = "3151908"
 
 	staticFilesDirpath                    = "/static-files"
-	gethGenesisGenerationConfigYmlTemplateFilepath = staticFilesDirpath + "/el/genesis-config.yaml.tmpl"
-	clGenesisGenerationConfigYmlTemplateFilepath = staticFilesDirpath + "/cl/config.yaml.tmpl"
+	genesisGenerationConfigDirpath = staticFilesDirpath + "/genesis-generation-config"
+	gethGenesisGenerationConfigYmlTemplateFilepath = genesisGenerationConfigDirpath + "/el/genesis-config.yaml.tmpl"
+	clGenesisGenerationConfigYmlTemplateFilepath = genesisGenerationConfigDirpath + "/cl/config.yaml.tmpl"
 	nethermindGenesisJsonTemplateFilepath = staticFilesDirpath + "/nethermind-genesis.json.tmpl"
 
 	totalTerminalDifficulty         = 60000000 //This value is the one that the genesis generator creates in the genesis file
