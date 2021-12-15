@@ -2,24 +2,28 @@ package el_client_network
 
 import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
+	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 )
 
-type ExecutionLayerClientLauncher struct {
-	enclaveCtx *enclaves.EnclaveContext
-	networkId string
-	genesisJsonFilepathOnModuleContainer string
+type ExecutionLayerClientLauncher interface {
+	LaunchBootNode(
+		enclaveCtx *enclaves.EnclaveContext,
+		serviceId services.ServiceID,
+		networkId string,
+		genesisJsonFilepathOnModuleContainer string,
+	) (
+		resultClientCtx *ExecutionLayerClientContext,
+		resultErr error,
+	)
+
+	LaunchChildNode(
+		enclaveCtx *enclaves.EnclaveContext,
+		serviceId services.ServiceID,
+		networkId string,
+		genesisJsonFilepathOnModuleContainer string,
+		bootnodeEnode string,
+	) (
+		resultClientCtx *ExecutionLayerClientContext,
+		resultErr error,
+	)
 }
-
-// TODO constructor
-
-/*
-func (launcher *ExecutionLayerClientLauncher) LaunchBootNode() (
-	*services.ServiceContext,
-	error,
-) {
-
-
-}
-
-
- */
