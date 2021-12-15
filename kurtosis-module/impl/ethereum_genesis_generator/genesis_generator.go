@@ -4,6 +4,7 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	"github.com/sirupsen/logrus"
 	"os"
 	"path"
 	"strings"
@@ -13,24 +14,6 @@ import (
 const (
 	imageName                    = "kurtosistech/ethereum-genesis-generator"
 	serviceId services.ServiceID = "eth-genesis-generator"
-
-	webserverPortId            = "webserver"
-	webserverPortNumber uint16 = 8000
-
-	waitForStartupMillisBetweenPolls = 1000
-	waitForStartupMaxPolls           = 10
-	waitInitialDelayMilliseconds     = 1500
-
-	healthCheckUrlSlug = ""
-	healthyValue       = ""
-
-	successExitCode int32 = 0
-
-	consensusConfigDataDirname = "data"
-
-	executionLayerDirname = "el"
-	consensusLayerDirname = "cl"
-	gethGenesisJsonFilename = "geth.json"
 
 	// The filepaths, relative to shared dir root, where we're going to put EL & CL config
 	// (and then copy them into the expected locations on image start)
@@ -62,20 +45,18 @@ const (
 	// Paths, *relative to the root of the output genesis data directory, where the generator writes data
 	outputGethGenesisConfigRelFilepath = "el/geth.json"
 	outputClGenesisConfigRelDirpath = "cl"
+
+	containerStopTimeoutSeconds = 3
 )
-// We run the genesis generation as an exec command instead
+// We run the genesis generation as an exec command instead, so that we get immediate feedback if it fails
 var entrypoingArgs = []string{
 	"sleep",
 	"99999",
-}
-var usedPorts = map[string]*services.PortSpec{
-	webserverPortId: services.NewPortSpec(webserverPortNumber, services.PortProtocol_TCP),
 }
 
 type elGenesisConfigTemplateData struct {
 	NetworkId string
 }
-
 type clGenesisConfigTemplateData struct {
 	NetworkId string
 }
@@ -98,6 +79,14 @@ func GenerateELAndCLGenesisConfig(
 	gethGenesisJsonFilepath, clGenesisDataDirpath, err := generateGenesisData(serviceCtx, networkId, elGenesisConfigYmlTemplate, clGenesisConfigYmlTemplate)
 	if err != nil {
 		return "", "", stacktrace.Propagate(err, "An error occurred generating genesis data")
+	}
+
+	if err := enclaveCtx.RemoveService(serviceId, containerStopTimeoutSeconds); err != nil {
+		logrus.Errorf(
+			"An error occurred stopping the genesis generation service with ID '%v' and timeout '%vs'; you'll need to stop it manually",
+			serviceId,
+			containerStopTimeoutSeconds,
+		)
 	}
 
 	return gethGenesisJsonFilepath, clGenesisDataDirpath, nil
