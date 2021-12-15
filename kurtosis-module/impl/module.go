@@ -2,23 +2,18 @@ package impl
 
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/ethereum_genesis_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/geth_el_client_launcher"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
 )
 
 const (
-	consensusConfigDataDirpathOnModuleContainer = "/static-files/consensus_config_data"
-
-	// genesisJsonFilepath = "/static-files/merge-devnet3-genesis.json"
-	genesisJsonFilepath = "/static-files/genesis.json"
 	// networkId = "1337602" // The merge-devnet IP address
 	networkId = "3151908"
-
-	// externalIpAddress = "189.216.206.108"
 	externalIpAddress = "185.247.70.125"
 	bootnodeEnr = "enr:-Iq4QKuNB_wHmWon7hv5HntHiSsyE1a6cUTK1aT7xDSU_hNTLW3R4mowUboCsqYoh1kN9v3ZoSu_WuvW9Aw0tQ0Dxv6GAXxQ7Nv5gmlkgnY0gmlwhLKAlv6Jc2VjcDI1NmsxoQK6S-Cii_KmfFdUJL2TANL3ksaKUnNXvTCv1tLwXs0QgIN1ZHCCIyk"
-	totalTerminalDifficulty = 5000000000
+	totalTerminalDifficulty = 60000000 //This value is the one that the genesis generator creates in the genesis file
 )
 var bootnodeEnodes = []string{
 	"enode://6b457d42e6301acfae11dc785b43346e195ad0974b394922b842adea5aeb4c55b02410607ba21e4a03ba53e7656091e2f990034ce3f8bad4d0cca1c6398bdbb8@137.184.55.117:30303",
@@ -34,10 +29,15 @@ func NewExampleExecutableKurtosisModule() *ExampleExecutableKurtosisModule {
 }
 
 func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
+	_, gethGenesisJsonFilepath, _, err := ethereum_genesis_generator.LaunchEthereumGenesisGenerator(enclaveCtx)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis generator Service")
+	}
+
 	elNetwork := el_client_network.NewExecutionLayerNetwork(
 		enclaveCtx,
 		networkId,
-		genesisJsonFilepath,
+		gethGenesisJsonFilepath,
 		geth_el_client_launcher.NewGethELClientLauncher(),
 	)
 
@@ -51,7 +51,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	/*
 	gethElClientServiceCtx, err := geth_el_client.LaunchGethELClient(
 		enclaveCtx,
-		genesisJsonFilepath,
+		gethGenesisJsonFilepath,
 		networkId,
 		externalIpAddress,
 		bootnodeEnodes,
