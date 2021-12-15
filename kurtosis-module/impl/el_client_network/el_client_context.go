@@ -6,10 +6,11 @@ type ExecutionLayerClientContext struct {
 	serviceCtx *services.ServiceContext
 	enr string
 	enode string
+	rpcPortId string
 }
 
-func NewExecutionLayerClientContext(serviceCtx *services.ServiceContext, enr string, enode string) *ExecutionLayerClientContext {
-	return &ExecutionLayerClientContext{serviceCtx: serviceCtx, enr: enr, enode: enode}
+func NewExecutionLayerClientContext(serviceCtx *services.ServiceContext, enr string, enode string, rpcPortId string) *ExecutionLayerClientContext {
+	return &ExecutionLayerClientContext{serviceCtx: serviceCtx, enr: enr, enode: enode, rpcPortId: rpcPortId}
 }
 
 func (ctx *ExecutionLayerClientContext) GetServiceContext() *services.ServiceContext {
@@ -20,4 +21,7 @@ func (ctx *ExecutionLayerClientContext) GetENR() string {
 }
 func (ctx *ExecutionLayerClientContext) GetEnode() string {
 	return ctx.enode
+}
+func (ctx *ExecutionLayerClientContext) GetRPCPortID() string {
+	return ctx.rpcPortId
 }

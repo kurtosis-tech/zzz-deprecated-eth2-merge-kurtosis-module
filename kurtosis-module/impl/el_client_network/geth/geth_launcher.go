@@ -25,7 +25,7 @@ const (
 	discoveryPortNum uint16 = 30303
 
 	// Port IDs
-	RpcPortId          = "rpc"
+	rpcPortId          = "rpc"
 	wsPortId           = "ws"
 	tcpDiscoveryPortId = "tcp-discovery"
 	udpDiscoveryPortId = "udp-discovery"
@@ -49,11 +49,11 @@ const (
 	getNodeInfoMaxRetries = 10
 	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
 
-	// To start a bootnode, we provide this string to the launchNode function
+	// To start a bootnode rather than a child node, we provide this string to the launchNode function
 	bootnodeEnodeStrForStartingBootnode = ""
 )
 var usedPorts = map[string]*services.PortSpec{
-	RpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
+	rpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
 	wsPortId:           services.NewPortSpec(wsPortNum, services.PortProtocol_TCP),
 	tcpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
@@ -78,7 +78,7 @@ func (launcher *GethELClientLauncher) LaunchBootNode(
 ) {
 	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, networkId, bootnodeEnodeStrForStartingBootnode)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred starting boot node with service ID '%v'", serviceId)
+		return nil, stacktrace.Propagate(err, "An error occurred starting boot Geth node with service ID '%v'", serviceId)
 	}
 	return clientCtx, nil
 }
@@ -94,7 +94,7 @@ func (launcher *GethELClientLauncher) LaunchChildNode(
 ) {
 	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, networkId, bootnodeEnode)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred starting child node with service ID '%v' connected to boot node with enode '%v'", serviceId, bootnodeEnode)
+		return nil, stacktrace.Propagate(err, "An error occurred starting child Geth node with service ID '%v' connected to boot node with enode '%v'", serviceId, bootnodeEnode)
 	}
 	return clientCtx, nil
 }
@@ -127,6 +127,7 @@ func (launcher *GethELClientLauncher) launchNode(
 		serviceCtx,
 		nodeInfo.ENR,
 		nodeInfo.Enode,
+		rpcPortId,
 	)
 
 	return result, nil
