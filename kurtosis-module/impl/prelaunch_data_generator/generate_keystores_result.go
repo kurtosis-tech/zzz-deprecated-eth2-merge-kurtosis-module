@@ -1,4 +1,4 @@
-package ethereum_genesis_generator
+package prelaunch_data_generator
 
 import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"

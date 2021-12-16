@@ -1,8 +1,7 @@
-package ethereum_genesis_generator
+package prelaunch_data_generator
 
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
-	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
@@ -12,16 +11,13 @@ import (
 )
 
 const (
-	imageName                    = "kurtosistech/ethereum-genesis-generator"
-	serviceId services.ServiceID = "eth-genesis-generator"
-
 	// The filepaths, relative to shared dir root, where we're going to put EL & CL config
 	// (and then copy them into the expected locations on image start)
 	elGenesisConfigYmlRelFilepathInSharedDir = "el-genesis-config.yml"
 	clGenesisConfigYmlRelFilepathInSharedDir = "cl-genesis-config.yml"
 	clMnemonicsYmlRelFilepathInSharedDir = "cl-mnemonics.yml"
 
-	// The genesis generation image is configured by dropping files into a specific hardcoded location
+	// The genesis generation is configured by dropping files into a specific hardcoded location
 	// These are those locations
 	// See https://github.com/skylenet/ethereum-genesis-generator
 	expectedConfigDirpathOnService     = "/config"
@@ -49,8 +45,6 @@ const (
 	outputClGenesisRelDirpath           = "cl"
 	outputClGenesisConfigYmlRelFilepath = outputClGenesisRelDirpath + "/config.yaml"
 	outputClGenesisSszRelFilepath       = outputClGenesisRelDirpath + "/genesis.ssz"
-
-	containerStopTimeoutSeconds = 3
 )
 // We run the genesis generation as an exec command instead, so that we get immediate feedback if it fails
 var entrypoingArgs = []string{
@@ -72,56 +66,6 @@ type clGenesisConfigTemplateData struct {
 	AltairForkEpoch uint64
 	MergeForkEpoch uint64
 	StakingContractSeedMnemonic string
-}
-
-func GenerateELAndCLGenesisConfig(
-	enclaveCtx *enclaves.EnclaveContext,
-	elGenesisConfigYmlTemplate *template.Template,
-	clGenesisConfigYmlTemplate *template.Template,
-	clMnemonicsYmlTemplate *template.Template,
-	unixTimestamp int64,
-	networkId string,
-	secondsPerSlot uint32,
-	altairForkEpoch uint64,
-	mergeForkEpoch uint64,
-	totalTerminalDifficulty uint64,
-	stakingContractSeedMnemonic string,
-) (
-	resultGethELGenesisJSONFilepath string,
-	resultCLGenesisPaths *CLGenesisPaths,
-	resultErr error,
-) {
-	serviceCtx, err := enclaveCtx.AddService(serviceId, getContainerConfig)
-	if err != nil {
-		return "", nil, stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis-generating container with service ID '%v'", serviceId)
-	}
-
-	gethGenesisJsonFilepath, clGenesisPaths, err := generateGenesisData(
-		serviceCtx,
-		elGenesisConfigYmlTemplate,
-		clGenesisConfigYmlTemplate,
-		clMnemonicsYmlTemplate,
-		unixTimestamp,
-		networkId,
-		secondsPerSlot,
-		altairForkEpoch,
-		mergeForkEpoch,
-		totalTerminalDifficulty,
-		stakingContractSeedMnemonic,
-	)
-	if err != nil {
-		return "", nil, stacktrace.Propagate(err, "An error occurred generating genesis data")
-	}
-
-	if err := enclaveCtx.RemoveService(serviceId, containerStopTimeoutSeconds); err != nil {
-		logrus.Errorf(
-			"An error occurred stopping the genesis generation service with ID '%v' and timeout '%vs'; you'll need to stop it manually",
-			serviceId,
-			containerStopTimeoutSeconds,
-		)
-	}
-
-	return gethGenesisJsonFilepath, clGenesisPaths, nil
 }
 
 func generateGenesisData(

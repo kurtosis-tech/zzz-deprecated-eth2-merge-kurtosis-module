@@ -6,8 +6,8 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/teku"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network/geth"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/ethereum_genesis_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/forkmon"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
@@ -21,6 +21,9 @@ import (
 
 const (
 	networkId = "3151908"
+
+	// The number of validator keys that will be preregistered inside the CL genesis file when it's created
+	numValidatorsToPreregister = 100
 
 	numElNodes = 1
 	numClNodes = 3
@@ -95,11 +98,14 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the CL mnemonics YAML template")
 	}
-	gethGenesisJsonFilepath, clGenesisPaths, err := ethereum_genesis_generator.GenerateELAndCLGenesisConfig(
+	prelaunchData, err := prelaunch_data_generator.GeneratePrelaunchData(
 		enclaveCtx,
 		gethGenesisConfigTemplate,
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
+		preregisteredValidatorKeysMnemonic,
+		numValidatorsToPreregister,
+		numClNodes,
 		genesisUnixTimestamp,
 		networkId,
 		secondsPerSlot,
@@ -129,7 +135,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	 */
 
 	logrus.Info("Launching a network of EL clients...")
-	gethClientLauncher := geth.NewGethELClientLauncher(gethGenesisJsonFilepath)
+	gethClientLauncher := geth.NewGethELClientLauncher(prelaunchData.GethELGenesisJsonFilepathOnModuleContainer)
 	elNetwork := el_client_network.NewExecutionLayerNetwork(
 		enclaveCtx,
 		networkId,
@@ -147,6 +153,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	logrus.Info("Successfully launched a network of EL clients")
 
 	logrus.Info("Launching a network of CL clients...")
+	clGenesisPaths := prelaunchData.CLGenesisPaths
 	// clClientLauncher := lighthouse.NewLighthouseCLClientLauncher(clGenesisPaths.GetParentDirpath())
 	clClientLauncher := teku.NewTekuCLClientLauncher(
 		clGenesisPaths.GetConfigYMLFilepath(),

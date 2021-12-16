@@ -1,4 +1,4 @@
-package ethereum_genesis_generator
+package prelaunch_data_generator
 
 import (
 	"github.com/stretchr/testify/require"

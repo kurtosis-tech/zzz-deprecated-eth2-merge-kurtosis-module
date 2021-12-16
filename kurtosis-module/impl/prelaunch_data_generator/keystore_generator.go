@@ -1,4 +1,4 @@
-package ethereum_genesis_generator
+package prelaunch_data_generator
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ const (
 
 // Generates keystores for the given number of nodes from the given mnemonic, where each keystore contains approximately
 //  num_keys / num_nodes keys
-func GenerateKeystores(
+func generateKeystores(
 	serviceCtx *services.ServiceContext,
 	mnemonic string,
 	numPreregisteredValidators uint32,	// The number of validators that were preregistered during the creation of the CL genesis
@@ -36,7 +36,7 @@ func GenerateKeystores(
 		startIndex := startIndices[i]
 		stopIndex := stopIndices[i]
 
-		nodeKeystoresDirname := fmt.Sprintf("node-%v-keystores")
+		nodeKeystoresDirname := fmt.Sprintf("node-%v-keystores", i)
 		nodeOutputSharedPath := sharedDir.GetChildPath(nodeKeystoresDirname)
 
 		subcommandStr := fmt.Sprintf(
