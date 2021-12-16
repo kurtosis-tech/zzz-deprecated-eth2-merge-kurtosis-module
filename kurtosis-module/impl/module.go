@@ -22,6 +22,7 @@ const (
 	genesisGenerationConfigDirpath = staticFilesDirpath + "/genesis-generation-config"
 	gethGenesisGenerationConfigYmlTemplateFilepath = genesisGenerationConfigDirpath + "/el/genesis-config.yaml.tmpl"
 	clGenesisGenerationConfigYmlTemplateFilepath = genesisGenerationConfigDirpath + "/cl/config.yaml.tmpl"
+	clGenesisGenerationMnemonicsYmlTemplateFilepath = genesisGenerationConfigDirpath + "/cl/mnemonics.yaml.tmpl"
 	nethermindGenesisJsonTemplateFilepath = staticFilesDirpath + "/nethermind-genesis.json.tmpl"
 
 	totalTerminalDifficulty         = 60000000 //This value is the one that the genesis generator creates in the genesis file
@@ -37,6 +38,7 @@ var mergeDevnet3BootnodeEnodes = []string{
 	"enode://46b2ecd18c24463413b7328e9a59c72d955874ad5ddb9cd9659d322bedd2758a6cefb8378e2309a028bd3cdf2beca0b18c3457f03e772f35d0cd06c37ce75eee@137.184.213.208:30303",
 }
  */
+
 
 type ExampleExecutableKurtosisModule struct {
 }
@@ -59,6 +61,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		enclaveCtx,
 		gethGenesisConfigTemplate,
 		clGenesisConfigTemplate,
+		clGenesisGenerationMnemonicsYmlTemplateFilepath,
 		networkId,
 	)
 	if err != nil {
@@ -110,14 +113,13 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	)
 
 	// TODO Make this dynamic
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 3; i++ {
 		if err := clNetwork.AddNode(); err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding CL client node %v", i)
 		}
 
 	}
 	logrus.Info("Successfully launched a network of CL clients")
-
 
 	/*
 	gethElClientServiceCtx, err := geth_el_client.LaunchGethELClient(

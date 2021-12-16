@@ -72,7 +72,7 @@ func (network *ConsensusLayerNetwork) AddNode() error {
 		newClientCtx, nodeLaunchErr = network.clientLauncher.LaunchChildNode(
 			network.enclaveCtx,
 			serviceId,
-			bootnodeClientCtx.GetEnode(),
+			bootnodeClientCtx.GetENR(),
 			elClientRpcSocketStrs,
 			network.totalTerminalDifficulty,
 		)

@@ -3,15 +3,16 @@ package lighthouse
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/cl_client_rest_client"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	recursive_copy "github.com/otiai10/copy"
 	"strings"
+	"time"
 )
 
 const (
-	serviceId services.ServiceID = "lighthouse-cl-client"
 	imageName = "sigp/lighthouse:latest-unstable"
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
@@ -19,21 +20,24 @@ const (
 	configDataDirpathRelToSharedDirRoot = "config-data"
 
 	// Port IDs
-	enrTcpPortID = "enr-tcp"
-	enrUdpPortID = "enr-udp"
-	httpPortID = "http"
+	tcpDiscoveryPortID = "tcp-discovery"
+	udpDiscoveryPortID = "udp-discovery"
+	httpPortID         = "http"
 
 	// Port nums
-	enrPortNum uint16 = 9000
-	httpPortNum = 4000
+	discoveryPortNum uint16 = 9000
+	httpPortNum             = 4000
 
 	// To start a bootnode rather than a child node, we provide this string to the launchNode function
 	bootnodeEnrStrForStartingBootnode = ""
+
+	maxNumHealthcheckRetries = 10
+	timeBetweenHealthcheckRetries = 1 * time.Second
 )
 var usedPorts = map[string]*services.PortSpec{
-	enrTcpPortID: services.NewPortSpec(enrPortNum, services.PortProtocol_TCP),
-	enrUdpPortID: services.NewPortSpec(enrPortNum, services.PortProtocol_UDP),
-	httpPortID:   services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
+	tcpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
+	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
+	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 }
 
 type LighthouseCLClientLauncher struct {
@@ -54,7 +58,7 @@ func (launcher *LighthouseCLClientLauncher) LaunchBootNode(
 	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
 	resultErr error,
 ) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, bootnodeEnrStrForStartingBootnode, elClientRpcSockets, totalTerminalDifficulty)
+	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnrStrForStartingBootnode, elClientRpcSockets, totalTerminalDifficulty)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred starting boot Ligthhouse node with service ID '%v'", serviceId)
 	}
@@ -71,7 +75,7 @@ func (launcher *LighthouseCLClientLauncher) LaunchChildNode(
 	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
 	resultErr error,
 ) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, bootnodeEnr, elClientRpcSockets, totalTerminalDifficulty)
+	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnr, elClientRpcSockets, totalTerminalDifficulty)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred starting child Lighthouse node with service ID '%v' connected to boot node with ENR '%v'", serviceId, bootnodeEnr)
 	}
@@ -83,6 +87,7 @@ func (launcher *LighthouseCLClientLauncher) LaunchChildNode(
 // ====================================================================================================
 func (launcher *LighthouseCLClientLauncher) launchNode(
 	enclaveCtx *enclaves.EnclaveContext,
+	serviceId services.ServiceID,
 	bootnodeEnr string,
 	elClientRpcSockets map[string]bool,
 	totalTerminalDiffulty uint32,
@@ -96,19 +101,25 @@ func (launcher *LighthouseCLClientLauncher) launchNode(
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse CL client with service ID '%v'", serviceId)
 	}
 
-	// TODO FIGURE OUT HOW TO GET ENODE FROM CL CLIENT
-	enode := "some-enode"
-	/*
-	nodeInfo, err := getNodeInfoWithRetry(serviceCtx.GetPrivateIPAddress())
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
+	httpPort, found := serviceCtx.GetPrivatePorts()[httpPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Lighthouse service to have port with ID '%v', but none was found", httpPortID)
 	}
 
-	 */
+	restClient := cl_client_rest_client.NewCLClientRESTClient(serviceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
+
+	if err := waitForAvailability(restClient); err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lighthouse node to become available")
+	}
+
+	nodeIdentity, err := restClient.GetNodeIdentity()
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred getting the new Lighthouse node's identity, which is necessary to retrieve its ENR")
+	}
 
 	result := cl_client_network.NewConsensusLayerClientContext(
 		serviceCtx,
-		enode,
+		nodeIdentity.ENR,
 	)
 
 	return result, nil
@@ -140,16 +151,14 @@ func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
 		elClientRpcUrlsStr := strings.Join(elClientRpcUrls, ",")
 
 		configDataDirpathOnService := configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer()
-		// NOTE: We DON'T want the following flags; when they're not set, the node's external IP address is auto-detected
+		// NOTE: If connecting to the merge devnet remotely we DON'T want the following flags; when they're not set, the node's external IP address is auto-detected
 		//  from the peers it communicates with but when they're set they basically say "override the autodetection and
 		//  use what I specify instead." This requires having a know external IP address and port, which we definitely won't
 		//  have with a network running in Kurtosis.
 		//    "--disable-enr-auto-update",
 		//    "--enr-address=" + externalIpAddress,
-		//    "--enr-udp-port",
-		//    fmt.Sprintf("%v", enrPortNum),
-		//    "--enr-tcp-port",
-		//    fmt.Sprintf("%v", enrPortNum),
+		//    fmt.Sprintf("--enr-udp-port=%v", discoveryPortNum),
+		//    fmt.Sprintf("--enr-tcp-port=%v", discoveryPortNum),
 		cmdArgs := []string{
 			"lighthouse",
 			"--debug-level=info",
@@ -157,8 +166,17 @@ func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
 			"--testnet-dir=" + configDataDirpathOnService,
 			"bn",
 			"--eth1",
+			// vvvvvvvvvvvvvvvvvvv REMOVE THESE WHEN CONNECTING TO EXTERNAL NET vvvvvvvvvvvvvvvvvvvvv
+			"--disable-enr-auto-update",
+			"--enr-address=" + privateIpAddr,
+			fmt.Sprintf("--enr-udp-port=%v", discoveryPortNum),
+			fmt.Sprintf("--enr-tcp-port=%v", discoveryPortNum),
+			// ^^^^^^^^^^^^^^^^^^^ REMOVE THESE WHEN CONNECTING TO EXTERNAL NET ^^^^^^^^^^^^^^^^^^^^^
+			"--listen-address=0.0.0.0",
+			fmt.Sprintf("--port=%v", discoveryPortNum), // NOTE: Remove for connecting to external net!
 			"--http",
-			"--http-port=4000",
+			"--http-address=0.0.0.0",
+			fmt.Sprintf("--http-port=%v", httpPortNum),
 			"--merge",
 			"--http-allow-sync-stalled",
 			"--disable-packet-filter",
@@ -179,4 +197,20 @@ func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
 		).Build()
 		return containerConfig, nil
 	}
+}
+
+func waitForAvailability(restClient *cl_client_rest_client.CLClientRESTClient) error {
+	for i := 0; i < maxNumHealthcheckRetries; i++ {
+		_, err := restClient.GetHealth()
+		if err == nil {
+			// TODO check the healthstatus???
+			return nil
+		}
+		time.Sleep(timeBetweenHealthcheckRetries)
+	}
+	return stacktrace.NewError(
+		"Lighthouse node didn't become available even after %v retries with %v between retries",
+		maxNumHealthcheckRetries,
+		timeBetweenHealthcheckRetries,
+	)
 }
