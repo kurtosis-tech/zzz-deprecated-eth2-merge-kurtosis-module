@@ -1,15 +1,18 @@
 package impl
 import (
+	"encoding/json"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/lighthouse"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/ethereum_genesis_generator"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/forkmon"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
 	"path"
 	"text/template"
+	"time"
 
 	// "path"
 	// "text/template"
@@ -18,14 +21,28 @@ import (
 const (
 	networkId = "3151908"
 
+	// Genesis config
+	secondsPerSlot = uint32(12)
+	totalTerminalDifficulty         = 60000000 //This value is the one that the genesis generator creates in the genesis file
+
+	// ----------------------------------- Static File Constants -----------------------------------------
 	staticFilesDirpath                    = "/static-files"
+
+	// Geth + CL genesis generation
 	genesisGenerationConfigDirpath = staticFilesDirpath + "/genesis-generation-config"
 	gethGenesisGenerationConfigYmlTemplateFilepath = genesisGenerationConfigDirpath + "/el/genesis-config.yaml.tmpl"
 	clGenesisGenerationConfigYmlTemplateFilepath = genesisGenerationConfigDirpath + "/cl/config.yaml.tmpl"
 	clGenesisGenerationMnemonicsYmlTemplateFilepath = genesisGenerationConfigDirpath + "/cl/mnemonics.yaml.tmpl"
+
+	// Nethermind
 	nethermindGenesisJsonTemplateFilepath = staticFilesDirpath + "/nethermind-genesis.json.tmpl"
 
-	totalTerminalDifficulty         = 60000000 //This value is the one that the genesis generator creates in the genesis file
+	// Forkmon config
+	forkmonConfigTemplateFilepath = staticFilesDirpath + "/forkmon-config/config.toml.tmpl"
+	// --------------------------------- End Static File Constants ----------------------------------------
+
+	responseJsonLinePrefixStr = ""
+	responseJsonLineIndentStr = "  "
 
 	// TODO uncomment these when the module can either start a private network OR connect to an existing devnet
 	// mergeDevnet3NetworkId = "1337602"
@@ -39,6 +56,9 @@ var mergeDevnet3BootnodeEnodes = []string{
 }
  */
 
+type ExecuteResponse struct {
+	ForkmonPublicURL string	`json:"forkmonUrl"`
+}
 
 type ExampleExecutableKurtosisModule struct {
 }
@@ -49,6 +69,7 @@ func NewExampleExecutableKurtosisModule() *ExampleExecutableKurtosisModule {
 
 func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
 	logrus.Info("Generating genesis information for EL & CL clients...")
+	genesisUnixTimestamp := time.Now().Unix()
 	gethGenesisConfigTemplate, err := parseTemplate(gethGenesisGenerationConfigYmlTemplateFilepath)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the Geth genesis generation config YAML template")
@@ -62,7 +83,9 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		gethGenesisConfigTemplate,
 		clGenesisConfigTemplate,
 		clGenesisGenerationMnemonicsYmlTemplateFilepath,
+		genesisUnixTimestamp,
 		networkId,
+		secondsPerSlot,
 	)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis generator Service")
@@ -113,13 +136,29 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	)
 
 	// TODO Make this dynamic
+	allClClientContexts := []*cl_client_network.ConsensusLayerClientContext{}
 	for i := 0; i < 3; i++ {
-		if err := clNetwork.AddNode(); err != nil {
+		clClientCtx, err := clNetwork.AddNode()
+		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding CL client node %v", i)
 		}
-
+		allClClientContexts = append(allClClientContexts, clClientCtx)
 	}
 	logrus.Info("Successfully launched a network of CL clients")
+
+	logrus.Info("Launching forkmon...")
+	forkmonConfigTemplate, err := parseTemplate(forkmonConfigTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing forkmon config template file '%v'", forkmonConfigTemplateFilepath)
+	}
+	forkmonPublicUrl, err := forkmon.LaunchForkmon(
+		enclaveCtx,
+		forkmonConfigTemplate,
+		allClClientContexts,
+		genesisUnixTimestamp,
+		secondsPerSlot,
+	)
+	logrus.Info("Successfully launched forkmon")
 
 	/*
 	gethElClientServiceCtx, err := geth_el_client.LaunchGethELClient(
@@ -153,7 +192,15 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 
 	 */
 
-	return "{}", nil
+	responseObj := &ExecuteResponse{
+		ForkmonPublicURL: forkmonPublicUrl,
+	}
+	responseStr, err := json.MarshalIndent(responseObj, responseJsonLinePrefixStr, responseJsonLineIndentStr)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred serializing the following response object to JSON for returning: %+v", responseObj)
+	}
+
+	return string(responseStr), nil
 }
 
 func parseTemplate(filepath string) (*template.Template, error) {

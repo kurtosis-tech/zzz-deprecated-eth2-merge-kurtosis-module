@@ -59,9 +59,12 @@ var entrypoingArgs = []string{
 
 type elGenesisConfigTemplateData struct {
 	NetworkId string
+	UnixTimestamp int64
 }
 type clGenesisConfigTemplateData struct {
 	NetworkId string
+	SecondsPerSlot uint32
+	UnixTimestamp int64
 }
 
 func GenerateELAndCLGenesisConfig(
@@ -69,7 +72,9 @@ func GenerateELAndCLGenesisConfig(
 	elGenesisConfigYmlTemplate *template.Template,
 	clGenesisConfigYmlTemplate *template.Template,
 	clMnemonicsYmlFilepathOnModuleContainer string,
+	unixTimestamp int64,
 	networkId string,
+	secondsPerSlot uint32,
 ) (
 	resultGethELGenesisJSONFilepath string,
 	resultCLGenesisDataDirpath string,
@@ -80,7 +85,15 @@ func GenerateELAndCLGenesisConfig(
 		return "", "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis-generating container with service ID '%v'", serviceId)
 	}
 
-	gethGenesisJsonFilepath, clGenesisDataDirpath, err := generateGenesisData(serviceCtx, networkId, elGenesisConfigYmlTemplate, clGenesisConfigYmlTemplate, clMnemonicsYmlFilepathOnModuleContainer)
+	gethGenesisJsonFilepath, clGenesisDataDirpath, err := generateGenesisData(
+		serviceCtx,
+		elGenesisConfigYmlTemplate,
+		clGenesisConfigYmlTemplate,
+		clMnemonicsYmlFilepathOnModuleContainer,
+		unixTimestamp,
+		networkId,
+		secondsPerSlot,
+	)
 	if err != nil {
 		return "", "", stacktrace.Propagate(err, "An error occurred generating genesis data")
 	}
@@ -98,20 +111,25 @@ func GenerateELAndCLGenesisConfig(
 
 func generateGenesisData(
 	serviceCtx *services.ServiceContext,
-	networkId string,
 	gethGenesisConfigYmlTemplate *template.Template,
 	clGenesisConfigYmlTemplate *template.Template,
 	clMnemonicsYmlFilepathOnModuleContainer string,
+	unixTimestamp int64,
+	networkId string,
+	secondsPerSlot uint32,
 ) (
 	resultGethGenesisJsonFilepathOnModuleContainer string,
 	resultClConfigDataDirpathOnModuleContainer string,
 	resultErr error,
 ) {
 	elTemplateData := elGenesisConfigTemplateData{
-		NetworkId: networkId,
+		NetworkId:     networkId,
+		UnixTimestamp: unixTimestamp,
 	}
 	clTemplateData := clGenesisConfigTemplateData{
-		NetworkId: networkId,
+		NetworkId:      networkId,
+		SecondsPerSlot: secondsPerSlot,
+		UnixTimestamp:  unixTimestamp,
 	}
 
 	sharedDir := serviceCtx.GetSharedDirectory()

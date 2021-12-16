@@ -9,7 +9,7 @@ eth1_premine:
 eth1_premine_addrs: {}
 chain_id: {{ .NetworkId }}
 deposit_contract_address: "0x4242424242424242424242424242424242424242"
-eth1_genesis_timestamp: 0
+eth1_genesis_timestamp: {{ .UnixTimestamp }}
 terminal_total_difficulty: 60000000
 
 clique:
