@@ -10,7 +10,6 @@ type ExecutionLayerClientLauncher interface {
 		enclaveCtx *enclaves.EnclaveContext,
 		serviceId services.ServiceID,
 		networkId string,
-		genesisJsonFilepathOnModuleContainer string,
 	) (
 		resultClientCtx *ExecutionLayerClientContext,
 		resultErr error,
@@ -20,7 +19,6 @@ type ExecutionLayerClientLauncher interface {
 		enclaveCtx *enclaves.EnclaveContext,
 		serviceId services.ServiceID,
 		networkId string,
-		genesisJsonFilepathOnModuleContainer string,
 		bootnodeEnode string,
 	) (
 		resultClientCtx *ExecutionLayerClientContext,

@@ -17,7 +17,6 @@ const (
 type ExecutionLayerNetwork struct {
 	enclaveCtx *enclaves.EnclaveContext
 	networkId string
-	genesisJsonFilepathOnModuleContainer string
 
 	// TODO refactor to have an ID so we can launch different clients
 	elClientLauncher ExecutionLayerClientLauncher
@@ -27,11 +26,10 @@ type ExecutionLayerNetwork struct {
 	mutex         *sync.Mutex
 }
 
-func NewExecutionLayerNetwork(enclaveCtx *enclaves.EnclaveContext, networkId string, genesisJsonFilepathOnModuleContainer string, elClientLauncher ExecutionLayerClientLauncher) *ExecutionLayerNetwork {
+func NewExecutionLayerNetwork(enclaveCtx *enclaves.EnclaveContext, networkId string, elClientLauncher ExecutionLayerClientLauncher) *ExecutionLayerNetwork {
 	return &ExecutionLayerNetwork{
 		enclaveCtx:                           enclaveCtx,
 		networkId:                            networkId,
-		genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer,
 		elClientLauncher:                     elClientLauncher,
 		nodeClientCtx:                        map[uint32]*ExecutionLayerClientContext{},
 		nextNodeIndex:                        bootnodeNodeIndex,
@@ -39,7 +37,7 @@ func NewExecutionLayerNetwork(enclaveCtx *enclaves.EnclaveContext, networkId str
 	}
 }
 
-func (network *ExecutionLayerNetwork) AddNode() error {
+func (network *ExecutionLayerNetwork) AddNode() (*ExecutionLayerClientContext, error) {
 	network.mutex.Lock()
 	defer network.mutex.Unlock()
 
@@ -48,25 +46,28 @@ func (network *ExecutionLayerNetwork) AddNode() error {
 	var newClientCtx *ExecutionLayerClientContext
 	var nodeLaunchErr error
 	if network.nextNodeIndex == bootnodeNodeIndex {
-		newClientCtx, nodeLaunchErr = network.elClientLauncher.LaunchBootNode(network.enclaveCtx, serviceId, network.networkId, network.genesisJsonFilepathOnModuleContainer)
+		newClientCtx, nodeLaunchErr = network.elClientLauncher.LaunchBootNode(
+			network.enclaveCtx,
+			serviceId,
+			network.networkId,
+		)
 	} else {
 		bootnodeClientCtx, found := network.nodeClientCtx[bootnodeNodeIndex]
 		if !found {
-			return stacktrace.NewError("The EL client network has >= 1 nodes, but we couldn't find a node with bootnode ID '%v'; this is a bug in the module!", bootnodeNodeIndex)
+			return nil, stacktrace.NewError("The EL client network has >= 1 nodes, but we couldn't find a node with bootnode ID '%v'; this is a bug in the module!", bootnodeNodeIndex)
 		}
 		newClientCtx, nodeLaunchErr = network.elClientLauncher.LaunchChildNode(
 			network.enclaveCtx,
 			serviceId,
 			network.networkId,
-			network.genesisJsonFilepathOnModuleContainer,
 			bootnodeClientCtx.GetEnode(),
 		)
 	}
 	if nodeLaunchErr != nil {
-		return stacktrace.Propagate(nodeLaunchErr, "An error occurred launching node with service ID '%v'", serviceId)
+		return nil, stacktrace.Propagate(nodeLaunchErr, "An error occurred launching node with service ID '%v'", serviceId)
 	}
 	network.nextNodeIndex = network.nextNodeIndex + 1
 	network.nodeClientCtx[newNodeIndex] = newClientCtx
 
-	return nil
+	return newClientCtx, nil
 }
