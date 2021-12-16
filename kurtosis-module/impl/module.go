@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"path"
 	"text/template"
+	"time"
 
 	// "path"
 	// "text/template"
@@ -68,6 +69,7 @@ func NewExampleExecutableKurtosisModule() *ExampleExecutableKurtosisModule {
 
 func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
 	logrus.Info("Generating genesis information for EL & CL clients...")
+	genesisUnixTimestamp := time.Now().Unix()
 	gethGenesisConfigTemplate, err := parseTemplate(gethGenesisGenerationConfigYmlTemplateFilepath)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the Geth genesis generation config YAML template")
@@ -81,6 +83,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		gethGenesisConfigTemplate,
 		clGenesisConfigTemplate,
 		clGenesisGenerationMnemonicsYmlTemplateFilepath,
+		genesisUnixTimestamp,
 		networkId,
 		secondsPerSlot,
 	)
@@ -148,7 +151,13 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing forkmon config template file '%v'", forkmonConfigTemplateFilepath)
 	}
-	forkmonPublicUrl, err := forkmon.LaunchForkmon(enclaveCtx, forkmonConfigTemplate, allClClientContexts, secondsPerSlot)
+	forkmonPublicUrl, err := forkmon.LaunchForkmon(
+		enclaveCtx,
+		forkmonConfigTemplate,
+		allClClientContexts,
+		genesisUnixTimestamp,
+		secondsPerSlot,
+	)
 	logrus.Info("Successfully launched forkmon")
 
 	/*

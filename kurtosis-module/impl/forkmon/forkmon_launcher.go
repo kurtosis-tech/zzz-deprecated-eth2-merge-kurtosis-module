@@ -33,17 +33,20 @@ type configTemplateData struct {
 	ListenPortNum uint16
 	CLClientInfo []*clClientInfo
 	SecondsPerSlot uint32
+	GenesisUnixTimestamp int64
 }
 
 func LaunchForkmon(
 	enclaveCtx *enclaves.EnclaveContext,
 	configTemplate *template.Template,
 	clClientContexts []*cl_client_network.ConsensusLayerClientContext,
+	genesisUnixTimestamp int64,
 	secondsPerSlot uint32,
 ) (string, error) {
 	containerConfigSupplier, err := getContainerConfigSupplier(
 		configTemplate,
 		clClientContexts,
+		genesisUnixTimestamp,
 		secondsPerSlot,
 	)
 	if err != nil {
@@ -68,6 +71,7 @@ func LaunchForkmon(
 func getContainerConfigSupplier(
 	configTemplate *template.Template,
 	clClientContexts []*cl_client_network.ConsensusLayerClientContext,
+	genesisUnixTimestamp int64,
 	secondsPerSlot uint32,
 ) (
 	func (privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error),
@@ -92,9 +96,10 @@ func getContainerConfigSupplier(
 		allClClientInfo = append(allClClientInfo, info)
 	}
 	templateData := configTemplateData{
-		ListenPortNum:  httpPortNumber,
-		CLClientInfo:   allClClientInfo,
-		SecondsPerSlot: secondsPerSlot,
+		ListenPortNum:        httpPortNumber,
+		CLClientInfo:         allClClientInfo,
+		SecondsPerSlot:       secondsPerSlot,
+		GenesisUnixTimestamp: genesisUnixTimestamp,
 	}
 
 	containerConfigSupplier := func (privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {

@@ -59,10 +59,12 @@ var entrypoingArgs = []string{
 
 type elGenesisConfigTemplateData struct {
 	NetworkId string
+	UnixTimestamp int64
 }
 type clGenesisConfigTemplateData struct {
 	NetworkId string
 	SecondsPerSlot uint32
+	UnixTimestamp int64
 }
 
 func GenerateELAndCLGenesisConfig(
@@ -70,6 +72,7 @@ func GenerateELAndCLGenesisConfig(
 	elGenesisConfigYmlTemplate *template.Template,
 	clGenesisConfigYmlTemplate *template.Template,
 	clMnemonicsYmlFilepathOnModuleContainer string,
+	unixTimestamp int64,
 	networkId string,
 	secondsPerSlot uint32,
 ) (
@@ -87,6 +90,7 @@ func GenerateELAndCLGenesisConfig(
 		elGenesisConfigYmlTemplate,
 		clGenesisConfigYmlTemplate,
 		clMnemonicsYmlFilepathOnModuleContainer,
+		unixTimestamp,
 		networkId,
 		secondsPerSlot,
 	)
@@ -110,6 +114,7 @@ func generateGenesisData(
 	gethGenesisConfigYmlTemplate *template.Template,
 	clGenesisConfigYmlTemplate *template.Template,
 	clMnemonicsYmlFilepathOnModuleContainer string,
+	unixTimestamp int64,
 	networkId string,
 	secondsPerSlot uint32,
 ) (
@@ -118,11 +123,13 @@ func generateGenesisData(
 	resultErr error,
 ) {
 	elTemplateData := elGenesisConfigTemplateData{
-		NetworkId: networkId,
+		NetworkId:     networkId,
+		UnixTimestamp: unixTimestamp,
 	}
 	clTemplateData := clGenesisConfigTemplateData{
 		NetworkId:      networkId,
 		SecondsPerSlot: secondsPerSlot,
+		UnixTimestamp:  unixTimestamp,
 	}
 
 	sharedDir := serviceCtx.GetSharedDirectory()
