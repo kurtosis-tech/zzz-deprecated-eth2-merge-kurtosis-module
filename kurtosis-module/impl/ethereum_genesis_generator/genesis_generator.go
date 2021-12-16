@@ -47,7 +47,7 @@ const (
 	// Paths, *relative to the root of the output genesis data directory, where the generator writes data
 	outputGethGenesisJsonRelFilepath    = "el/geth.json"
 	outputClGenesisRelDirpath           = "cl"
-	outputClGenesisConfigYmlRelFilepath = outputClGenesisRelDirpath + "/config.yml"
+	outputClGenesisConfigYmlRelFilepath = outputClGenesisRelDirpath + "/config.yaml"
 	outputClGenesisSszRelFilepath       = outputClGenesisRelDirpath + "/genesis.ssz"
 
 	containerStopTimeoutSeconds = 3

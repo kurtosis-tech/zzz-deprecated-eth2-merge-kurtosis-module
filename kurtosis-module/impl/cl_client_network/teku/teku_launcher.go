@@ -55,9 +55,8 @@ func (launcher *TekuCLClientLauncher) LaunchBootNode(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	elClientRpcSockets map[string]bool,
-	totalTerminalDifficulty uint32,
 ) (resultClientCtx *cl_client_network.ConsensusLayerClientContext, resultErr error) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnrStrForStartingBootnode, elClientRpcSockets, totalTerminalDifficulty)
+	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnrStrForStartingBootnode, elClientRpcSockets)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred starting boot Teku node with service ID '%v'", serviceId)
 	}
@@ -69,9 +68,8 @@ func (launcher *TekuCLClientLauncher) LaunchChildNode(
 	serviceId services.ServiceID,
 	bootnodeEnr string,
 	elClientRpcSockets map[string]bool,
-	totalTerminalDifficulty uint32,
 ) (resultClientCtx *cl_client_network.ConsensusLayerClientContext, resultErr error) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnr, elClientRpcSockets, totalTerminalDifficulty)
+	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnr, elClientRpcSockets)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred starting child Teku node with service ID '%v' connected to boot node with ENR '%v'", serviceId, bootnodeEnr)
 	}
@@ -86,7 +84,6 @@ func (launcher *TekuCLClientLauncher) launchNode(
 	serviceId services.ServiceID,
 	bootnodeEnr string,
 	elClientRpcSockets map[string]bool,
-	totalTerminalDiffulty uint32,
 ) (
 	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
 	resultErr error,
@@ -96,7 +93,6 @@ func (launcher *TekuCLClientLauncher) launchNode(
 		elClientRpcSockets,
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		launcher.genesisSszFilepathOnModuleContainer,
-		totalTerminalDiffulty,
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
@@ -133,7 +129,6 @@ func getContainerConfigSupplier(
 	elClientRpcSockets map[string]bool,
 	genesisConfigYmlFilepathOnModuleContainer string,
 	genesisSszFilepathOnModuleContainer string,
-	totalTerminalDiffulty uint32,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
@@ -176,9 +171,8 @@ func getContainerConfigSupplier(
 			"--rest-api-docs-enabled=true",
 			"--rest-api-interface=0.0.0.0",
 			fmt.Sprintf("--rest-api-port=%v", httpPortNum),
-			"--rest-api-host-allowlist=*",
-			"--Xdata-storage-non-canonical-blocks-enabled=true",
-			fmt.Sprintf("--Xnetwork-merge-total-terminal-difficulty=%v", totalTerminalDiffulty),
+			"--rest-api-host-allowlist=\"*\"",
+			"--data-storage-non-canonical-blocks-enabled=true",
 			"--log-destination=CONSOLE",
 		}
 		if bootNodeEnr != bootnodeEnrStrForStartingBootnode {

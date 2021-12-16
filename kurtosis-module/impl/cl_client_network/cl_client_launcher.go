@@ -10,7 +10,6 @@ type ConsensusLayerClientLauncher interface {
 		enclaveCtx *enclaves.EnclaveContext,
 		serviceId services.ServiceID,
 		elClientRpcSockets map[string]bool,  // IP:port of EL client RPC sockets
-		totalTerminalDifficulty uint32,
 	) (
 		resultClientCtx *ConsensusLayerClientContext,
 		resultErr error,
@@ -22,7 +21,6 @@ type ConsensusLayerClientLauncher interface {
 		// NOTE: the ENR of the *consensus layer* boot node
 		bootnodeEnr string,
 		elClientRpcSockets map[string]bool,  // IP:port of EL client RPC sockets
-		totalTerminalDifficulty uint32,
 	) (
 		resultClientCtx *ConsensusLayerClientContext,
 		resultErr error,
