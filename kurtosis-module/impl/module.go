@@ -104,7 +104,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 
 	// TODO Make the number of nodes a dynamic argument
 	allElClientContexts := []*el_client_network.ExecutionLayerClientContext{}
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 2; i++ {
 		elClientCtx, err := elNetwork.AddNode()
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding EL client node %v", i)

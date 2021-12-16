@@ -1,13 +1,21 @@
 package nethermind
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	"github.com/sirupsen/logrus"
+	"io/ioutil"
+	"math/rand"
+	"net/http"
 	"os"
+	"strconv"
 	"text/template"
+	"time"
 )
 
 const (
@@ -21,6 +29,8 @@ const (
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
 	sharedGenesisJsonRelFilepath = "nethermind_genesis.json"
 
+	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
+
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
@@ -30,6 +40,13 @@ const (
 	wsPortId  = "ws"
 	tcpDiscoveryPortId = "tcp-discovery"
 	udpDiscoveryPortId = "udp-discovery"
+
+	jsonContentTypeHeader = "application/json"
+	rpcRequestTimeout = 5 * time.Second
+
+	getNodeInfoRpcRequestBody = `{"jsonrpc":"2.0","method": "admin_nodeInfo","params":[],"id":1}`
+	getNodeInfoMaxRetries = 60 //TODO try to adjust
+	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -44,13 +61,11 @@ type nethermindTemplateData struct {
 }
 
 type NethermindELClientLauncher struct {
-	genesisJsonFilepathOnModuleContainer string
 	genesisJsonTemplate *template.Template
 }
 
-func NewNethermindELClientLauncher(genesisJsonFilepathOnModuleContainer string, genesisJsonTemplate *template.Template) *NethermindELClientLauncher {
+func NewNethermindELClientLauncher(genesisJsonTemplate *template.Template) *NethermindELClientLauncher {
 	return &NethermindELClientLauncher{
-		genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer,
 		genesisJsonTemplate: genesisJsonTemplate,
 	}
 }
@@ -104,18 +119,20 @@ func (launcher *NethermindELClientLauncher) launchNode(
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
 	}
 
-	/*nodeInfo, err := getNodeInfoWithRetry(serviceCtx.GetPrivateIPAddress())
+	nodeInfo, err := getNodeInfoWithRetry(serviceCtx.GetPrivateIPAddress())
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
 	}
 
+	logrus.Infof("Node info: %+v", nodeInfo)
+
 	result := el_client_network.NewExecutionLayerClientContext(
 		serviceCtx,
-		nodeInfo.ENR,
+		"",  //Nethermind node info endpoint doesn't return ENR field https://docs.nethermind.io/nethermind/ethereum-client/json-rpc/admin
 		nodeInfo.Enode,
-	)*/
+		rpcPortId,
+	)
 
-	result := el_client_network.NewExecutionLayerClientContext(serviceCtx, "", "")
 
 	return result, nil
 }
@@ -128,8 +145,13 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 
 		genesisJsonOnModuleContainerSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
 
+		networkIdHexStr, err := getNetworkIdHexSting(networkId)
+		if err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred getting network ID in Hex")
+		}
+
 		nethermindTmplData := nethermindTemplateData{
-			NetworkID: networkId,
+			NetworkID: networkIdHexStr,
 		}
 
 		fp, err := os.Create(genesisJsonOnModuleContainerSharedPath.GetAbsPathOnThisContainer())
@@ -143,28 +165,54 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 		}
 
 		commandArgs := []string{
-			"--config",
-			"kintsugi",
+			//"--config",
+			//"kintsugi",
 			"--datadir=" + executionDataDirpathOnClientContainer,
 			"--Init.ChainSpecPath=" + genesisJsonOnModuleContainerSharedPath.GetAbsPathOnServiceContainer(),
 			"--Init.WebSocketsEnabled=true",
+			"--Init.IsMining=true",
+			"--Init.DiscoveryEnabled=true",
+			"--Init.DiagnosticMode=None",
+			"--Init.StoreReceipts=true",
+			"--Init.EnableUnsecuredDevWallet=true",
 			"--JsonRpc.Enabled=true",
-			"--JsonRpc.EnabledModules=net,eth,consensus,engine",
+			"--JsonRpc.EnabledModules=net,eth,consensus,engine,admin",
 			fmt.Sprintf("--JsonRpc.Port=%v", rpcPortNum),
 			fmt.Sprintf("--JsonRpc.WebSocketsPort=%v", wsPortNum),
 			"--JsonRpc.Host=0.0.0.0",
+			fmt.Sprintf("--Network.ExternalIp=%v", privateIpAddr),
+			fmt.Sprintf("--Network.LocalIp=%v", privateIpAddr),
 			fmt.Sprintf("--Network.DiscoveryPort=%v", discoveryPortNum),
 			fmt.Sprintf("--Network.P2PPort=%v", discoveryPortNum),
+			"--Mining.Enabled=true",
+			"--Mining.MinGasPrice=0",
 			"--Merge.Enabled=true",
-			"--Merge.TerminalTotalDifficulty=60000000", //TODO it has to be dynamic, I got this value from genesis generator genesis_config.yaml file
-			"--Init.DiagnosticMode=None",
+			"--Merge.TerminalTotalDifficulty=5000000000", //TODO it has to be dynamic, I got this value from genesis generator genesis_config.yaml file
+			"--Merge.BlockAuthorAccount=0x0000000000000000000000000000000000000001",
+			//"--Merge.BlockAuthorAccount=0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b",  //I found this value in kintsugi.cf file
+			"--KeyStore.TestNodeKey=" + getRandomTestNodeKey(),
+			//"--KeyStore.BlockAuthorAccount=0x0000000000000000000000000000000000000001",
+			"--TxPool.Size=2048",
+			"--Sync.FastSync=false",
+			"--Sync.FastBlocks=false",
+			//"--Sync.BeamSync=false",
+			"--Sync.UseGethLimitsInFastBlocks=true",
+			"--Sync.DownloadBodiesInFastSync=true",
+			"--Sync.DownloadReceiptsInFastSync=true",
+			"--EthStats.Enabled=false",
+			"--Metrics.Enabled=false",
+			"--log",
+			"DEBUG",
 		}
 		if bootnodeEnode != bootnodeEnodeStrForStartingBootnode {
+			logrus.Infof("Entra a setear el bootnode: %v", bootnodeEnode)
 			commandArgs = append(
 				commandArgs,
 				"--Discovery.Bootnodes=" + bootnodeEnode,
 			)
 		}
+
+		logrus.Infof("Command Args: %+v", commandArgs)
 
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
@@ -177,4 +225,80 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 		return containerConfig, nil
 	}
 	return result
+}
+
+func getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
+	getNodeInfoResponse := new(GetNodeInfoResponse)
+	for i := 0; i < getNodeInfoMaxRetries; i++ {
+		if err := sendRpcCall(privateIpAddr, getNodeInfoRpcRequestBody, getNodeInfoResponse); err == nil {
+			return getNodeInfoResponse.Result, nil
+		} else {
+			logrus.Debugf("Getting the node info via RPC failed with error: %v", err)
+		}
+		time.Sleep(getNodeInfoTimeBetweenRetries)
+	}
+	return NodeInfo{}, stacktrace.NewError("Couldn't get the node's info even after %v retries with %v between retries", getNodeInfoMaxRetries, getNodeInfoTimeBetweenRetries)
+}
+
+func sendRpcCall(privateIpAddr string, requestBody string, targetStruct interface{}) error {
+	url := fmt.Sprintf("http://%v:%v", privateIpAddr, rpcPortNum)
+	var jsonByteArray = []byte(requestBody)
+
+	logrus.Debugf("Sending RPC call to '%v' with JSON body '%v'...", url, requestBody)
+
+	client := http.Client{
+		Timeout: rpcRequestTimeout,
+	}
+	resp, err := client.Post(url, jsonContentTypeHeader, bytes.NewBuffer(jsonByteArray))
+	if err != nil {
+		return stacktrace.Propagate(err, "Failed to send RPC request to Nethermind node with private IP '%v'", privateIpAddr)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return stacktrace.NewError(
+			"Received non-%v status code '%v' on RPC request to Nethermind node with private IP '%v'",
+			http.StatusOK,
+			resp.StatusCode,
+			privateIpAddr,
+		)
+	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return stacktrace.Propagate(err, "Error reading the RPC call response body")
+	}
+	bodyString := string(bodyBytes)
+	logrus.Infof("Response for RPC call %v: %v", requestBody, bodyString)
+
+	json.Unmarshal(bodyBytes, targetStruct)
+	if err := json.Unmarshal(bodyBytes, targetStruct); err != nil {
+		return stacktrace.Propagate(err, "Error JSON-parsing Nethermind node RPC response string '%v' into a struct", bodyString)
+	}
+	return nil
+}
+
+func getNetworkIdHexSting(networkId string) (string, error){
+	uintBase := 10
+	uintBits := 64
+	networkIdUint64, err := strconv.ParseUint(networkId, uintBase, uintBits)
+	if err != nil {
+		return "", stacktrace.Propagate(
+			err,
+			"An error occurred parsing network ID string '%v' to uint with base %v and %v bits",
+			networkId,
+			uintBase,
+			uintBits,
+		)
+	}
+	return fmt.Sprintf("0x%x", networkIdUint64), nil
+}
+
+func getRandomTestNodeKey() string {
+	rand.Seed(time.Now().UnixNano())
+	min := 10
+	max := 99
+	randomNumber := rand.Intn(max - min + 1) + min
+	randomTestNodeKey := fmt.Sprintf("8687A55019CCA647F6C063F530D47E9A90725D62D853F4B973E589DB24CA93%v", randomNumber)
+	logrus.Infof("New random TestNodeKey: %v", randomTestNodeKey)
+	return randomTestNodeKey
 }
