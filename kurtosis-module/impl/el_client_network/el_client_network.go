@@ -37,7 +37,7 @@ func NewExecutionLayerNetwork(enclaveCtx *enclaves.EnclaveContext, networkId str
 	}
 }
 
-func (network *ExecutionLayerNetwork) AddNode() error {
+func (network *ExecutionLayerNetwork) AddNode() (*ExecutionLayerClientContext, error) {
 	network.mutex.Lock()
 	defer network.mutex.Unlock()
 
@@ -54,7 +54,7 @@ func (network *ExecutionLayerNetwork) AddNode() error {
 	} else {
 		bootnodeClientCtx, found := network.nodeClientCtx[bootnodeNodeIndex]
 		if !found {
-			return stacktrace.NewError("The EL client network has >= 1 nodes, but we couldn't find a node with bootnode ID '%v'; this is a bug in the module!", bootnodeNodeIndex)
+			return nil, stacktrace.NewError("The EL client network has >= 1 nodes, but we couldn't find a node with bootnode ID '%v'; this is a bug in the module!", bootnodeNodeIndex)
 		}
 		newClientCtx, nodeLaunchErr = network.elClientLauncher.LaunchChildNode(
 			network.enclaveCtx,
@@ -64,10 +64,10 @@ func (network *ExecutionLayerNetwork) AddNode() error {
 		)
 	}
 	if nodeLaunchErr != nil {
-		return stacktrace.Propagate(nodeLaunchErr, "An error occurred launching node with service ID '%v'", serviceId)
+		return nil, stacktrace.Propagate(nodeLaunchErr, "An error occurred launching node with service ID '%v'", serviceId)
 	}
 	network.nextNodeIndex = network.nextNodeIndex + 1
 	network.nodeClientCtx[newNodeIndex] = newClientCtx
 
-	return nil
+	return newClientCtx, nil
 }
