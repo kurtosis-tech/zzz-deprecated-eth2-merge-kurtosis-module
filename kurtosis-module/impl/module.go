@@ -24,7 +24,9 @@ const (
 
 	// Genesis config
 	secondsPerSlot = uint32(12)
-	totalTerminalDifficulty  = uint64(60000000)
+	altairForkEpoch = uint64(2)  // Set per Parithosh's recommendation
+	mergeForkEpoch = uint64(6)   // Set per Parithosh's recommendation
+	totalTerminalDifficulty  = uint64(60000000) // TODO Should be set to roughly one hour (??) so that this is reached AFTER the CL gets the merge fork version (per Parithosh)
 
 	// ----------------------------------- Static File Constants -----------------------------------------
 	staticFilesDirpath                    = "/static-files"
@@ -87,6 +89,8 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		genesisUnixTimestamp,
 		networkId,
 		secondsPerSlot,
+		altairForkEpoch,
+		mergeForkEpoch,
 		totalTerminalDifficulty,
 	)
 	if err != nil {

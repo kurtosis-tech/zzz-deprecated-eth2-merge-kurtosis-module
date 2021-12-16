@@ -68,6 +68,8 @@ type clGenesisConfigTemplateData struct {
 	SecondsPerSlot uint32
 	UnixTimestamp int64
 	TotalTerminalDifficulty uint64
+	AltairForkEpoch uint64
+	MergeForkEpoch uint64
 }
 
 func GenerateELAndCLGenesisConfig(
@@ -78,6 +80,8 @@ func GenerateELAndCLGenesisConfig(
 	unixTimestamp int64,
 	networkId string,
 	secondsPerSlot uint32,
+	altairForkEpoch uint64,
+	mergeForkEpoch uint64,
 	totalTerminalDifficulty uint64,
 ) (
 	resultGethELGenesisJSONFilepath string,
@@ -97,6 +101,8 @@ func GenerateELAndCLGenesisConfig(
 		unixTimestamp,
 		networkId,
 		secondsPerSlot,
+		altairForkEpoch,
+		mergeForkEpoch,
 		totalTerminalDifficulty,
 	)
 	if err != nil {
@@ -122,6 +128,8 @@ func generateGenesisData(
 	unixTimestamp int64,
 	networkId string,
 	secondsPerSlot uint32,
+	altairForkEpoch uint64,
+	mergeForkEpoch uint64,
 	totalTerminalDifficulty uint64,
 ) (
 	resultGethGenesisJsonFilepathOnModuleContainer string,
@@ -138,6 +146,8 @@ func generateGenesisData(
 		SecondsPerSlot:          secondsPerSlot,
 		UnixTimestamp:           unixTimestamp,
 		TotalTerminalDifficulty: totalTerminalDifficulty,
+		AltairForkEpoch:         altairForkEpoch,
+		MergeForkEpoch:          mergeForkEpoch,
 	}
 
 	sharedDir := serviceCtx.GetSharedDirectory()
