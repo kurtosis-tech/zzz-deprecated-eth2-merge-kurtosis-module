@@ -61,11 +61,13 @@ var entrypoingArgs = []string{
 type elGenesisConfigTemplateData struct {
 	NetworkId string
 	UnixTimestamp int64
+	TotalTerminalDifficulty uint64
 }
 type clGenesisConfigTemplateData struct {
 	NetworkId string
 	SecondsPerSlot uint32
 	UnixTimestamp int64
+	TotalTerminalDifficulty uint64
 }
 
 func GenerateELAndCLGenesisConfig(
@@ -76,6 +78,7 @@ func GenerateELAndCLGenesisConfig(
 	unixTimestamp int64,
 	networkId string,
 	secondsPerSlot uint32,
+	totalTerminalDifficulty uint64,
 ) (
 	resultGethELGenesisJSONFilepath string,
 	resultCLGenesisPaths *CLGenesisPaths,
@@ -94,6 +97,7 @@ func GenerateELAndCLGenesisConfig(
 		unixTimestamp,
 		networkId,
 		secondsPerSlot,
+		totalTerminalDifficulty,
 	)
 	if err != nil {
 		return "", nil, stacktrace.Propagate(err, "An error occurred generating genesis data")
@@ -118,19 +122,22 @@ func generateGenesisData(
 	unixTimestamp int64,
 	networkId string,
 	secondsPerSlot uint32,
+	totalTerminalDifficulty uint64,
 ) (
 	resultGethGenesisJsonFilepathOnModuleContainer string,
 	resultClGenesisPaths *CLGenesisPaths,
 	resultErr error,
 ) {
 	elTemplateData := elGenesisConfigTemplateData{
-		NetworkId:     networkId,
-		UnixTimestamp: unixTimestamp,
+		NetworkId:               networkId,
+		UnixTimestamp:           unixTimestamp,
+		TotalTerminalDifficulty: totalTerminalDifficulty,
 	}
 	clTemplateData := clGenesisConfigTemplateData{
-		NetworkId:      networkId,
-		SecondsPerSlot: secondsPerSlot,
-		UnixTimestamp:  unixTimestamp,
+		NetworkId:               networkId,
+		SecondsPerSlot:          secondsPerSlot,
+		UnixTimestamp:           unixTimestamp,
+		TotalTerminalDifficulty: totalTerminalDifficulty,
 	}
 
 	sharedDir := serviceCtx.GetSharedDirectory()

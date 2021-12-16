@@ -24,7 +24,7 @@ const (
 
 	// Genesis config
 	secondsPerSlot = uint32(12)
-	totalTerminalDifficulty         = 60000000 //This value is the one that the genesis generator creates in the genesis file
+	totalTerminalDifficulty  = uint64(60000000)
 
 	// ----------------------------------- Static File Constants -----------------------------------------
 	staticFilesDirpath                    = "/static-files"
@@ -87,6 +87,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		genesisUnixTimestamp,
 		networkId,
 		secondsPerSlot,
+		totalTerminalDifficulty,
 	)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis generator Service")
@@ -136,7 +137,6 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	clNetwork := cl_client_network.NewConsensusLayerNetwork(
 		enclaveCtx,
 		allElClientContexts,
-		totalTerminalDifficulty,
 		clClientLauncher,
 	)
 

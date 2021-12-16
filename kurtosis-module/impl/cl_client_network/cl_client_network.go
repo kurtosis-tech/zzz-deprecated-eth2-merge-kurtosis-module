@@ -17,7 +17,6 @@ const (
 type ConsensusLayerNetwork struct {
 	enclaveCtx       *enclaves.EnclaveContext
 	elClientContexts []*el_client_network.ExecutionLayerClientContext
-	totalTerminalDifficulty uint32
 
 	// TODO refactor to have an ID so we can launch different clients
 	clientLauncher ConsensusLayerClientLauncher
@@ -30,13 +29,11 @@ type ConsensusLayerNetwork struct {
 func NewConsensusLayerNetwork(
 	enclaveCtx *enclaves.EnclaveContext,
 	elClientContexts []*el_client_network.ExecutionLayerClientContext,
-	totalTerminalDifficulty uint32,
 	clientLauncher ConsensusLayerClientLauncher,
 ) *ConsensusLayerNetwork {
 	return &ConsensusLayerNetwork{
 		enclaveCtx: enclaveCtx,
 		elClientContexts: elClientContexts,
-		totalTerminalDifficulty: totalTerminalDifficulty,
 		clientLauncher: clientLauncher,
 		nodeClientCtx: map[uint32]*ConsensusLayerClientContext{},
 		nextNodeIndex: bootnodeNodeIndex,
@@ -62,7 +59,6 @@ func (network *ConsensusLayerNetwork) AddNode() (*ConsensusLayerClientContext, e
 			network.enclaveCtx,
 			serviceId,
 			elClientRpcSocketStrs,
-			network.totalTerminalDifficulty,
 		)
 	} else {
 		bootnodeClientCtx, found := network.nodeClientCtx[bootnodeNodeIndex]
@@ -74,7 +70,6 @@ func (network *ConsensusLayerNetwork) AddNode() (*ConsensusLayerClientContext, e
 			serviceId,
 			bootnodeClientCtx.GetENR(),
 			elClientRpcSocketStrs,
-			network.totalTerminalDifficulty,
 		)
 	}
 	if nodeLaunchErr != nil {
