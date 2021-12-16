@@ -2,10 +2,12 @@ package impl
 
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network/geth"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network/nethermind"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/ethereum_genesis_generator"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
+	"text/template"
+
 	// "path"
 	// "text/template"
 )
@@ -15,11 +17,15 @@ const (
 	networkId = "3151908"
 
 	staticFilesDirpath                    = "/static-files"
-	nethermindGenesisJsonTemplateFilepath = staticFilesDirpath + "/nethermind-genesis.json.tmpl"
+
 
 	externalIpAddress = "185.247.70.125"
 	bootnodeEnr = "enr:-Iq4QKuNB_wHmWon7hv5HntHiSsyE1a6cUTK1aT7xDSU_hNTLW3R4mowUboCsqYoh1kN9v3ZoSu_WuvW9Aw0tQ0Dxv6GAXxQ7Nv5gmlkgnY0gmlwhLKAlv6Jc2VjcDI1NmsxoQK6S-Cii_KmfFdUJL2TANL3ksaKUnNXvTCv1tLwXs0QgIN1ZHCCIyk"
 	totalTerminalDifficulty = 60000000 //This value is the one that the genesis generator creates in the genesis file
+
+	//Nethermind
+	nethermindGenesisJsonTemplateFilename = "nethermind-genesis.json.tmpl"
+	nethermindGenesisJsonTemplateFilepath = staticFilesDirpath + "/" + nethermindGenesisJsonTemplateFilename
 )
 var bootnodeEnodes = []string{
 	"enode://6b457d42e6301acfae11dc785b43346e195ad0974b394922b842adea5aeb4c55b02410607ba21e4a03ba53e7656091e2f990034ce3f8bad4d0cca1c6398bdbb8@137.184.55.117:30303",
@@ -40,64 +46,20 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		return "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis generator Service")
 	}
 
-	// TODO Nethermind template-filling here
-	/*
-	tmpl, err := template.New(templateFilename).ParseFiles(templateFilepath)
-	template.New(
-		// For some reason, the template name has to match the basename of the file:
-		//  https://stackoverflow.com/questions/49043292/error-template-is-an-incomplete-or-empty-template
-		path.Base(nethermindGenesisJsonTemplateFilepath),
-	).Parse(
-		gethGenesisJsonFilepath,
-	)
+	tmpl, err := template.New(nethermindGenesisJsonTemplateFilename).ParseFiles(nethermindGenesisJsonTemplateFilepath)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis JSON template file '%v'", nethermindGenesisJsonTemplateFilepath)
 	}
-	 */
 
-	gethClientLauncher := geth.NewGethELClientLauncher(gethGenesisJsonFilepath)
+	nethermindClientLauncher := nethermind.NewNethermindELClientLauncher(gethGenesisJsonFilepath, tmpl)
 	elNetwork := el_client_network.NewExecutionLayerNetwork(
 		enclaveCtx,
 		networkId,
-		gethClientLauncher,
+		nethermindClientLauncher,
 	)
-
-	// TODO Make the number of nodes a dynamic argument
 	if err := elNetwork.AddNode(); err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred adding the EL client node")
 	}
-
-	/*
-	gethElClientServiceCtx, err := geth_el_client.LaunchGethELClient(
-		enclaveCtx,
-		gethGenesisJsonFilepath,
-		networkId,
-		externalIpAddress,
-		bootnodeEnodes,
-	)
-	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred launching the Geth EL client")
-	}
-
-	gethElClientRpcPort, found := gethElClientServiceCtx.GetPrivatePorts()[geth_el_client.RpcPortId]
-	if !found {
-		return "", stacktrace.NewError("Expected the Geth EL client to have a port with ID '%v' but none was found", geth_el_client.RpcPortId)
-	}
-
-	_, err = lighthouse_cl_client.LaunchLighthouseCLClient(
-		enclaveCtx,
-		consensusConfigDataDirpathOnModuleContainer,
-		externalIpAddress,
-		bootnodeEnr,
-		gethElClientServiceCtx.GetPrivateIPAddress(),
-		gethElClientRpcPort.GetNumber(),
-		totalTerminalDifficulty,
-	)
-	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred launching the Lighthouse CL client")
-	}
-
-	 */
 
 	return "{}", nil
 }
