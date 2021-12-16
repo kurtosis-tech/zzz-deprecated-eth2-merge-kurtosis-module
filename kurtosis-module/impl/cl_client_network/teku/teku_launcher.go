@@ -15,7 +15,8 @@ import (
 const (
 	imageName = "consensys/teku:latest"
 
-	consensusDataDirpathOnServiceContainer = "/consensus-data"
+	// The Docker container runs as the "teku" user so we can't write to root
+	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
 
 	// Port IDs
 	tcpDiscoveryPortID = "tcp-discovery"
@@ -202,7 +203,7 @@ func waitForAvailability(restClient *cl_client_rest_client.CLClientRESTClient) e
 		time.Sleep(timeBetweenHealthcheckRetries)
 	}
 	return stacktrace.NewError(
-		"Lighthouse node didn't become available even after %v retries with %v between retries",
+		"Teku node didn't become available even after %v retries with %v between retries",
 		maxNumHealthcheckRetries,
 		timeBetweenHealthcheckRetries,
 	)
