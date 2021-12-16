@@ -17,5 +17,5 @@ port = {{ .ListenPortNum }}
 {{ range $clClient := .CLClientInfo }}
 [[monitor.endpoints]]
 consensus = "http://{{ $clClient.IPAddr }}:{{ $clClient.PortNum }}"
-execution = "Geth"   # This doesn't seem to be used
+execution = "N/A"   # This doesn't seem to be used
 {{ end }}

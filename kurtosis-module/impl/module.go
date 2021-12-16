@@ -20,7 +20,9 @@ import (
 const (
 	networkId = "3151908"
 
+	// Genesis config
 	secondsPerSlot = uint32(12)
+	totalTerminalDifficulty         = 60000000 //This value is the one that the genesis generator creates in the genesis file
 
 	// ----------------------------------- Static File Constants -----------------------------------------
 	staticFilesDirpath                    = "/static-files"
@@ -38,7 +40,8 @@ const (
 	forkmonConfigTemplateFilepath = staticFilesDirpath + "/forkmon-config/config.toml.tmpl"
 	// --------------------------------- End Static File Constants ----------------------------------------
 
-	totalTerminalDifficulty         = 60000000 //This value is the one that the genesis generator creates in the genesis file
+	responseJsonLinePrefixStr = ""
+	responseJsonLineIndentStr = "  "
 
 	// TODO uncomment these when the module can either start a private network OR connect to an existing devnet
 	// mergeDevnet3NetworkId = "1337602"
@@ -183,7 +186,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	responseObj := &ExecuteResponse{
 		ForkmonPublicURL: forkmonPublicUrl,
 	}
-	responseStr, err := json.Marshal(responseObj)
+	responseStr, err := json.MarshalIndent(responseObj, responseJsonLinePrefixStr, responseJsonLineIndentStr)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred serializing the following response object to JSON for returning: %+v", responseObj)
 	}
