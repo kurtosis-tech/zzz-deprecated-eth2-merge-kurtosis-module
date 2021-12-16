@@ -7,6 +7,7 @@
 * Hooked up genesis generation for Geth & CL nodes
 * Lighthouse nodes peer with each other
 * Add forkmon to the started network
+* Add Teku CL client
 
 # 0.1.0
 * Initial commit

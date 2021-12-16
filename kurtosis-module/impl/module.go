@@ -78,7 +78,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the CL genesis generation config YAML template")
 	}
-	gethGenesisJsonFilepath, clClientConfigDataDirpath, err := ethereum_genesis_generator.GenerateELAndCLGenesisConfig(
+	gethGenesisJsonFilepath, clGenesisPaths, err := ethereum_genesis_generator.GenerateELAndCLGenesisConfig(
 		enclaveCtx,
 		gethGenesisConfigTemplate,
 		clGenesisConfigTemplate,
@@ -127,7 +127,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	logrus.Info("Successfully launched a network of EL clients")
 
 	logrus.Info("Launching a network of CL clients...")
-	lighthouseClientLauncher := lighthouse.NewLighthouseCLClientLauncher(clClientConfigDataDirpath)
+	lighthouseClientLauncher := lighthouse.NewLighthouseCLClientLauncher(clGenesisPaths.GetParentDirpath())
 	clNetwork := cl_client_network.NewConsensusLayerNetwork(
 		enclaveCtx,
 		allElClientContexts,
