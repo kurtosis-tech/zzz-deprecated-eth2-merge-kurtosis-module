@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/cl_client_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -12,7 +13,7 @@ import (
 )
 
 const (
-	image = "consensys/teku:latest"
+	imageName = "consensys/teku:latest"
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 
@@ -27,6 +28,9 @@ const (
 
 	// To start a bootnode rather than a child node, we provide this string to the launchNode function
 	bootnodeEnrStrForStartingBootnode = ""
+
+	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
+	genesisSszRelFilepathInSharedDir = "genesis.ssz"
 
 	maxNumHealthcheckRetries = 10
 	timeBetweenHealthcheckRetries = 1 * time.Second
@@ -105,11 +109,31 @@ func (launcher *TekuCLClientLauncher) launchNode(
 func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 	bootNodeEnr string,
 	elClientRpcSockets map[string]bool,
-	clGenesisConfigYmlFilepathOnModuleContainer string,
-	clGenesisSzzFilepathOnModuleContainer string,
+	genesisConfigYmlFilepathOnModuleContainer string,
+	genesisSszFilepathOnModuleContainer string,
 	totalTerminalDiffulty uint32,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
+		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
+			return nil, stacktrace.Propagate(
+				err,
+				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
+				genesisConfigYmlFilepathOnModuleContainer,
+				genesisConfigYmlRelFilepathInSharedDir,
+			)
+		}
+
+		genesisSszSharedPath := sharedDir.GetChildPath(genesisSszRelFilepathInSharedDir)
+		if err := service_launch_utils.CopyFileToSharedPath(genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
+			return nil, stacktrace.Propagate(
+				err,
+				"An error occurred copying the genesis SSZ from '%v' to shared dir relative path '%v'",
+				genesisSszFilepathOnModuleContainer,
+				genesisSszRelFilepathInSharedDir,
+			)
+		}
+
 		elClientRpcUrls := []string{}
 		for rpcSocketStr := range elClientRpcSockets {
 			rpcUrlStr := fmt.Sprintf("http://%v", rpcSocketStr)
@@ -118,8 +142,8 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 		elClientRpcUrlsStr := strings.Join(elClientRpcUrls, ",")
 
 		cmdArgs := []string{
-			"--network=" + TODO,
-			"--initial-state=" + TODO,
+			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
+			"--initial-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
 			"--data-path=" + consensusDataDirpathOnServiceContainer,
 			"--data-storage-mode=PRUNE",
 			"--p2p-enabled=true",
@@ -146,6 +170,8 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 		).WithCmdOverride(
 			cmdArgs,
 		).Build()
+
+		return containerConfig, nil
 	}
 	return containerConfigSupplier
 }
