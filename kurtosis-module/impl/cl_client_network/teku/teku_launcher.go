@@ -43,15 +43,39 @@ var usedPorts = map[string]*services.PortSpec{
 }
 
 type TekuCLClientLauncher struct {
-
+	genesisConfigYmlFilepathOnModuleContainer string
+	genesisSszFilepathOnModuleContainer string
 }
 
-func (t TekuCLClientLauncher) LaunchBootNode(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, elClientRpcSockets map[string]bool, totalTerminalDifficulty uint32) (resultClientCtx *cl_client_network.ConsensusLayerClientContext, resultErr error) {
-	panic("implement me")
+func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string) *TekuCLClientLauncher {
+	return &TekuCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer}
 }
 
-func (t TekuCLClientLauncher) LaunchChildNode(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, bootnodeEnr string, elClientRpcSockets map[string]bool, totalTerminalDifficulty uint32) (resultClientCtx *cl_client_network.ConsensusLayerClientContext, resultErr error) {
-	panic("implement me")
+func (launcher *TekuCLClientLauncher) LaunchBootNode(
+	enclaveCtx *enclaves.EnclaveContext,
+	serviceId services.ServiceID,
+	elClientRpcSockets map[string]bool,
+	totalTerminalDifficulty uint32,
+) (resultClientCtx *cl_client_network.ConsensusLayerClientContext, resultErr error) {
+	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnrStrForStartingBootnode, elClientRpcSockets, totalTerminalDifficulty)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred starting boot Teku node with service ID '%v'", serviceId)
+	}
+	return clientCtx, nil
+}
+
+func (launcher *TekuCLClientLauncher) LaunchChildNode(
+	enclaveCtx *enclaves.EnclaveContext,
+	serviceId services.ServiceID,
+	bootnodeEnr string,
+	elClientRpcSockets map[string]bool,
+	totalTerminalDifficulty uint32,
+) (resultClientCtx *cl_client_network.ConsensusLayerClientContext, resultErr error) {
+	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnr, elClientRpcSockets, totalTerminalDifficulty)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred starting child Teku node with service ID '%v' connected to boot node with ENR '%v'", serviceId, bootnodeEnr)
+	}
+	return clientCtx, nil
 }
 
 // ====================================================================================================
@@ -62,18 +86,16 @@ func (launcher *TekuCLClientLauncher) launchNode(
 	serviceId services.ServiceID,
 	bootnodeEnr string,
 	elClientRpcSockets map[string]bool,
-	genesisConfigYmlFilepathOnModuleContainer string,
-	genesisSzzFilepathOnModuleContainer string,
 	totalTerminalDiffulty uint32,
 ) (
 	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
 	resultErr error,
 ) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(
+	containerConfigSupplier := getContainerConfigSupplier(
 		bootnodeEnr,
 		elClientRpcSockets,
-		genesisConfigYmlFilepathOnModuleContainer,
-		genesisSzzFilepathOnModuleContainer,
+		launcher.genesisConfigYmlFilepathOnModuleContainer,
+		launcher.genesisSszFilepathOnModuleContainer,
 		totalTerminalDiffulty,
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
@@ -106,7 +128,7 @@ func (launcher *TekuCLClientLauncher) launchNode(
 	return result, nil
 }
 
-func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
+func getContainerConfigSupplier(
 	bootNodeEnr string,
 	elClientRpcSockets map[string]bool,
 	genesisConfigYmlFilepathOnModuleContainer string,
