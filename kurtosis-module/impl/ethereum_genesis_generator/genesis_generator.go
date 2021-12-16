@@ -62,6 +62,7 @@ type elGenesisConfigTemplateData struct {
 }
 type clGenesisConfigTemplateData struct {
 	NetworkId string
+	SecondsPerSlot uint32
 }
 
 func GenerateELAndCLGenesisConfig(
@@ -70,6 +71,7 @@ func GenerateELAndCLGenesisConfig(
 	clGenesisConfigYmlTemplate *template.Template,
 	clMnemonicsYmlFilepathOnModuleContainer string,
 	networkId string,
+	secondsPerSlot uint32,
 ) (
 	resultGethELGenesisJSONFilepath string,
 	resultCLGenesisDataDirpath string,
@@ -80,7 +82,14 @@ func GenerateELAndCLGenesisConfig(
 		return "", "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis-generating container with service ID '%v'", serviceId)
 	}
 
-	gethGenesisJsonFilepath, clGenesisDataDirpath, err := generateGenesisData(serviceCtx, networkId, elGenesisConfigYmlTemplate, clGenesisConfigYmlTemplate, clMnemonicsYmlFilepathOnModuleContainer)
+	gethGenesisJsonFilepath, clGenesisDataDirpath, err := generateGenesisData(
+		serviceCtx,
+		elGenesisConfigYmlTemplate,
+		clGenesisConfigYmlTemplate,
+		clMnemonicsYmlFilepathOnModuleContainer,
+		networkId,
+		secondsPerSlot,
+	)
 	if err != nil {
 		return "", "", stacktrace.Propagate(err, "An error occurred generating genesis data")
 	}
@@ -98,10 +107,11 @@ func GenerateELAndCLGenesisConfig(
 
 func generateGenesisData(
 	serviceCtx *services.ServiceContext,
-	networkId string,
 	gethGenesisConfigYmlTemplate *template.Template,
 	clGenesisConfigYmlTemplate *template.Template,
 	clMnemonicsYmlFilepathOnModuleContainer string,
+	networkId string,
+	secondsPerSlot uint32,
 ) (
 	resultGethGenesisJsonFilepathOnModuleContainer string,
 	resultClConfigDataDirpathOnModuleContainer string,
@@ -111,7 +121,8 @@ func generateGenesisData(
 		NetworkId: networkId,
 	}
 	clTemplateData := clGenesisConfigTemplateData{
-		NetworkId: networkId,
+		NetworkId:      networkId,
+		SecondsPerSlot: secondsPerSlot,
 	}
 
 	sharedDir := serviceCtx.GetSharedDirectory()

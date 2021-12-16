@@ -44,13 +44,13 @@ func NewConsensusLayerNetwork(
 	}
 }
 
-func (network *ConsensusLayerNetwork) AddNode() error {
+func (network *ConsensusLayerNetwork) AddNode() (*ConsensusLayerClientContext, error) {
 	network.mutex.Lock()
 	defer network.mutex.Unlock()
 
 	elClientRpcSocketStrs, err := network.getElClientRpcSockets()
 	if err != nil {
-		return stacktrace.Propagate(err, "An error occurred converting the EL client contexts into RPC IP:port socket strings")
+		return nil, stacktrace.Propagate(err, "An error occurred converting the EL client contexts into RPC IP:port socket strings")
 	}
 
 	newNodeIndex := network.nextNodeIndex
@@ -67,7 +67,7 @@ func (network *ConsensusLayerNetwork) AddNode() error {
 	} else {
 		bootnodeClientCtx, found := network.nodeClientCtx[bootnodeNodeIndex]
 		if !found {
-			return stacktrace.NewError("The EL client network has >= 1 nodes, but we couldn't find a node with bootnode ID '%v'; this is a bug in the module!", bootnodeNodeIndex)
+			return nil, stacktrace.NewError("The EL client network has >= 1 nodes, but we couldn't find a node with bootnode ID '%v'; this is a bug in the module!", bootnodeNodeIndex)
 		}
 		newClientCtx, nodeLaunchErr = network.clientLauncher.LaunchChildNode(
 			network.enclaveCtx,
@@ -78,12 +78,12 @@ func (network *ConsensusLayerNetwork) AddNode() error {
 		)
 	}
 	if nodeLaunchErr != nil {
-		return stacktrace.Propagate(nodeLaunchErr, "An error occurred launching node with service ID '%v'", serviceId)
+		return nil, stacktrace.Propagate(nodeLaunchErr, "An error occurred launching node with service ID '%v'", serviceId)
 	}
 	network.nextNodeIndex = network.nextNodeIndex + 1
 	network.nodeClientCtx[newNodeIndex] = newClientCtx
 
-	return nil
+	return newClientCtx, nil
 }
 
 // ====================================================================================================

@@ -120,6 +120,7 @@ func (launcher *LighthouseCLClientLauncher) launchNode(
 	result := cl_client_network.NewConsensusLayerClientContext(
 		serviceCtx,
 		nodeIdentity.ENR,
+		httpPortID,
 	)
 
 	return result, nil
