@@ -22,11 +22,21 @@ import (
 const (
 	networkId = "3151908"
 
-	// Genesis config
+	numElNodes = 1
+	numClNodes = 3
+
+	// ----------------------------------- Genesis Config Constants -----------------------------------------
+	// We COULD drop this, but it won't represent mainnet
 	secondsPerSlot = uint32(12)
 	altairForkEpoch = uint64(2)  // Set per Parithosh's recommendation
-	mergeForkEpoch = uint64(6)   // Set per Parithosh's recommendation
-	totalTerminalDifficulty  = uint64(60000000) // TODO Should be set to roughly one hour (??) so that this is reached AFTER the CL gets the merge fork version (per Parithosh)
+	mergeForkEpoch = uint64(5)   // Set per Parithosh's recommendation
+	// TODO Should be set to roughly one hour (??) so that this is reached AFTER the CL gets the merge fork version (per Parithosh)
+	totalTerminalDifficulty  = uint64(60000000)
+
+	// This is the mnemonic that will be used to generate validator keys which will be preregistered in the CL genesis.ssz that we create
+	// This is the same mnemonic that should be used to generate the validator keys that we'll load into our CL nodes when we run them
+	preregisteredValidatorKeysMnemonic = "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
+	// --------------------------------- End Genesis Config Constants ----------------------------------------
 
 	// ----------------------------------- Static File Constants -----------------------------------------
 	staticFilesDirpath                    = "/static-files"
@@ -81,17 +91,22 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the CL genesis generation config YAML template")
 	}
+	clGenesisMnemonicsYmlTemplate, err := parseTemplate(clGenesisGenerationMnemonicsYmlTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing the CL mnemonics YAML template")
+	}
 	gethGenesisJsonFilepath, clGenesisPaths, err := ethereum_genesis_generator.GenerateELAndCLGenesisConfig(
 		enclaveCtx,
 		gethGenesisConfigTemplate,
 		clGenesisConfigTemplate,
-		clGenesisGenerationMnemonicsYmlTemplateFilepath,
+		clGenesisMnemonicsYmlTemplate,
 		genesisUnixTimestamp,
 		networkId,
 		secondsPerSlot,
 		altairForkEpoch,
 		mergeForkEpoch,
 		totalTerminalDifficulty,
+		preregisteredValidatorKeysMnemonic,
 	)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis generator Service")
@@ -121,9 +136,8 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		gethClientLauncher,
 	)
 
-	// TODO Make the number of nodes a dynamic argument
 	allElClientContexts := []*el_client_network.ExecutionLayerClientContext{}
-	for i := 0; i < 1; i++ {
+	for i := 0; i < numElNodes; i++ {
 		elClientCtx, err := elNetwork.AddNode()
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding EL client node %v", i)
@@ -144,9 +158,8 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		clClientLauncher,
 	)
 
-	// TODO Make this dynamic
 	allClClientContexts := []*cl_client_network.ConsensusLayerClientContext{}
-	for i := 0; i < 3; i++ {
+	for i := 0; i < numClNodes; i++ {
 		clClientCtx, err := clNetwork.AddNode()
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding CL client node %v", i)

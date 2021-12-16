@@ -1,3 +1,4 @@
-- mnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"  # a 24 word BIP 39 mnemonic
-  # Used to be 20000 ~ ktoday
-  count: 10
+- mnemonic: "{{ .StakingContractSeedMnemonic }}"  # a 24 word BIP 39 mnemonic
+  # Needs to be at least 64 (hardcoded number of validators required)
+  # This is because we need to have 32 unique validators for this epoch, and 32 for the next
+  count: 100

@@ -62,6 +62,7 @@ type elGenesisConfigTemplateData struct {
 	NetworkId string
 	UnixTimestamp int64
 	TotalTerminalDifficulty uint64
+	StakingContractSeedMnemonic string
 }
 type clGenesisConfigTemplateData struct {
 	NetworkId string
@@ -70,19 +71,21 @@ type clGenesisConfigTemplateData struct {
 	TotalTerminalDifficulty uint64
 	AltairForkEpoch uint64
 	MergeForkEpoch uint64
+	StakingContractSeedMnemonic string
 }
 
 func GenerateELAndCLGenesisConfig(
 	enclaveCtx *enclaves.EnclaveContext,
 	elGenesisConfigYmlTemplate *template.Template,
 	clGenesisConfigYmlTemplate *template.Template,
-	clMnemonicsYmlFilepathOnModuleContainer string,
+	clMnemonicsYmlTemplate *template.Template,
 	unixTimestamp int64,
 	networkId string,
 	secondsPerSlot uint32,
 	altairForkEpoch uint64,
 	mergeForkEpoch uint64,
 	totalTerminalDifficulty uint64,
+	stakingContractSeedMnemonic string,
 ) (
 	resultGethELGenesisJSONFilepath string,
 	resultCLGenesisPaths *CLGenesisPaths,
@@ -97,13 +100,14 @@ func GenerateELAndCLGenesisConfig(
 		serviceCtx,
 		elGenesisConfigYmlTemplate,
 		clGenesisConfigYmlTemplate,
-		clMnemonicsYmlFilepathOnModuleContainer,
+		clMnemonicsYmlTemplate,
 		unixTimestamp,
 		networkId,
 		secondsPerSlot,
 		altairForkEpoch,
 		mergeForkEpoch,
 		totalTerminalDifficulty,
+		stakingContractSeedMnemonic,
 	)
 	if err != nil {
 		return "", nil, stacktrace.Propagate(err, "An error occurred generating genesis data")
@@ -124,22 +128,24 @@ func generateGenesisData(
 	serviceCtx *services.ServiceContext,
 	gethGenesisConfigYmlTemplate *template.Template,
 	clGenesisConfigYmlTemplate *template.Template,
-	clMnemonicsYmlFilepathOnModuleContainer string,
+	clMnemonicsYmlTemplate *template.Template,
 	unixTimestamp int64,
 	networkId string,
 	secondsPerSlot uint32,
 	altairForkEpoch uint64,
 	mergeForkEpoch uint64,
 	totalTerminalDifficulty uint64,
+	stakingContractSeedMnemonic string,
 ) (
 	resultGethGenesisJsonFilepathOnModuleContainer string,
 	resultClGenesisPaths *CLGenesisPaths,
 	resultErr error,
 ) {
 	elTemplateData := elGenesisConfigTemplateData{
-		NetworkId:               networkId,
-		UnixTimestamp:           unixTimestamp,
-		TotalTerminalDifficulty: totalTerminalDifficulty,
+		NetworkId:                   networkId,
+		UnixTimestamp:               unixTimestamp,
+		TotalTerminalDifficulty:     totalTerminalDifficulty,
+		StakingContractSeedMnemonic: stakingContractSeedMnemonic,
 	}
 	clTemplateData := clGenesisConfigTemplateData{
 		NetworkId:               networkId,
@@ -148,6 +154,7 @@ func generateGenesisData(
 		TotalTerminalDifficulty: totalTerminalDifficulty,
 		AltairForkEpoch:         altairForkEpoch,
 		MergeForkEpoch:          mergeForkEpoch,
+		StakingContractSeedMnemonic: stakingContractSeedMnemonic,
 	}
 
 	sharedDir := serviceCtx.GetSharedDirectory()
@@ -166,13 +173,8 @@ func generateGenesisData(
 
 	// Make the CL mnemonics file available to the generator container
 	clMnemonicsYmlSharedPath := sharedDir.GetChildPath(clMnemonicsYmlRelFilepathInSharedDir)
-	if err := service_launch_utils.CopyFileToSharedPath(clMnemonicsYmlFilepathOnModuleContainer, clMnemonicsYmlSharedPath); err != nil {
-		return "", nil, stacktrace.Propagate(
-			err,
-			"An error occurred copying CL mnemonics file '%v' into shared directory relative path '%v'",
-			clMnemonicsYmlFilepathOnModuleContainer,
-			clMnemonicsYmlRelFilepathInSharedDir,
-		)
+	if err := service_launch_utils.FillTemplateToSharedPath(clMnemonicsYmlTemplate, clTemplateData, clMnemonicsYmlSharedPath); err != nil {
+		return "", nil, stacktrace.Propagate(err, "An error occurred filling the CL mnemonics YML template")
 	}
 
 	outputSharedPath := sharedDir.GetChildPath(genesisDataRelDirpathInSharedDir)
