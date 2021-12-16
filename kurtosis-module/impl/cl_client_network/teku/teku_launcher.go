@@ -33,7 +33,8 @@ const (
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir = "genesis.ssz"
 
-	maxNumHealthcheckRetries = 10
+	// Teku nodes take quite a while to start
+	maxNumHealthcheckRetries = 60
 	timeBetweenHealthcheckRetries = 1 * time.Second
 )
 var usedPorts = map[string]*services.PortSpec{
@@ -172,12 +173,12 @@ func getContainerConfigSupplier(
 			"--rest-api-docs-enabled=true",
 			"--rest-api-interface=0.0.0.0",
 			fmt.Sprintf("--rest-api-port=%v", httpPortNum),
-			"--rest-api-host-allowlist=\"*\"",
+			"--rest-api-host-allowlist=*",
 			"--data-storage-non-canonical-blocks-enabled=true",
 			"--log-destination=CONSOLE",
 		}
 		if bootNodeEnr != bootnodeEnrStrForStartingBootnode {
-			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes" + bootNodeEnr)
+			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes=" + bootNodeEnr)
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
