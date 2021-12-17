@@ -6,7 +6,8 @@ import (
 )
 
 func TestGenerateKeyStartAndStopIndices(t *testing.T) {
-	startIndices, stopIndices := generateKeyStartAndStopIndices(10, 3)
+	startIndices, stopIndices, err := generateKeyStartAndStopIndices(10, 3)
+	require.NoError(t, err)
 	require.Equal(t, []uint32{0, 4, 7}, startIndices)
 	require.Equal(t, []uint32{4, 7, 10}, stopIndices)
 }

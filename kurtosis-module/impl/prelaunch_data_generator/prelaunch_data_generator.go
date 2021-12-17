@@ -45,6 +45,7 @@ func GeneratePrelaunchData(
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis-generating container with service ID '%v'", serviceId)
 	}
 
+	logrus.Info("Generating genesis data...")
 	gethGenesisJsonFilepath, clGenesisPaths, err := generateGenesisData(
 		serviceCtx,
 		elGenesisConfigYmlTemplate,
@@ -62,7 +63,9 @@ func GeneratePrelaunchData(
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred generating genesis data")
 	}
+	logrus.Info("Successfully geneerated genesis data")
 
+	logrus.Info("Generating validator keystores for nodes...")
 	generateKeystoresResult, err := generateKeystores(
 		serviceCtx,
 		validatorsMnemonic,
@@ -77,6 +80,7 @@ func GeneratePrelaunchData(
 			numClNodesToStart,
 		)
 	}
+	logrus.Info("Successfully generated validator keystores for nodes")
 
 	if err := enclaveCtx.RemoveService(serviceId, containerStopTimeoutSeconds); err != nil {
 		logrus.Errorf(

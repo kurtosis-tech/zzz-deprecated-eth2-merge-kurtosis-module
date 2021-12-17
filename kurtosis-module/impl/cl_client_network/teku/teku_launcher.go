@@ -19,6 +19,9 @@ const (
 	// The Docker container runs as the "teku" user so we can't write to root
 	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
 
+	// TODO Get rid of this being hardcoded; should be shared
+	validatingRewardsAccount = "0x0000000000000000000000000000000000000001"
+
 	// Port IDs
 	tcpDiscoveryPortID = "tcp-discovery"
 	udpDiscoveryPortID = "udp-discovery"
@@ -204,6 +207,7 @@ func getContainerConfigSupplier(
 				validatorKeysDirpathOnModuleContainer,
 				validatorSecretsDirpathOnModuleContainer,
 			),
+			"--Xvalidators-fee-recipient-address=" + validatingRewardsAccount,
 		}
 		if bootNodeEnr != bootnodeEnrStrForStartingBootnode {
 			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes=" + bootNodeEnr)

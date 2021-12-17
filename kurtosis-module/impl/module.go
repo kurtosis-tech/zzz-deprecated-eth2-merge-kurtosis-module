@@ -84,7 +84,7 @@ func NewExampleExecutableKurtosisModule() *ExampleExecutableKurtosisModule {
 }
 
 func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
-	logrus.Info("Generating genesis information for EL & CL clients...")
+	logrus.Info("Generating prelaunch data...")
 	genesisUnixTimestamp := time.Now().Unix()
 	gethGenesisConfigTemplate, err := parseTemplate(gethGenesisGenerationConfigYmlTemplateFilepath)
 	if err != nil {
@@ -117,7 +117,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis generator Service")
 	}
-	logrus.Info("Successfully generated genesis information for EL & CL clients")
+	logrus.Info("Successfully generated prelaunch data")
 
 	// TODO Nethermind template-filling here
 	/*
