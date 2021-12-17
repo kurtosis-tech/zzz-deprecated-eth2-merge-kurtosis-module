@@ -28,7 +28,10 @@ func generateKeystores(
 	error,
 ){
 	sharedDir := serviceCtx.GetSharedDirectory()
-	startIndices, stopIndices := generateKeyStartAndStopIndices(numPreregisteredValidators, numNodes)
+	startIndices, stopIndices, err := generateKeyStartAndStopIndices(numPreregisteredValidators, numNodes)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred generating the validator key start & stop indices for the nodes")
+	}
 
 	allNodeKeystoreDirpaths := []*NodeTypeKeystoreDirpaths{}
 	allSubcommandStrs := []string{}
@@ -84,7 +87,15 @@ func generateKeyStartAndStopIndices(
 ) (
 	resultInclusiveKeyStartIndices []uint32,
 	resultExclusiveKeyStopIndices []uint32,
+	resultErr error,
 ){
+	if (numNodes > numPreregisteredValidators) {
+		return nil, nil, stacktrace.NewError(
+			"Number of preregistered validators '%v' must be >= number of CL nodes '%v'",
+			numPreregisteredValidators,
+			numNodes,
+		)
+	}
 	validatorsPerNode := numPreregisteredValidators / numNodes
 
 	// If mod(num_validators / num_nodes) != 0, we have to give one of the nodes extra keys
@@ -105,5 +116,5 @@ func generateKeyStartAndStopIndices(
 		exclusiveKeyStopIndices = append(exclusiveKeyStopIndices, rangeEnd)
 		lastEndIndex = rangeEnd
 	}
-	return inclusiveKeyStartIndices, exclusiveKeyStopIndices
+	return inclusiveKeyStartIndices, exclusiveKeyStopIndices, nil
 }

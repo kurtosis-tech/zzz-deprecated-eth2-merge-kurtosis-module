@@ -57,6 +57,7 @@ func GeneratePrelaunchData(
 		mergeForkEpoch,
 		totalTerminalDifficulty,
 		stakingContractSeedMnemonic,
+		numValidatorKeysToPreregister,
 	)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred generating genesis data")

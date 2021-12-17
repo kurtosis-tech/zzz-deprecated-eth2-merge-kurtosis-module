@@ -56,16 +56,16 @@ type elGenesisConfigTemplateData struct {
 	NetworkId string
 	UnixTimestamp int64
 	TotalTerminalDifficulty uint64
-	StakingContractSeedMnemonic string
 }
 type clGenesisConfigTemplateData struct {
-	NetworkId string
-	SecondsPerSlot uint32
-	UnixTimestamp int64
-	TotalTerminalDifficulty uint64
-	AltairForkEpoch uint64
-	MergeForkEpoch uint64
-	StakingContractSeedMnemonic string
+	NetworkId                          string
+	SecondsPerSlot                     uint32
+	UnixTimestamp                      int64
+	TotalTerminalDifficulty            uint64
+	AltairForkEpoch                    uint64
+	MergeForkEpoch                     uint64
+	NumValidatorKeysToPreregister uint32
+	PreregisteredValidatorKeysMnemonic string
 }
 
 func generateGenesisData(
@@ -79,7 +79,8 @@ func generateGenesisData(
 	altairForkEpoch uint64,
 	mergeForkEpoch uint64,
 	totalTerminalDifficulty uint64,
-	stakingContractSeedMnemonic string,
+	preregisteredValidatorKeysMnemonic string,
+	numValidatorKeysToPreregister uint32,
 ) (
 	resultGethGenesisJsonFilepathOnModuleContainer string,
 	resultClGenesisPaths *CLGenesisPaths,
@@ -89,16 +90,16 @@ func generateGenesisData(
 		NetworkId:                   networkId,
 		UnixTimestamp:               unixTimestamp,
 		TotalTerminalDifficulty:     totalTerminalDifficulty,
-		StakingContractSeedMnemonic: stakingContractSeedMnemonic,
 	}
 	clTemplateData := clGenesisConfigTemplateData{
-		NetworkId:               networkId,
-		SecondsPerSlot:          secondsPerSlot,
-		UnixTimestamp:           unixTimestamp,
-		TotalTerminalDifficulty: totalTerminalDifficulty,
-		AltairForkEpoch:         altairForkEpoch,
-		MergeForkEpoch:          mergeForkEpoch,
-		StakingContractSeedMnemonic: stakingContractSeedMnemonic,
+		NetworkId:                          networkId,
+		SecondsPerSlot:                     secondsPerSlot,
+		UnixTimestamp:                      unixTimestamp,
+		TotalTerminalDifficulty:            totalTerminalDifficulty,
+		AltairForkEpoch:                    altairForkEpoch,
+		MergeForkEpoch:                     mergeForkEpoch,
+		NumValidatorKeysToPreregister:      numValidatorKeysToPreregister,
+		PreregisteredValidatorKeysMnemonic: preregisteredValidatorKeysMnemonic,
 	}
 
 	sharedDir := serviceCtx.GetSharedDirectory()

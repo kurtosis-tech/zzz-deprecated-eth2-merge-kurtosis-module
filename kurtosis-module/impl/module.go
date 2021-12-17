@@ -159,10 +159,12 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		clGenesisPaths.GetConfigYMLFilepath(),
 		clGenesisPaths.GetGenesisSSZFilepath(),
 	)
+	keystoresGenerationResult := prelaunchData.KeystoresGenerationResult
 	clNetwork := cl_client_network.NewConsensusLayerNetwork(
 		enclaveCtx,
 		allElClientContexts,
 		clClientLauncher,
+		keystoresGenerationResult.PerNodeKeystoreDirpaths,
 	)
 
 	allClClientContexts := []*cl_client_network.ConsensusLayerClientContext{}

@@ -1,4 +1,3 @@
-- mnemonic: "{{ .StakingContractSeedMnemonic }}"  # a 24 word BIP 39 mnemonic
-  # Needs to be at least 64 (hardcoded number of validators required)
-  # This is because we need to have 32 unique validators for this epoch, and 32 for the next
+- mnemonic: "{{ .PreregisteredValidatorKeysMnemonic }}"  # a 24 word BIP 39 mnemonic
+  # Number of validator keys to preregister inside the outputted CL genesis.ssz
   count: 100
