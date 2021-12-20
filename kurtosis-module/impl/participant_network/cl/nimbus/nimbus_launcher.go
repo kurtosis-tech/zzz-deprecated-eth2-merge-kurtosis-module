@@ -10,14 +10,13 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	recursive_copy "github.com/otiai10/copy"
+	"os"
 	"time"
 )
 
 const (
-	// TODO change
-	imageName = "parithoshj/nimbus:merge-e623091"
-
-	consensusDataDirpathOnServiceContainer = "/consensus-data"
+	// imageName = "parithoshj/nimbus:merge-e623091"
+	imageName = "statusim/nimbus-eth2:amd64-latest"
 
 	// Port IDs
 	tcpDiscoveryPortID = "tcp-discovery"
@@ -29,6 +28,15 @@ const (
 	httpPortNum             = 4000
 
 	configDataDirpathRelToSharedDirRoot = "config-data"
+
+	// Nimbus requires that its data directory already exists (because it expects you to bind-mount it), so we
+	//  have to put it in the shared dir and create it
+	consensusDataDirpathRelToSharedDirRoot = "consensus-data"
+	consensusDataDirPerms = 0700 // Nimbus wants the data dir to have these perms
+
+	validatorKeysDirpathRelToSharedDirRoot = "validator-keys"
+	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
+	validatorSecretsDirPerms = 0600	// If we don't set these when we copy, Nimbus will burn a bunch of time doing it for us
 
 	maxNumHealthcheckRetries = 15
 	timeBetweenHealthcheckRetries = 1 * time.Second
@@ -52,6 +60,8 @@ func (launcher NimbusLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, servi
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		bootnodeContext,
 		elClientContext,
+		nodeKeystoreDirpaths.NimbusKeysDirpath,
+		nodeKeystoreDirpaths.RawSecretsDirpath,
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
@@ -68,6 +78,8 @@ func (launcher NimbusLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, servi
 	if err := waitForAvailability(restClient); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Nimbus node to become available")
 	}
+
+	// TODO LAUNCH VALIDATOR NODE
 
 	nodeIdentity, err := restClient.GetNodeIdentity()
 	if err != nil {
@@ -89,6 +101,8 @@ func (launcher NimbusLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, servi
 func (launcher *NimbusLauncher) getContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
+	validatorKeysDirpathOnModuleContainer string,
+	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(configDataDirpathRelToSharedDirRoot)
@@ -103,23 +117,43 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			)
 		}
 
+		dataDirSharedPath := sharedDir.GetChildPath(consensusDataDirpathRelToSharedDirRoot)
+		if err := os.Mkdir(dataDirSharedPath.GetAbsPathOnThisContainer(), consensusDataDirPerms); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred creating the consensus data directory in the shared directory")
+		}
+
 		elClientWsUrlStr := fmt.Sprintf(
 			"ws://%v:%v",
 			elClientContext.GetIPAddress(),
 			elClientContext.GetWSPortNum(),
 		)
 
+		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
+		if err := recursive_copy.Copy(validatorKeysDirpathOnModuleContainer, validatorKeysSharedPath.GetAbsPathOnThisContainer()); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
+		}
+
+		validatorSecretsSharedPath := sharedDir.GetChildPath(validatorSecretsDirpathRelToSharedDirRoot)
+		if err := recursive_copy.Copy(
+			validatorSecretsDirpathOnModuleContainer,
+			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
+			recursive_copy.Options{AddPermission: validatorSecretsDirPerms},
+		); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
+		}
+
 		cmdArgs := []string{
-			"beacon_node",
 			"--non-interactive=true",
 			"--network=" + configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer(),
-			"--data-dir=" + consensusDataDirpathOnServiceContainer,
+			"--data-dir=" + dataDirSharedPath.GetAbsPathOnServiceContainer(),
 			"--web3-url=" + elClientWsUrlStr,
 			"--nat=extip:" + privateIpAddr,
 			"--enr-auto-update=false",
 			"--rest",
+			"--rest-address=0.0.0.0",
 			fmt.Sprintf("--rest-port=%v", httpPortNum),
-			// TODO validator keys
+			"--validators-dir=" + validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
+			"--secrets-dir=" + validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
 		}
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--bootstrap-node=" + bootnodeContext.GetENR())
