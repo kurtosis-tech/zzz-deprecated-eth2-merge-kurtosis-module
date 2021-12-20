@@ -3,10 +3,11 @@
     "IsMining": true,
     "WebSocketsEnabled": true,
     "StoreReceipts": true,
-    "ChainSpecPath": "chainspec/kintsugi.json",
-    "BaseDbPath": "nethermind_db/kintsugi",
-    "LogFileName": "kintsugi.logs.txt",
-    "MemoryHint": 768000000
+    "ChainSpecPath": "chainspec/themerge_kintsugi_m2.json",
+    "BaseDbPath": "nethermind_db/themerge_kintsugi_testvectors",
+    "LogFileName": "themerge_kintsugi_testvectors.logs.txt",
+    "MemoryHint": 768000000,
+	"DiagnosticMode": "MemDb"
   },
   "Network": {
     "DiscoveryPort": 30303,
@@ -21,7 +22,7 @@
     "Host": "127.0.0.1",
     "Port": 8550,
     "WebSocketsPort": 8551,
-    "EnabledModules": ["Eth", "Subscribe", "Trace", "TxPool", "Web3", "Personal", "Proof", "Net", "Parity", "Health", "Engine", "Debug"]
+    "EnabledModules": ["Eth", "Subscribe", "Trace", "TxPool", "Web3", "Personal", "Proof", "Net", "Parity", "Health", "Engine", "Admin"]
   },
   "Db": {
     "CacheIndexAndFilterBlocks": false
@@ -37,7 +38,7 @@
   "EthStats": {
     "Enabled": false,
     "Server": "ws://localhost:3000/api",
-    "Name": "Nethermind Kinstugi",
+    "Name": "Nethermind TheMerge Test Kinstugi Vectors",
     "Secret": "secret",
     "Contact": "hello@nethermind.io"
   },
@@ -57,9 +58,12 @@
   "Merge": {
     "Enabled": true,
    	"BlockAuthorAccount": "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b",
-   	"TerminalTotalDifficulty": 5000000000
+   	"TerminalTotalDifficulty": 100
   },
   "Mining": {
-    "MinGasPrice": 0
+      "MinGasPrice": 0
+  },
+  "Keystore": {
+    "TestNodeKey": "{{ .TestNodeKey }}"
   }
 }

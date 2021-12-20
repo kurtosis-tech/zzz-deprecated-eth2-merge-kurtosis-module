@@ -28,6 +28,7 @@ const (
 
 	// Nethermind
 	nethermindGenesisJsonTemplateFilepath = staticFilesDirpath + "/nethermind-genesis.json.tmpl"
+	nethermindConfigTemplateFilepath = staticFilesDirpath + "/kurtosis-config.cfg.tmpl"
 
 	// Forkmon config
 	forkmonConfigTemplateFilepath = staticFilesDirpath + "/forkmon-config/config.toml.tmpl"
@@ -93,7 +94,12 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis json template")
 	}
-	nethermindClientLauncher := nethermind.NewNethermindELClientLauncher(nethermindGenesisJsonTemplate)
+	nethermindConfigTemplate, err := parseTemplate(nethermindConfigTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing the Nethermind config template")
+	}
+
+	nethermindClientLauncher := nethermind.NewNethermindELClientLauncher(nethermindGenesisJsonTemplate, nethermindConfigTemplate)
 	//gethClientLauncher := geth.NewGethELClientLauncher(gethGenesisJsonFilepath)
 	elNetwork := el_client_network.NewExecutionLayerNetwork(
 		enclaveCtx,

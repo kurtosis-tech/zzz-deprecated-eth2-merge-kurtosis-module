@@ -30,8 +30,6 @@ const (
 	sharedGenesisJsonRelFilepath = "nethermind_genesis.json"
 
 	configDirpath = "configs"
-	kintsugiConfigFilename ="kintsugi.cfg"
-
 
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
 
@@ -51,6 +49,8 @@ const (
 	getNodeInfoRpcRequestBody = `{"jsonrpc":"2.0","method": "admin_nodeInfo","params":[],"id":1}`
 	getNodeInfoMaxRetries = 60 //TODO try to adjust
 	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
+
+	kintsugiConfigFilename ="kurtosis-config.cfg"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -64,13 +64,19 @@ type nethermindTemplateData struct {
 	NetworkID string
 }
 
-type NethermindELClientLauncher struct {
-	genesisJsonTemplate *template.Template
+type nethermindConfigTemplateData struct {
+	TestNodeKey string
 }
 
-func NewNethermindELClientLauncher(genesisJsonTemplate *template.Template) *NethermindELClientLauncher {
+type NethermindELClientLauncher struct {
+	genesisJsonTemplate *template.Template
+	configTemplate *template.Template
+}
+
+func NewNethermindELClientLauncher(genesisJsonTemplate *template.Template, configTemplate *template.Template) *NethermindELClientLauncher {
 	return &NethermindELClientLauncher{
 		genesisJsonTemplate: genesisJsonTemplate,
+		configTemplate: configTemplate,
 	}
 }
 
@@ -168,9 +174,30 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred filling the template")
 		}
 
+		kintsugiConfigSharedPath := sharedDir.GetChildPath(kintsugiConfigFilename)
+
+		nethermindConfigTmplData := nethermindConfigTemplateData{
+			TestNodeKey: getRandomTestNodeKey(),
+		}
+
+		kintsugiConfigFilePath, err := os.Create(kintsugiConfigSharedPath.GetAbsPathOnThisContainer())
+		if err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred opening file '%v' for writing", kintsugiConfigSharedPath.GetAbsPathOnThisContainer())
+		}
+		defer fp.Close()
+
+		if err = launcher.configTemplate.Execute(kintsugiConfigFilePath, nethermindConfigTmplData); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred filling the template")
+		}
+
+
+		/*if err := service_launch_utils.CopyFileToSharedPath(kintsugiConfigFilepathInModuleContainer, kintsugiConfigSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", kintsugiConfigFilepathInModuleContainer, kintsugiConfigSharedPath)
+		}*/
+
 		commandArgs := []string{
 			"--config",
-			"kintsugi",
+			kintsugiConfigSharedPath.GetAbsPathOnServiceContainer(),
 			"--datadir=" + executionDataDirpathOnClientContainer,
 			"--Init.ChainSpecPath=" + genesisJsonOnModuleContainerSharedPath.GetAbsPathOnServiceContainer(),
 			"--Init.WebSocketsEnabled=true",
@@ -188,25 +215,6 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--Network.LocalIp=%v", privateIpAddr),
 			fmt.Sprintf("--Network.DiscoveryPort=%v", discoveryPortNum),
 			fmt.Sprintf("--Network.P2PPort=%v", discoveryPortNum),
-			"--Mining.Enabled=true",
-			"--Mining.MinGasPrice=0",
-			"--Merge.Enabled=true",
-			"--Merge.TerminalTotalDifficulty=5000000000", //TODO it has to be dynamic, I got this value from genesis generator genesis_config.yaml file
-			"--Merge.BlockAuthorAccount=0x0000000000000000000000000000000000000001",
-			//"--Merge.BlockAuthorAccount=0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b",  //I found this value in kintsugi.cf file
-			//"--KeyStore.TestNodeKey=" + getRandomTestNodeKey(),
-			//"--KeyStore.BlockAuthorAccount=0x0000000000000000000000000000000000000001",
-			//"--TxPool.Size=2048",
-			//"--Sync.FastSync=false",
-			//"--Sync.FastBlocks=false",
-			//"--Sync.BeamSync=false",
-			//"--Sync.UseGethLimitsInFastBlocks=true",
-			//"--Sync.DownloadBodiesInFastSync=true",
-			//"--Sync.DownloadReceiptsInFastSync=true",
-			//"--EthStats.Enabled=false",
-			//"--Metrics.Enabled=false",
-			//"--log",
-			//"DEBUG",
 		}
 		if bootnodeEnode != bootnodeEnodeStrForStartingBootnode {
 			logrus.Infof("Entra a setear el bootnode: %v", bootnodeEnode)
@@ -302,7 +310,7 @@ func getRandomTestNodeKey() string {
 	min := 10
 	max := 99
 	randomNumber := rand.Intn(max - min + 1) + min
-	randomTestNodeKey := fmt.Sprintf("8687A55019CCA647F6C063F530D47E9A90725D62D853F4B973E589DB24CA93%v", randomNumber)
+	randomTestNodeKey := fmt.Sprintf("0x45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2%v", randomNumber)
 	logrus.Infof("New random TestNodeKey: %v", randomTestNodeKey)
 	return randomTestNodeKey
 }
