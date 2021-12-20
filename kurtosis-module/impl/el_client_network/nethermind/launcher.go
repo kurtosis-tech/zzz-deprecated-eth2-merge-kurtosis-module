@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	imageName = "nethermindeth/nethermind:kintsugi_v3_0.1"
+	imageName = "nethermindeth/nethermind:kintsugi_0.5"
 	// To start a bootnode, we provide this string to the launchNode function
 	bootnodeEnodeStrForStartingBootnode = ""
 
@@ -28,6 +28,10 @@ const (
 
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
 	sharedGenesisJsonRelFilepath = "nethermind_genesis.json"
+
+	configDirpath = "configs"
+	kintsugiConfigFilename ="kintsugi.cfg"
+
 
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
 
@@ -165,18 +169,18 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 		}
 
 		commandArgs := []string{
-			//"--config",
-			//"kintsugi",
+			"--config",
+			"kintsugi",
 			"--datadir=" + executionDataDirpathOnClientContainer,
 			"--Init.ChainSpecPath=" + genesisJsonOnModuleContainerSharedPath.GetAbsPathOnServiceContainer(),
 			"--Init.WebSocketsEnabled=true",
 			"--Init.IsMining=true",
-			"--Init.DiscoveryEnabled=true",
+			//"--Init.DiscoveryEnabled=true",
 			"--Init.DiagnosticMode=None",
-			"--Init.StoreReceipts=true",
-			"--Init.EnableUnsecuredDevWallet=true",
+			//"--Init.StoreReceipts=true",
+			//"--Init.EnableUnsecuredDevWallet=true",
 			"--JsonRpc.Enabled=true",
-			"--JsonRpc.EnabledModules=net,eth,consensus,engine,admin",
+			"--JsonRpc.EnabledModules=net,eth,consensus,engine,admin,subscribe,trace,txpool,web3,personal,proof,parity,health,debug",
 			fmt.Sprintf("--JsonRpc.Port=%v", rpcPortNum),
 			fmt.Sprintf("--JsonRpc.WebSocketsPort=%v", wsPortNum),
 			"--JsonRpc.Host=0.0.0.0",
@@ -190,19 +194,19 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			"--Merge.TerminalTotalDifficulty=5000000000", //TODO it has to be dynamic, I got this value from genesis generator genesis_config.yaml file
 			"--Merge.BlockAuthorAccount=0x0000000000000000000000000000000000000001",
 			//"--Merge.BlockAuthorAccount=0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b",  //I found this value in kintsugi.cf file
-			"--KeyStore.TestNodeKey=" + getRandomTestNodeKey(),
+			//"--KeyStore.TestNodeKey=" + getRandomTestNodeKey(),
 			//"--KeyStore.BlockAuthorAccount=0x0000000000000000000000000000000000000001",
-			"--TxPool.Size=2048",
-			"--Sync.FastSync=false",
-			"--Sync.FastBlocks=false",
+			//"--TxPool.Size=2048",
+			//"--Sync.FastSync=false",
+			//"--Sync.FastBlocks=false",
 			//"--Sync.BeamSync=false",
-			"--Sync.UseGethLimitsInFastBlocks=true",
-			"--Sync.DownloadBodiesInFastSync=true",
-			"--Sync.DownloadReceiptsInFastSync=true",
-			"--EthStats.Enabled=false",
-			"--Metrics.Enabled=false",
-			"--log",
-			"DEBUG",
+			//"--Sync.UseGethLimitsInFastBlocks=true",
+			//"--Sync.DownloadBodiesInFastSync=true",
+			//"--Sync.DownloadReceiptsInFastSync=true",
+			//"--EthStats.Enabled=false",
+			//"--Metrics.Enabled=false",
+			//"--log",
+			//"DEBUG",
 		}
 		if bootnodeEnode != bootnodeEnodeStrForStartingBootnode {
 			logrus.Infof("Entra a setear el bootnode: %v", bootnodeEnode)
