@@ -10,6 +10,7 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	recursive_copy "github.com/otiai10/copy"
 	"time"
 )
 
@@ -33,6 +34,9 @@ const (
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir = "genesis.ssz"
+
+	validatorKeysDirpathRelToSharedDirRoot = "validator-keys"
+	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
 
 	// Teku nodes take quite a while to start
 	maxNumHealthcheckRetries = 60
@@ -125,12 +129,24 @@ func getContainerConfigSupplier(
 			)
 		}
 
+		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
+		if err := recursive_copy.Copy(validatorKeysDirpathOnModuleContainer, validatorKeysSharedPath.GetAbsPathOnThisContainer()); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
+		}
+
+		validatorSecretsSharedPath := sharedDir.GetChildPath(validatorSecretsDirpathRelToSharedDirRoot)
+		if err := recursive_copy.Copy(
+			validatorSecretsDirpathOnModuleContainer,
+			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
+		); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
+		}
+
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
 			elClientContext.GetRPCPortNum(),
 		)
-
 		cmdArgs := []string{
 			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--initial-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
@@ -149,8 +165,8 @@ func getContainerConfigSupplier(
 			"--log-destination=CONSOLE",
 			fmt.Sprintf(
 				"--validator-keys=%v:%v",
-				validatorKeysDirpathOnModuleContainer,
-				validatorSecretsDirpathOnModuleContainer,
+				validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
+				validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
 			),
 			"--Xvalidators-suggested-fee-recipient-address=" + validatingRewardsAccount,
 		}
