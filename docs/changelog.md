@@ -12,5 +12,8 @@
 ### Fixes
 * Correct merge parameters like TTD, Altair fork version, merge fork version, etc. per Parithosh's recommendations
 
+### Changes
+* Refactor the structure to reflect that there should be one EL node per CL node (and prepare for separated Beacon/validator nodes, like Lighthouse does)
+
 # 0.1.0
 * Initial commit
