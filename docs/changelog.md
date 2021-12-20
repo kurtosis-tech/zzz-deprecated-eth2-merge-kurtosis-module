@@ -11,6 +11,7 @@
 
 ### Fixes
 * Correct merge parameters like TTD, Altair fork version, merge fork version, etc. per Parithosh's recommendations
+* Give Teku nodes 120s to start
 
 ### Changes
 * Refactor the structure to reflect that there should be one EL node per CL node (and prepare for separated Beacon/validator nodes, like Lighthouse does)

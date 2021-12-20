@@ -40,7 +40,7 @@ const (
 
 	// Teku nodes take quite a while to start
 	maxNumHealthcheckRetries = 60
-	timeBetweenHealthcheckRetries = 1 * time.Second
+	timeBetweenHealthcheckRetries = 2 * time.Second
 )
 var usedPorts = map[string]*services.PortSpec{
 	// TODO Add metrics port
