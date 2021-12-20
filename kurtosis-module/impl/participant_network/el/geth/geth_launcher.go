@@ -81,6 +81,7 @@ func (launcher *GethELClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext
 		nodeInfo.Enode,
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
+		wsPortNum,
 	)
 
 	return result, nil

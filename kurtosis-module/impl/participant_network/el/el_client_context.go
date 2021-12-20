@@ -5,10 +5,11 @@ type ELClientContext struct {
 	enode string
 	ipAddr string
 	rpcPortNum  uint16
+	wsPortNum uint16
 }
 
-func NewELClientContext(enr string, enode string, ipAddr string, rpcPortNum uint16) *ELClientContext {
-	return &ELClientContext{enr: enr, enode: enode, ipAddr: ipAddr, rpcPortNum: rpcPortNum}
+func NewELClientContext(enr string, enode string, ipAddr string, rpcPortNum uint16, wsPortNum uint16) *ELClientContext {
+	return &ELClientContext{enr: enr, enode: enode, ipAddr: ipAddr, rpcPortNum: rpcPortNum, wsPortNum: wsPortNum}
 }
 
 func (ctx *ELClientContext) GetENR() string {
@@ -22,5 +23,8 @@ func (ctx *ELClientContext) GetIPAddress() string {
 }
 func (ctx *ELClientContext) GetRPCPortNum() uint16 {
 	return ctx.rpcPortNum
+}
+func (ctx *ELClientContext) GetWSPortNum() uint16 {
+	return ctx.wsPortNum
 }
 
