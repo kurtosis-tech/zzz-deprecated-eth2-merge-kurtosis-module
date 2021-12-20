@@ -22,10 +22,12 @@ const (
 	tcpDiscoveryPortID = "tcp-discovery"
 	udpDiscoveryPortID = "udp-discovery"
 	httpPortID         = "http"
+	metricsPortID      = "metrics"
 
 	// Port nums
 	discoveryPortNum uint16 = 9000
 	httpPortNum             = 4000
+	metricsPortNum          = 8008
 
 	configDataDirpathRelToSharedDirRoot = "config-data"
 
@@ -45,6 +47,7 @@ var usedPorts = map[string]*services.PortSpec{
 	tcpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
+	metricsPortID:         services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
 }
 
 type NimbusLauncher struct {
@@ -142,6 +145,9 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
 		}
 
+		// Sources for these flags:
+		//  1) https://github.com/status-im/nimbus-eth2/blob/stable/scripts/launch_local_testnet.sh
+		//  2) https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
 		cmdArgs := []string{
 			"--non-interactive=true",
 			"--network=" + configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer(),
@@ -154,8 +160,15 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--rest-port=%v", httpPortNum),
 			"--validators-dir=" + validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
 			"--secrets-dir=" + validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			"--metrics",
+			"--metrics-address=0.0.0.0",
+			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
 		}
-		if bootnodeContext != nil {
+		if bootnodeContext == nil {
+			// Copied from https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
+			// See explanation there
+			cmdArgs = append(cmdArgs, "--subscribe-all-subnets")
+		} else {
 			cmdArgs = append(cmdArgs, "--bootstrap-node=" + bootnodeContext.GetENR())
 		}
 
