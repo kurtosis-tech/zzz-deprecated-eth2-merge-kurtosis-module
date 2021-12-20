@@ -1,8 +1,9 @@
 package impl
+
 import (
 	"encoding/json"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/lighthouse"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/teku"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/ethereum_genesis_generator"
@@ -23,7 +24,7 @@ const (
 
 	// Genesis config
 	secondsPerSlot = uint32(12)
-	totalTerminalDifficulty         = 60000000 //This value is the one that the genesis generator creates in the genesis file
+	totalTerminalDifficulty  = uint64(60000000)
 
 	// ----------------------------------- Static File Constants -----------------------------------------
 	staticFilesDirpath                    = "/static-files"
@@ -78,7 +79,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the CL genesis generation config YAML template")
 	}
-	gethGenesisJsonFilepath, clClientConfigDataDirpath, err := ethereum_genesis_generator.GenerateELAndCLGenesisConfig(
+	gethGenesisJsonFilepath, clGenesisPaths, err := ethereum_genesis_generator.GenerateELAndCLGenesisConfig(
 		enclaveCtx,
 		gethGenesisConfigTemplate,
 		clGenesisConfigTemplate,
@@ -86,6 +87,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		genesisUnixTimestamp,
 		networkId,
 		secondsPerSlot,
+		totalTerminalDifficulty,
 	)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis generator Service")
@@ -127,12 +129,15 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	logrus.Info("Successfully launched a network of EL clients")
 
 	logrus.Info("Launching a network of CL clients...")
-	lighthouseClientLauncher := lighthouse.NewLighthouseCLClientLauncher(clClientConfigDataDirpath)
+	// clClientLauncher := lighthouse.NewLighthouseCLClientLauncher(clGenesisPaths.GetParentDirpath())
+	clClientLauncher := teku.NewTekuCLClientLauncher(
+		clGenesisPaths.GetConfigYMLFilepath(),
+		clGenesisPaths.GetGenesisSSZFilepath(),
+	)
 	clNetwork := cl_client_network.NewConsensusLayerNetwork(
 		enclaveCtx,
 		allElClientContexts,
-		totalTerminalDifficulty,
-		lighthouseClientLauncher,
+		clClientLauncher,
 	)
 
 	// TODO Make this dynamic
@@ -159,38 +164,6 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		secondsPerSlot,
 	)
 	logrus.Info("Successfully launched forkmon")
-
-	/*
-	gethElClientServiceCtx, err := geth_el_client.LaunchGethELClient(
-		enclaveCtx,
-		gethGenesisJsonFilepath,
-		networkId,
-		externalIpAddress,
-		bootnodeEnodes,
-	)
-	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred launching the Geth EL client")
-	}
-
-	gethElClientRpcPort, found := gethElClientServiceCtx.GetPrivatePorts()[geth_el_client.rpcPortId]
-	if !found {
-		return "", stacktrace.NewError("Expected the Geth EL client to have a port with ID '%v' but none was found", geth_el_client.rpcPortId)
-	}
-
-	_, err = lighthouse_cl_client.LaunchLighthouseCLClient(
-		enclaveCtx,
-		consensusConfigDataDirpathOnModuleContainer,
-		externalIpAddress,
-		bootnodeEnr,
-		gethElClientServiceCtx.GetPrivateIPAddress(),
-		gethElClientRpcPort.GetNumber(),
-		totalTerminalDifficulty,
-	)
-	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred launching the Lighthouse CL client")
-	}
-
-	 */
 
 	responseObj := &ExecuteResponse{
 		ForkmonPublicURL: forkmonPublicUrl,

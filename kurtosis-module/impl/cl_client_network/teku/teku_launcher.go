@@ -1,23 +1,22 @@
-package lighthouse
+package teku
 
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/cl_client_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	recursive_copy "github.com/otiai10/copy"
 	"strings"
 	"time"
 )
 
 const (
-	imageName = "sigp/lighthouse:latest-unstable"
+	imageName = "consensys/teku:latest"
 
-	consensusDataDirpathOnServiceContainer = "/consensus-data"
-
-	configDataDirpathRelToSharedDirRoot = "config-data"
+	// The Docker container runs as the "teku" user so we can't write to root
+	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
 
 	// Port IDs
 	tcpDiscoveryPortID = "tcp-discovery"
@@ -31,51 +30,50 @@ const (
 	// To start a bootnode rather than a child node, we provide this string to the launchNode function
 	bootnodeEnrStrForStartingBootnode = ""
 
-	maxNumHealthcheckRetries = 10
+	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
+	genesisSszRelFilepathInSharedDir = "genesis.ssz"
+
+	// Teku nodes take quite a while to start
+	maxNumHealthcheckRetries = 60
 	timeBetweenHealthcheckRetries = 1 * time.Second
 )
 var usedPorts = map[string]*services.PortSpec{
+	// TODO Add metrics port
 	tcpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 }
 
-type LighthouseCLClientLauncher struct {
-	// The dirpath on the module container where the config data directory exists
-	configDataDirpathOnModuleContainer string
+type TekuCLClientLauncher struct {
+	genesisConfigYmlFilepathOnModuleContainer string
+	genesisSszFilepathOnModuleContainer string
 }
 
-func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string) *LighthouseCLClientLauncher {
-	return &LighthouseCLClientLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer}
+func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string) *TekuCLClientLauncher {
+	return &TekuCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer}
 }
 
-func (launcher *LighthouseCLClientLauncher) LaunchBootNode(
+func (launcher *TekuCLClientLauncher) LaunchBootNode(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	elClientRpcSockets map[string]bool,
-) (
-	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
-	resultErr error,
-) {
+) (resultClientCtx *cl_client_network.ConsensusLayerClientContext, resultErr error) {
 	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnrStrForStartingBootnode, elClientRpcSockets)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred starting boot Ligthhouse node with service ID '%v'", serviceId)
+		return nil, stacktrace.Propagate(err, "An error occurred starting boot Teku node with service ID '%v'", serviceId)
 	}
 	return clientCtx, nil
 }
 
-func (launcher *LighthouseCLClientLauncher) LaunchChildNode(
+func (launcher *TekuCLClientLauncher) LaunchChildNode(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	bootnodeEnr string,
 	elClientRpcSockets map[string]bool,
-) (
-	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
-	resultErr error,
-) {
+) (resultClientCtx *cl_client_network.ConsensusLayerClientContext, resultErr error) {
 	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnr, elClientRpcSockets)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred starting child Lighthouse node with service ID '%v' connected to boot node with ENR '%v'", serviceId, bootnodeEnr)
+		return nil, stacktrace.Propagate(err, "An error occurred starting child Teku node with service ID '%v' connected to boot node with ENR '%v'", serviceId, bootnodeEnr)
 	}
 	return clientCtx, nil
 }
@@ -83,7 +81,7 @@ func (launcher *LighthouseCLClientLauncher) LaunchChildNode(
 // ====================================================================================================
 //                                   Private Helper Methods
 // ====================================================================================================
-func (launcher *LighthouseCLClientLauncher) launchNode(
+func (launcher *TekuCLClientLauncher) launchNode(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	bootnodeEnr string,
@@ -92,7 +90,12 @@ func (launcher *LighthouseCLClientLauncher) launchNode(
 	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
 	resultErr error,
 ) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(bootnodeEnr, elClientRpcSockets)
+	containerConfigSupplier := getContainerConfigSupplier(
+		bootnodeEnr,
+		elClientRpcSockets,
+		launcher.genesisConfigYmlFilepathOnModuleContainer,
+		launcher.genesisSszFilepathOnModuleContainer,
+	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse CL client with service ID '%v'", serviceId)
@@ -123,20 +126,30 @@ func (launcher *LighthouseCLClientLauncher) launchNode(
 	return result, nil
 }
 
-func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
+func getContainerConfigSupplier(
 	bootNodeEnr string,
 	elClientRpcSockets map[string]bool,
+	genesisConfigYmlFilepathOnModuleContainer string,
+	genesisSszFilepathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(configDataDirpathRelToSharedDirRoot)
-
-		destConfigDataDirpathOnModule := configDataDirpathOnServiceSharedPath.GetAbsPathOnThisContainer()
-		if err := recursive_copy.Copy(launcher.configDataDirpathOnModuleContainer, destConfigDataDirpathOnModule); err != nil {
+	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
+		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
 			return nil, stacktrace.Propagate(
 				err,
-				"An error occurred copying the config data directory on the module, '%v', into the service container, '%v'",
-				launcher.configDataDirpathOnModuleContainer,
-				destConfigDataDirpathOnModule,
+				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
+				genesisConfigYmlFilepathOnModuleContainer,
+				genesisConfigYmlRelFilepathInSharedDir,
+			)
+		}
+
+		genesisSszSharedPath := sharedDir.GetChildPath(genesisSszRelFilepathInSharedDir)
+		if err := service_launch_utils.CopyFileToSharedPath(genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
+			return nil, stacktrace.Propagate(
+				err,
+				"An error occurred copying the genesis SSZ from '%v' to shared dir relative path '%v'",
+				genesisSszFilepathOnModuleContainer,
+				genesisSszRelFilepathInSharedDir,
 			)
 		}
 
@@ -147,41 +160,25 @@ func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
 		}
 		elClientRpcUrlsStr := strings.Join(elClientRpcUrls, ",")
 
-		configDataDirpathOnService := configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer()
-		// NOTE: If connecting to the merge devnet remotely we DON'T want the following flags; when they're not set, the node's external IP address is auto-detected
-		//  from the peers it communicates with but when they're set they basically say "override the autodetection and
-		//  use what I specify instead." This requires having a know external IP address and port, which we definitely won't
-		//  have with a network running in Kurtosis.
-		//    "--disable-enr-auto-update",
-		//    "--enr-address=" + externalIpAddress,
-		//    fmt.Sprintf("--enr-udp-port=%v", discoveryPortNum),
-		//    fmt.Sprintf("--enr-tcp-port=%v", discoveryPortNum),
 		cmdArgs := []string{
-			"lighthouse",
-			"--debug-level=info",
-			"--datadir=" + consensusDataDirpathOnServiceContainer,
-			"--testnet-dir=" + configDataDirpathOnService,
-			"bn",
-			"--eth1",
-			// vvvvvvvvvvvvvvvvvvv REMOVE THESE WHEN CONNECTING TO EXTERNAL NET vvvvvvvvvvvvvvvvvvvvv
-			"--disable-enr-auto-update",
-			"--enr-address=" + privateIpAddr,
-			fmt.Sprintf("--enr-udp-port=%v", discoveryPortNum),
-			fmt.Sprintf("--enr-tcp-port=%v", discoveryPortNum),
-			// ^^^^^^^^^^^^^^^^^^^ REMOVE THESE WHEN CONNECTING TO EXTERNAL NET ^^^^^^^^^^^^^^^^^^^^^
-			"--listen-address=0.0.0.0",
-			fmt.Sprintf("--port=%v", discoveryPortNum), // NOTE: Remove for connecting to external net!
-			"--http",
-			"--http-address=0.0.0.0",
-			fmt.Sprintf("--http-port=%v", httpPortNum),
-			"--merge",
-			"--http-allow-sync-stalled",
-			"--disable-packet-filter",
-			"--execution-endpoints=" + elClientRpcUrlsStr,
+			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
+			"--initial-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
+			"--data-path=" + consensusDataDirpathOnServiceContainer,
+			"--data-storage-mode=PRUNE",
+			"--p2p-enabled=true",
 			"--eth1-endpoints=" + elClientRpcUrlsStr,
+			"--Xee-endpoint=" + elClientRpcUrlsStr,
+			"--p2p-advertised-ip=" + privateIpAddr,
+			"--rest-api-enabled=true",
+			"--rest-api-docs-enabled=true",
+			"--rest-api-interface=0.0.0.0",
+			fmt.Sprintf("--rest-api-port=%v", httpPortNum),
+			"--rest-api-host-allowlist=*",
+			"--data-storage-non-canonical-blocks-enabled=true",
+			"--log-destination=CONSOLE",
 		}
 		if bootNodeEnr != bootnodeEnrStrForStartingBootnode {
-			cmdArgs = append(cmdArgs, "--boot-nodes=" + bootNodeEnr)
+			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes=" + bootNodeEnr)
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
@@ -191,8 +188,10 @@ func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
 		).WithCmdOverride(
 			cmdArgs,
 		).Build()
+
 		return containerConfig, nil
 	}
+	return containerConfigSupplier
 }
 
 func waitForAvailability(restClient *cl_client_rest_client.CLClientRESTClient) error {
@@ -205,7 +204,7 @@ func waitForAvailability(restClient *cl_client_rest_client.CLClientRESTClient) e
 		time.Sleep(timeBetweenHealthcheckRetries)
 	}
 	return stacktrace.NewError(
-		"Lighthouse node didn't become available even after %v retries with %v between retries",
+		"Teku node didn't become available even after %v retries with %v between retries",
 		maxNumHealthcheckRetries,
 		timeBetweenHealthcheckRetries,
 	)

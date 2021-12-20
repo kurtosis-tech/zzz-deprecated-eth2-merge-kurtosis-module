@@ -1,12 +1,11 @@
 package ethereum_genesis_generator
 
 import (
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
-	"io"
-	"os"
 	"path"
 	"strings"
 	"text/template"
@@ -46,8 +45,10 @@ const (
 	generationCommandExpectedExitCode = 0
 
 	// Paths, *relative to the root of the output genesis data directory, where the generator writes data
-	outputGethGenesisConfigRelFilepath = "el/geth.json"
-	outputClGenesisConfigRelDirpath = "cl"
+	outputGethGenesisJsonRelFilepath    = "el/geth.json"
+	outputClGenesisRelDirpath           = "cl"
+	outputClGenesisConfigYmlRelFilepath = outputClGenesisRelDirpath + "/config.yaml"
+	outputClGenesisSszRelFilepath       = outputClGenesisRelDirpath + "/genesis.ssz"
 
 	containerStopTimeoutSeconds = 3
 )
@@ -60,11 +61,13 @@ var entrypoingArgs = []string{
 type elGenesisConfigTemplateData struct {
 	NetworkId string
 	UnixTimestamp int64
+	TotalTerminalDifficulty uint64
 }
 type clGenesisConfigTemplateData struct {
 	NetworkId string
 	SecondsPerSlot uint32
 	UnixTimestamp int64
+	TotalTerminalDifficulty uint64
 }
 
 func GenerateELAndCLGenesisConfig(
@@ -75,17 +78,18 @@ func GenerateELAndCLGenesisConfig(
 	unixTimestamp int64,
 	networkId string,
 	secondsPerSlot uint32,
+	totalTerminalDifficulty uint64,
 ) (
 	resultGethELGenesisJSONFilepath string,
-	resultCLGenesisDataDirpath string,
+	resultCLGenesisPaths *CLGenesisPaths,
 	resultErr error,
 ) {
 	serviceCtx, err := enclaveCtx.AddService(serviceId, getContainerConfig)
 	if err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis-generating container with service ID '%v'", serviceId)
+		return "", nil, stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis-generating container with service ID '%v'", serviceId)
 	}
 
-	gethGenesisJsonFilepath, clGenesisDataDirpath, err := generateGenesisData(
+	gethGenesisJsonFilepath, clGenesisPaths, err := generateGenesisData(
 		serviceCtx,
 		elGenesisConfigYmlTemplate,
 		clGenesisConfigYmlTemplate,
@@ -93,9 +97,10 @@ func GenerateELAndCLGenesisConfig(
 		unixTimestamp,
 		networkId,
 		secondsPerSlot,
+		totalTerminalDifficulty,
 	)
 	if err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred generating genesis data")
+		return "", nil, stacktrace.Propagate(err, "An error occurred generating genesis data")
 	}
 
 	if err := enclaveCtx.RemoveService(serviceId, containerStopTimeoutSeconds); err != nil {
@@ -106,7 +111,7 @@ func GenerateELAndCLGenesisConfig(
 		)
 	}
 
-	return gethGenesisJsonFilepath, clGenesisDataDirpath, nil
+	return gethGenesisJsonFilepath, clGenesisPaths, nil
 }
 
 func generateGenesisData(
@@ -117,58 +122,47 @@ func generateGenesisData(
 	unixTimestamp int64,
 	networkId string,
 	secondsPerSlot uint32,
+	totalTerminalDifficulty uint64,
 ) (
 	resultGethGenesisJsonFilepathOnModuleContainer string,
-	resultClConfigDataDirpathOnModuleContainer string,
+	resultClGenesisPaths *CLGenesisPaths,
 	resultErr error,
 ) {
 	elTemplateData := elGenesisConfigTemplateData{
-		NetworkId:     networkId,
-		UnixTimestamp: unixTimestamp,
+		NetworkId:               networkId,
+		UnixTimestamp:           unixTimestamp,
+		TotalTerminalDifficulty: totalTerminalDifficulty,
 	}
 	clTemplateData := clGenesisConfigTemplateData{
-		NetworkId:      networkId,
-		SecondsPerSlot: secondsPerSlot,
-		UnixTimestamp:  unixTimestamp,
+		NetworkId:               networkId,
+		SecondsPerSlot:          secondsPerSlot,
+		UnixTimestamp:           unixTimestamp,
+		TotalTerminalDifficulty: totalTerminalDifficulty,
 	}
 
 	sharedDir := serviceCtx.GetSharedDirectory()
 
 	// Make the Geth genesis config available to the generator
 	gethGenesisConfigYmlSharedPath := sharedDir.GetChildPath(elGenesisConfigYmlRelFilepathInSharedDir)
-	gethGenesisConfigYmlFilepathOnModuleContainer := gethGenesisConfigYmlSharedPath.GetAbsPathOnThisContainer()
-	gethGenesisConfigYmlFp, err := os.Create(gethGenesisConfigYmlFilepathOnModuleContainer)
-	if err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred opening filepath '%v' on the module container for writing the Geth genesis config YAML", gethGenesisConfigYmlFilepathOnModuleContainer)
-	}
-	if err := gethGenesisConfigYmlTemplate.Execute(gethGenesisConfigYmlFp, elTemplateData); err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred filling the Geth genesis config template")
+	if err := service_launch_utils.FillTemplateToSharedPath(gethGenesisConfigYmlTemplate, elTemplateData, gethGenesisConfigYmlSharedPath); err != nil {
+		return "", nil, stacktrace.Propagate(err, "An error occurred filling the Geth genesis config template")
 	}
 
 	// Make the CL genesis config available to the generator
 	clGenesisConfigYmlSharedPath := sharedDir.GetChildPath(clGenesisConfigYmlRelFilepathInSharedDir)
-	clGenesisConfigYmlFilepathOnModuleContainer := clGenesisConfigYmlSharedPath.GetAbsPathOnThisContainer()
-	clGenesisConfigYmlFp, err := os.Create(clGenesisConfigYmlFilepathOnModuleContainer)
-	if err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred opening filepath '%v' on the module container for writing the CL genesis config YAML", clGenesisConfigYmlFilepathOnModuleContainer)
-	}
-	if err := clGenesisConfigYmlTemplate.Execute(clGenesisConfigYmlFp, clTemplateData); err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred filling the CL genesis config template")
+	if err := service_launch_utils.FillTemplateToSharedPath(clGenesisConfigYmlTemplate, clTemplateData, clGenesisConfigYmlSharedPath); err != nil {
+		return "", nil, stacktrace.Propagate(err, "An error occurred filling the CL genesis config template")
 	}
 
 	// Make the CL mnemonics file available to the generator container
 	clMnemonicsYmlSharedPath := sharedDir.GetChildPath(clMnemonicsYmlRelFilepathInSharedDir)
-	srcMnemonicsFp, err := os.Open(clMnemonicsYmlFilepathOnModuleContainer)
-	if err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred opening the CL mnemonics file on the module container at '%v'", clMnemonicsYmlFilepathOnModuleContainer)
-	}
-	destMnemonicsFilepath := clMnemonicsYmlSharedPath.GetAbsPathOnThisContainer()
-	destMnemonicsFp, err := os.Create(destMnemonicsFilepath)
-	if err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred creating the CL mnemonics file inside the shared directory at '%v'", destMnemonicsFilepath)
-	}
-	if _, err := io.Copy(destMnemonicsFp, srcMnemonicsFp); err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred copying the contents of the CL mnemonics file from '%v' to '%v'", clMnemonicsYmlFilepathOnModuleContainer, destMnemonicsFilepath)
+	if err := service_launch_utils.CopyFileToSharedPath(clMnemonicsYmlFilepathOnModuleContainer, clMnemonicsYmlSharedPath); err != nil {
+		return "", nil, stacktrace.Propagate(
+			err,
+			"An error occurred copying CL mnemonics file '%v' into shared directory relative path '%v'",
+			clMnemonicsYmlFilepathOnModuleContainer,
+			clMnemonicsYmlRelFilepathInSharedDir,
+		)
 	}
 
 	outputSharedPath := sharedDir.GetChildPath(genesisDataRelDirpathInSharedDir)
@@ -200,10 +194,10 @@ func generateGenesisData(
 
 	exitCode, output, err := serviceCtx.ExecCommand([]string{"sh", "-c", cmdStr})
 	if err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred executing command '%v' to generate the genesis data inside the generator container", cmdStr)
+		return "", nil, stacktrace.Propagate(err, "An error occurred executing command '%v' to generate the genesis data inside the generator container", cmdStr)
 	}
 	if exitCode != generationCommandExpectedExitCode {
-		return "", "", stacktrace.NewError(
+		return "", nil, stacktrace.NewError(
 			"Expected genesis-generating command '%v' to exit with code %v but got %v instead and the following logs:\n%v",
 			cmdStr,
 			generationCommandExpectedExitCode,
@@ -214,15 +208,14 @@ func generateGenesisData(
 	}
 	logrus.Debugf("Genesis generation output:\n%v", output)
 
+	outputDirpathOnModuleContainer := outputSharedPath.GetAbsPathOnThisContainer()
 	gethGenesisJsonFilepathOnModuleContainer := path.Join(
-		outputSharedPath.GetAbsPathOnThisContainer(),
-		outputGethGenesisConfigRelFilepath,
+		outputDirpathOnModuleContainer,
+		outputGethGenesisJsonRelFilepath,
 	)
-	clGenesisDirpathOnModuleContainer := path.Join(
-		outputSharedPath.GetAbsPathOnThisContainer(),
-		outputClGenesisConfigRelDirpath,
-	)
-	return gethGenesisJsonFilepathOnModuleContainer, clGenesisDirpathOnModuleContainer, nil
+	clGenesisPaths := getClGenesisPathsFromOutputDirpath(outputDirpathOnModuleContainer)
+
+	return gethGenesisJsonFilepathOnModuleContainer, clGenesisPaths, nil
 }
 
 func getContainerConfig(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
@@ -233,4 +226,26 @@ func getContainerConfig(privateIpAddr string, sharedDir *services.SharedPath) (*
 	).Build()
 
 	return containerConfig, nil
+}
+
+func getClGenesisPathsFromOutputDirpath(outputDirpathOnModuleContainer string) *CLGenesisPaths {
+	clGenesisDirpathOnModuleContainer := path.Join(
+		outputDirpathOnModuleContainer,
+		outputClGenesisRelDirpath,
+	)
+	clGenesisConfigYmlFilepathOnModuleContainer := path.Join(
+		outputDirpathOnModuleContainer,
+		outputClGenesisConfigYmlRelFilepath,
+	)
+	clGenesisSszFilepathOnModuleContainer := path.Join(
+		outputDirpathOnModuleContainer,
+		outputClGenesisSszRelFilepath,
+	)
+
+	clGenesisPaths := NewCLGenesisPaths(
+		clGenesisDirpathOnModuleContainer,
+		clGenesisConfigYmlFilepathOnModuleContainer,
+		clGenesisSszFilepathOnModuleContainer,
+	)
+	return clGenesisPaths
 }
