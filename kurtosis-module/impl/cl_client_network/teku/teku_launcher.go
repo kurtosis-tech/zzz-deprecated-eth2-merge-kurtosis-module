@@ -122,23 +122,23 @@ func (launcher *TekuCLClientLauncher) launchNode(
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse CL client with service ID '%v'", serviceId)
+		return nil, stacktrace.Propagate(err, "An error occurred launching the Teku CL client with service ID '%v'", serviceId)
 	}
 
 	httpPort, found := serviceCtx.GetPrivatePorts()[httpPortID]
 	if !found {
-		return nil, stacktrace.NewError("Expected new Lighthouse service to have port with ID '%v', but none was found", httpPortID)
+		return nil, stacktrace.NewError("Expected new Teku service to have port with ID '%v', but none was found", httpPortID)
 	}
 
 	restClient := cl_client_rest_client.NewCLClientRESTClient(serviceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
 
 	if err := waitForAvailability(restClient); err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lighthouse node to become available")
+		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Teku node to become available")
 	}
 
 	nodeIdentity, err := restClient.GetNodeIdentity()
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred getting the new Lighthouse node's identity, which is necessary to retrieve its ENR")
+		return nil, stacktrace.Propagate(err, "An error occurred getting the new Teku node's identity, which is necessary to retrieve its ENR")
 	}
 
 	result := cl_client_network.NewConsensusLayerClientContext(
