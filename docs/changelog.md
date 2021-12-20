@@ -1,4 +1,6 @@
 # TBD
+
+# 0.2.0
 ### Features
 * Add build infra
 * The Geth + Lighthouse node inside of Kurtosis now syncs with merge-devnet-3!
