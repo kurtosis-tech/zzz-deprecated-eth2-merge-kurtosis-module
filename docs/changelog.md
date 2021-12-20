@@ -1,4 +1,6 @@
 # TBD
+### Features
+* Added a functioning Nimbus CL client
 
 # 0.2.1
 * Empty commit to try and kick CircleCI into actually building the tag
