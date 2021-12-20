@@ -2,11 +2,12 @@ package impl
 
 import (
 	"encoding/json"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/teku"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/forkmon"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/teku"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
@@ -133,6 +134,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	}
 	 */
 
+	/*
 	logrus.Info("Launching a network of EL clients...")
 	gethClientLauncher := geth.NewGethELClientLauncher(prelaunchData.GethELGenesisJsonFilepathOnModuleContainer)
 	elNetwork := el_client_network.NewExecutionLayerNetwork(
@@ -175,6 +177,45 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		allClClientContexts = append(allClClientContexts, clClientCtx)
 	}
 	logrus.Info("Successfully launched a network of CL clients")
+
+	 */
+
+	logrus.Info("Creating EL & CL client launchers...")
+	elClientLaunchers := map[participant_network.ParticipantELClientType]el.ELClientLauncher{
+		participant_network.ParticipantELClientType_Geth: geth.NewGethELClientLauncher(
+			prelaunchData.GethELGenesisJsonFilepathOnModuleContainer,
+		),
+	}
+	clGenesisPaths := prelaunchData.CLGenesisPaths
+	clClientLaunchers := map[participant_network.ParticipantCLClientType]cl.CLClientLauncher{
+		participant_network.ParticipantCLClientType_Teku: teku.NewTekuCLClientLauncher(
+			clGenesisPaths.GetConfigYMLFilepath(),
+			clGenesisPaths.GetGenesisSSZFilepath(),
+		),
+	}
+	logrus.Info("Successfully created EL & CL client launchers")
+
+	logrus.Info("Adding participants...")
+	keystoresGenerationResult := prelaunchData.KeystoresGenerationResult
+	network := participant_network.NewParticipantNetwork(
+		enclaveCtx,
+		networkId,
+		keystoresGenerationResult.PerNodeKeystoreDirpaths,
+		elClientLaunchers,
+		clClientLaunchers,
+	)
+
+	allClClientContexts := []*cl.CLClientContext{}
+	for i := 0; i < numParticipants; i++ {
+		participant, err := network.AddParticipant(
+			participant_network.ParticipantELClientType_Geth,
+			participant_network.ParticipantCLClientType_Teku,
+		)
+		if err != nil {
+			return "", stacktrace.Propagate(err, "An error occurred adding participant %v", i)
+		}
+		allClClientContexts = append(allClClientContexts, participant.GetCLClientContext())
+	}
 
 	logrus.Info("Launching forkmon...")
 	forkmonConfigTemplate, err := parseTemplate(forkmonConfigTemplateFilepath)

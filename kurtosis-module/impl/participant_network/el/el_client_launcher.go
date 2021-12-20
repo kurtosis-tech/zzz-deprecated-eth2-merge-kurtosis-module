@@ -10,6 +10,7 @@ type ELClientLauncher interface {
 		enclaveCtx *enclaves.EnclaveContext,
 		serviceId services.ServiceID,
 		networkId string,
+		// If nil, then the node will be launched as a bootnode
 		bootnodeContext *ELClientContext,
 	) (
 		resultClientCtx *ELClientContext,
