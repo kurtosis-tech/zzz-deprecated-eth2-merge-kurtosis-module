@@ -5,7 +5,7 @@ CONFIG_NAME: testnet # needs to exist because of Prysm. Otherwise it conflicts w
 # Genesis
 # ---------------------------------------------------------------
 # `2**14` (= 16,384)
-MIN_GENESIS_ACTIVE_VALIDATOR_COUNT: 16384
+MIN_GENESIS_ACTIVE_VALIDATOR_COUNT: {{ .NumValidatorKeysToPreregister }}
 # Mar-01-2021 08:53:32 AM +UTC
 # This is an invalid valid and should be updated when you create the genesis
 MIN_GENESIS_TIME: {{ .UnixTimestamp }}
@@ -21,11 +21,13 @@ GENESIS_DELAY: 120
 
 # Altair
 ALTAIR_FORK_VERSION: 0x01001020
-ALTAIR_FORK_EPOCH: 36660
+ALTAIR_FORK_EPOCH: {{ .AltairForkEpoch }}
 # Merge
 MERGE_FORK_VERSION: 0x02001020
-MERGE_FORK_EPOCH: 18446744073709551615
+MERGE_FORK_EPOCH: {{ .MergeForkEpoch }}
 TERMINAL_TOTAL_DIFFICULTY: {{ .TotalTerminalDifficulty }}
+# 0x0000...000 indicates that we use TERMINAL_TOTAL_DIFFICULTY instead of a block has to trigger the merge
+# See also: https://eips.ethereum.org/EIPS/eip-3675
 TERMINAL_BLOCK_HASH: 0x0000000000000000000000000000000000000000000000000000000000000000
 TERMINAL_BLOCK_HASH_ACTIVATION_EPOCH: 18446744073709551615
 # Sharding

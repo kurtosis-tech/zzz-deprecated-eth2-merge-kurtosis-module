@@ -1,8 +1,7 @@
-package ethereum_genesis_generator
+package prelaunch_data_generator
 
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
-	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
@@ -12,16 +11,13 @@ import (
 )
 
 const (
-	imageName                    = "kurtosistech/ethereum-genesis-generator"
-	serviceId services.ServiceID = "eth-genesis-generator"
-
 	// The filepaths, relative to shared dir root, where we're going to put EL & CL config
 	// (and then copy them into the expected locations on image start)
 	elGenesisConfigYmlRelFilepathInSharedDir = "el-genesis-config.yml"
 	clGenesisConfigYmlRelFilepathInSharedDir = "cl-genesis-config.yml"
 	clMnemonicsYmlRelFilepathInSharedDir = "cl-mnemonics.yml"
 
-	// The genesis generation image is configured by dropping files into a specific hardcoded location
+	// The genesis generation is configured by dropping files into a specific hardcoded location
 	// These are those locations
 	// See https://github.com/skylenet/ethereum-genesis-generator
 	expectedConfigDirpathOnService     = "/config"
@@ -49,8 +45,6 @@ const (
 	outputClGenesisRelDirpath           = "cl"
 	outputClGenesisConfigYmlRelFilepath = outputClGenesisRelDirpath + "/config.yaml"
 	outputClGenesisSszRelFilepath       = outputClGenesisRelDirpath + "/genesis.ssz"
-
-	containerStopTimeoutSeconds = 3
 )
 // We run the genesis generation as an exec command instead, so that we get immediate feedback if it fails
 var entrypoingArgs = []string{
@@ -64,80 +58,48 @@ type elGenesisConfigTemplateData struct {
 	TotalTerminalDifficulty uint64
 }
 type clGenesisConfigTemplateData struct {
-	NetworkId string
-	SecondsPerSlot uint32
-	UnixTimestamp int64
-	TotalTerminalDifficulty uint64
-}
-
-func GenerateELAndCLGenesisConfig(
-	enclaveCtx *enclaves.EnclaveContext,
-	elGenesisConfigYmlTemplate *template.Template,
-	clGenesisConfigYmlTemplate *template.Template,
-	clMnemonicsYmlFilepathOnModuleContainer string,
-	unixTimestamp int64,
-	networkId string,
-	secondsPerSlot uint32,
-	totalTerminalDifficulty uint64,
-) (
-	resultGethELGenesisJSONFilepath string,
-	resultCLGenesisPaths *CLGenesisPaths,
-	resultErr error,
-) {
-	serviceCtx, err := enclaveCtx.AddService(serviceId, getContainerConfig)
-	if err != nil {
-		return "", nil, stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis-generating container with service ID '%v'", serviceId)
-	}
-
-	gethGenesisJsonFilepath, clGenesisPaths, err := generateGenesisData(
-		serviceCtx,
-		elGenesisConfigYmlTemplate,
-		clGenesisConfigYmlTemplate,
-		clMnemonicsYmlFilepathOnModuleContainer,
-		unixTimestamp,
-		networkId,
-		secondsPerSlot,
-		totalTerminalDifficulty,
-	)
-	if err != nil {
-		return "", nil, stacktrace.Propagate(err, "An error occurred generating genesis data")
-	}
-
-	if err := enclaveCtx.RemoveService(serviceId, containerStopTimeoutSeconds); err != nil {
-		logrus.Errorf(
-			"An error occurred stopping the genesis generation service with ID '%v' and timeout '%vs'; you'll need to stop it manually",
-			serviceId,
-			containerStopTimeoutSeconds,
-		)
-	}
-
-	return gethGenesisJsonFilepath, clGenesisPaths, nil
+	NetworkId                          string
+	SecondsPerSlot                     uint32
+	UnixTimestamp                      int64
+	TotalTerminalDifficulty            uint64
+	AltairForkEpoch                    uint64
+	MergeForkEpoch                     uint64
+	NumValidatorKeysToPreregister uint32
+	PreregisteredValidatorKeysMnemonic string
 }
 
 func generateGenesisData(
 	serviceCtx *services.ServiceContext,
 	gethGenesisConfigYmlTemplate *template.Template,
 	clGenesisConfigYmlTemplate *template.Template,
-	clMnemonicsYmlFilepathOnModuleContainer string,
+	clMnemonicsYmlTemplate *template.Template,
 	unixTimestamp int64,
 	networkId string,
 	secondsPerSlot uint32,
+	altairForkEpoch uint64,
+	mergeForkEpoch uint64,
 	totalTerminalDifficulty uint64,
+	preregisteredValidatorKeysMnemonic string,
+	numValidatorKeysToPreregister uint32,
 ) (
 	resultGethGenesisJsonFilepathOnModuleContainer string,
 	resultClGenesisPaths *CLGenesisPaths,
 	resultErr error,
 ) {
 	elTemplateData := elGenesisConfigTemplateData{
-		NetworkId:               networkId,
-		UnixTimestamp:           unixTimestamp,
-		TotalTerminalDifficulty: totalTerminalDifficulty,
+		NetworkId:                   networkId,
+		UnixTimestamp:               unixTimestamp,
+		TotalTerminalDifficulty:     totalTerminalDifficulty,
 	}
 	clTemplateData := clGenesisConfigTemplateData{
-		NetworkId:               networkId,
-		SecondsPerSlot:          secondsPerSlot,
-		UnixTimestamp:           unixTimestamp,
-		TotalTerminalDifficulty: totalTerminalDifficulty,
+		NetworkId:                          networkId,
+		SecondsPerSlot:                     secondsPerSlot,
+		UnixTimestamp:                      unixTimestamp,
+		TotalTerminalDifficulty:            totalTerminalDifficulty,
+		AltairForkEpoch:                    altairForkEpoch,
+		MergeForkEpoch:                     mergeForkEpoch,
+		NumValidatorKeysToPreregister:      numValidatorKeysToPreregister,
+		PreregisteredValidatorKeysMnemonic: preregisteredValidatorKeysMnemonic,
 	}
 
 	sharedDir := serviceCtx.GetSharedDirectory()
@@ -156,13 +118,8 @@ func generateGenesisData(
 
 	// Make the CL mnemonics file available to the generator container
 	clMnemonicsYmlSharedPath := sharedDir.GetChildPath(clMnemonicsYmlRelFilepathInSharedDir)
-	if err := service_launch_utils.CopyFileToSharedPath(clMnemonicsYmlFilepathOnModuleContainer, clMnemonicsYmlSharedPath); err != nil {
-		return "", nil, stacktrace.Propagate(
-			err,
-			"An error occurred copying CL mnemonics file '%v' into shared directory relative path '%v'",
-			clMnemonicsYmlFilepathOnModuleContainer,
-			clMnemonicsYmlRelFilepathInSharedDir,
-		)
+	if err := service_launch_utils.FillTemplateToSharedPath(clMnemonicsYmlTemplate, clTemplateData, clMnemonicsYmlSharedPath); err != nil {
+		return "", nil, stacktrace.Propagate(err, "An error occurred filling the CL mnemonics YML template")
 	}
 
 	outputSharedPath := sharedDir.GetChildPath(genesisDataRelDirpathInSharedDir)

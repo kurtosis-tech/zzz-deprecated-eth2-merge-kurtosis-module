@@ -1,4 +1,4 @@
-package ethereum_genesis_generator
+package prelaunch_data_generator
 
 type CLGenesisPaths struct {
 	// Path to the directory holding all the CL genesis files

@@ -9,5 +9,8 @@
 * Add forkmon to the started network
 * Add Teku CL client
 
+### Fixes
+* Correct merge parameters like TTD, Altair fork version, merge fork version, etc. per Parithosh's recommendations
+
 # 0.1.0
 * Initial commit

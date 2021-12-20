@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/cl_client_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -17,6 +18,9 @@ const (
 
 	// The Docker container runs as the "teku" user so we can't write to root
 	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
+
+	// TODO Get rid of this being hardcoded; should be shared
+	validatingRewardsAccount = "0x0000000000000000000000000000000000000001"
 
 	// Port IDs
 	tcpDiscoveryPortID = "tcp-discovery"
@@ -57,8 +61,16 @@ func (launcher *TekuCLClientLauncher) LaunchBootNode(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	elClientRpcSockets map[string]bool,
+	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl_client_network.ConsensusLayerClientContext, resultErr error) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnrStrForStartingBootnode, elClientRpcSockets)
+	clientCtx, err := launcher.launchNode(
+		enclaveCtx,
+		serviceId,
+		bootnodeEnrStrForStartingBootnode,
+		elClientRpcSockets,
+		nodeKeystoreDirpaths.TekuKeysDirpath,
+		nodeKeystoreDirpaths.TekuSecretsDirpath,
+	)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred starting boot Teku node with service ID '%v'", serviceId)
 	}
@@ -70,8 +82,16 @@ func (launcher *TekuCLClientLauncher) LaunchChildNode(
 	serviceId services.ServiceID,
 	bootnodeEnr string,
 	elClientRpcSockets map[string]bool,
+	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl_client_network.ConsensusLayerClientContext, resultErr error) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnr, elClientRpcSockets)
+	clientCtx, err := launcher.launchNode(
+		enclaveCtx,
+		serviceId,
+		bootnodeEnr,
+		elClientRpcSockets,
+		nodeKeystoreDirpaths.TekuKeysDirpath,
+		nodeKeystoreDirpaths.TekuSecretsDirpath,
+	)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred starting child Teku node with service ID '%v' connected to boot node with ENR '%v'", serviceId, bootnodeEnr)
 	}
@@ -86,6 +106,8 @@ func (launcher *TekuCLClientLauncher) launchNode(
 	serviceId services.ServiceID,
 	bootnodeEnr string,
 	elClientRpcSockets map[string]bool,
+	validatorKeysDirpathOnModuleContainer string,
+	validatorSecretsDirpathOnModuleContainer string,
 ) (
 	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
 	resultErr error,
@@ -95,26 +117,28 @@ func (launcher *TekuCLClientLauncher) launchNode(
 		elClientRpcSockets,
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		launcher.genesisSszFilepathOnModuleContainer,
+		validatorKeysDirpathOnModuleContainer,
+		validatorSecretsDirpathOnModuleContainer,
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse CL client with service ID '%v'", serviceId)
+		return nil, stacktrace.Propagate(err, "An error occurred launching the Teku CL client with service ID '%v'", serviceId)
 	}
 
 	httpPort, found := serviceCtx.GetPrivatePorts()[httpPortID]
 	if !found {
-		return nil, stacktrace.NewError("Expected new Lighthouse service to have port with ID '%v', but none was found", httpPortID)
+		return nil, stacktrace.NewError("Expected new Teku service to have port with ID '%v', but none was found", httpPortID)
 	}
 
 	restClient := cl_client_rest_client.NewCLClientRESTClient(serviceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
 
 	if err := waitForAvailability(restClient); err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lighthouse node to become available")
+		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Teku node to become available")
 	}
 
 	nodeIdentity, err := restClient.GetNodeIdentity()
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred getting the new Lighthouse node's identity, which is necessary to retrieve its ENR")
+		return nil, stacktrace.Propagate(err, "An error occurred getting the new Teku node's identity, which is necessary to retrieve its ENR")
 	}
 
 	result := cl_client_network.NewConsensusLayerClientContext(
@@ -131,6 +155,8 @@ func getContainerConfigSupplier(
 	elClientRpcSockets map[string]bool,
 	genesisConfigYmlFilepathOnModuleContainer string,
 	genesisSszFilepathOnModuleContainer string,
+	validatorKeysDirpathOnModuleContainer string,
+	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
@@ -176,6 +202,12 @@ func getContainerConfigSupplier(
 			"--rest-api-host-allowlist=*",
 			"--data-storage-non-canonical-blocks-enabled=true",
 			"--log-destination=CONSOLE",
+			fmt.Sprintf(
+				"--validator-keys=%v:%v",
+				validatorKeysDirpathOnModuleContainer,
+				validatorSecretsDirpathOnModuleContainer,
+			),
+			"--Xvalidators-suggested-fee-recipient-address=" + validatingRewardsAccount,
 		}
 		if bootNodeEnr != bootnodeEnrStrForStartingBootnode {
 			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes=" + bootNodeEnr)

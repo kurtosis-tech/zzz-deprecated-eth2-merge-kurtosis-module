@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/cl_client_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -53,6 +54,7 @@ func (launcher *LighthouseCLClientLauncher) LaunchBootNode(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	elClientRpcSockets map[string]bool,
+	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
 ) (
 	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
 	resultErr error,
@@ -69,6 +71,7 @@ func (launcher *LighthouseCLClientLauncher) LaunchChildNode(
 	serviceId services.ServiceID,
 	bootnodeEnr string,
 	elClientRpcSockets map[string]bool,
+	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
 ) (
 	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
 	resultErr error,

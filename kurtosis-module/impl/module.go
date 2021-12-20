@@ -6,8 +6,8 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/teku"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network/geth"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/ethereum_genesis_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/forkmon"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
@@ -22,9 +22,26 @@ import (
 const (
 	networkId = "3151908"
 
-	// Genesis config
+	// The number of validator keys that will be preregistered inside the CL genesis file when it's created
+	numValidatorsToPreregister = 100
+
+	// NOTE: We saw issues 1 Geth node & 3 Teku nodes was causing problems, and the Teku folks
+	//  let us know that generally each CL node should be paired with 1 EL node
+	// https://discord.com/channels/697535391594446898/697539289042649190/922266717667856424
+	numElAndClPairs = 1
+
+	// ----------------------------------- Genesis Config Constants -----------------------------------------
+	// We COULD drop this, but it won't represent mainnet
 	secondsPerSlot = uint32(12)
+	altairForkEpoch = uint64(1)  // Set per Parithosh's recommendation
+	mergeForkEpoch = uint64(2)   // Set per Parithosh's recommendation
+	// TODO Should be set to roughly one hour (??) so that this is reached AFTER the CL gets the merge fork version (per Parithosh)
 	totalTerminalDifficulty  = uint64(60000000)
+
+	// This is the mnemonic that will be used to generate validator keys which will be preregistered in the CL genesis.ssz that we create
+	// This is the same mnemonic that should be used to generate the validator keys that we'll load into our CL nodes when we run them
+	preregisteredValidatorKeysMnemonic = "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
+	// --------------------------------- End Genesis Config Constants ----------------------------------------
 
 	// ----------------------------------- Static File Constants -----------------------------------------
 	staticFilesDirpath                    = "/static-files"
@@ -69,7 +86,7 @@ func NewExampleExecutableKurtosisModule() *ExampleExecutableKurtosisModule {
 }
 
 func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
-	logrus.Info("Generating genesis information for EL & CL clients...")
+	logrus.Info("Generating prelaunch data...")
 	genesisUnixTimestamp := time.Now().Unix()
 	gethGenesisConfigTemplate, err := parseTemplate(gethGenesisGenerationConfigYmlTemplateFilepath)
 	if err != nil {
@@ -79,20 +96,30 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the CL genesis generation config YAML template")
 	}
-	gethGenesisJsonFilepath, clGenesisPaths, err := ethereum_genesis_generator.GenerateELAndCLGenesisConfig(
+	clGenesisMnemonicsYmlTemplate, err := parseTemplate(clGenesisGenerationMnemonicsYmlTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing the CL mnemonics YAML template")
+	}
+	prelaunchData, err := prelaunch_data_generator.GeneratePrelaunchData(
 		enclaveCtx,
 		gethGenesisConfigTemplate,
 		clGenesisConfigTemplate,
-		clGenesisGenerationMnemonicsYmlTemplateFilepath,
+		clGenesisMnemonicsYmlTemplate,
+		preregisteredValidatorKeysMnemonic,
+		numValidatorsToPreregister,
+		numElAndClPairs,
 		genesisUnixTimestamp,
 		networkId,
 		secondsPerSlot,
+		altairForkEpoch,
+		mergeForkEpoch,
 		totalTerminalDifficulty,
+		preregisteredValidatorKeysMnemonic,
 	)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis generator Service")
 	}
-	logrus.Info("Successfully generated genesis information for EL & CL clients")
+	logrus.Info("Successfully generated prelaunch data")
 
 	// TODO Nethermind template-filling here
 	/*
@@ -110,16 +137,15 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	 */
 
 	logrus.Info("Launching a network of EL clients...")
-	gethClientLauncher := geth.NewGethELClientLauncher(gethGenesisJsonFilepath)
+	gethClientLauncher := geth.NewGethELClientLauncher(prelaunchData.GethELGenesisJsonFilepathOnModuleContainer)
 	elNetwork := el_client_network.NewExecutionLayerNetwork(
 		enclaveCtx,
 		networkId,
 		gethClientLauncher,
 	)
 
-	// TODO Make the number of nodes a dynamic argument
 	allElClientContexts := []*el_client_network.ExecutionLayerClientContext{}
-	for i := 0; i < 1; i++ {
+	for i := 0; i < numElAndClPairs; i++ {
 		elClientCtx, err := elNetwork.AddNode()
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding EL client node %v", i)
@@ -129,20 +155,22 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	logrus.Info("Successfully launched a network of EL clients")
 
 	logrus.Info("Launching a network of CL clients...")
+	clGenesisPaths := prelaunchData.CLGenesisPaths
 	// clClientLauncher := lighthouse.NewLighthouseCLClientLauncher(clGenesisPaths.GetParentDirpath())
 	clClientLauncher := teku.NewTekuCLClientLauncher(
 		clGenesisPaths.GetConfigYMLFilepath(),
 		clGenesisPaths.GetGenesisSSZFilepath(),
 	)
+	keystoresGenerationResult := prelaunchData.KeystoresGenerationResult
 	clNetwork := cl_client_network.NewConsensusLayerNetwork(
 		enclaveCtx,
 		allElClientContexts,
 		clClientLauncher,
+		keystoresGenerationResult.PerNodeKeystoreDirpaths,
 	)
 
-	// TODO Make this dynamic
 	allClClientContexts := []*cl_client_network.ConsensusLayerClientContext{}
-	for i := 0; i < 3; i++ {
+	for i := 0; i < numElAndClPairs; i++ {
 		clClientCtx, err := clNetwork.AddNode()
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding CL client node %v", i)
