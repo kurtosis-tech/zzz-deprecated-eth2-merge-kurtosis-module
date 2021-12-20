@@ -134,52 +134,6 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	}
 	 */
 
-	/*
-	logrus.Info("Launching a network of EL clients...")
-	gethClientLauncher := geth.NewGethELClientLauncher(prelaunchData.GethELGenesisJsonFilepathOnModuleContainer)
-	elNetwork := el_client_network.NewExecutionLayerNetwork(
-		enclaveCtx,
-		networkId,
-		gethClientLauncher,
-	)
-
-	allElClientContexts := []*el_client_network.ExecutionLayerClientContext{}
-	for i := 0; i < numParticipants; i++ {
-		elClientCtx, err := elNetwork.AddNode()
-		if err != nil {
-			return "", stacktrace.Propagate(err, "An error occurred adding EL client node %v", i)
-		}
-		allElClientContexts = append(allElClientContexts, elClientCtx)
-	}
-	logrus.Info("Successfully launched a network of EL clients")
-
-	logrus.Info("Launching a network of CL clients...")
-	clGenesisPaths := prelaunchData.CLGenesisPaths
-	// clClientLauncher := lighthouse.NewLighthouseCLClientLauncher(clGenesisPaths.GetParentDirpath())
-	clClientLauncher := teku.NewTekuCLClientLauncher(
-		clGenesisPaths.GetConfigYMLFilepath(),
-		clGenesisPaths.GetGenesisSSZFilepath(),
-	)
-	keystoresGenerationResult := prelaunchData.KeystoresGenerationResult
-	clNetwork := cl_client_network.NewConsensusLayerNetwork(
-		enclaveCtx,
-		allElClientContexts,
-		clClientLauncher,
-		keystoresGenerationResult.PerNodeKeystoreDirpaths,
-	)
-
-	allClClientContexts := []*cl_client_network.ConsensusLayerClientContext{}
-	for i := 0; i < numParticipants; i++ {
-		clClientCtx, err := clNetwork.AddNode()
-		if err != nil {
-			return "", stacktrace.Propagate(err, "An error occurred adding CL client node %v", i)
-		}
-		allClClientContexts = append(allClClientContexts, clClientCtx)
-	}
-	logrus.Info("Successfully launched a network of CL clients")
-
-	 */
-
 	logrus.Info("Creating EL & CL client launchers...")
 	elClientLaunchers := map[participant_network.ParticipantELClientType]el.ELClientLauncher{
 		participant_network.ParticipantELClientType_Geth: geth.NewGethELClientLauncher(
