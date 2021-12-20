@@ -31,8 +31,8 @@ const (
 	// ----------------------------------- Genesis Config Constants -----------------------------------------
 	// We COULD drop this, but it won't represent mainnet
 	secondsPerSlot = uint32(12)
-	altairForkEpoch = uint64(2)  // Set per Parithosh's recommendation
-	mergeForkEpoch = uint64(5)   // Set per Parithosh's recommendation
+	altairForkEpoch = uint64(1)  // Set per Parithosh's recommendation
+	mergeForkEpoch = uint64(2)   // Set per Parithosh's recommendation
 	// TODO Should be set to roughly one hour (??) so that this is reached AFTER the CL gets the merge fork version (per Parithosh)
 	totalTerminalDifficulty  = uint64(60000000)
 

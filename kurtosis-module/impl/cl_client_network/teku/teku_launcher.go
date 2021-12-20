@@ -207,7 +207,7 @@ func getContainerConfigSupplier(
 				validatorKeysDirpathOnModuleContainer,
 				validatorSecretsDirpathOnModuleContainer,
 			),
-			"--Xvalidators-fee-recipient-address=" + validatingRewardsAccount,
+			"--Xvalidators-suggested-fee-recipient-address=" + validatingRewardsAccount,
 		}
 		if bootNodeEnr != bootnodeEnrStrForStartingBootnode {
 			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes=" + bootNodeEnr)
