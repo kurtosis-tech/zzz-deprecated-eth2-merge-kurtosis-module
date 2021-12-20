@@ -2,14 +2,14 @@ package lighthouse
 
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/cl_client_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
+	cl_client_rest_client2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	recursive_copy "github.com/otiai10/copy"
-	"strings"
 	"time"
 )
 
@@ -50,52 +50,8 @@ func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string) *L
 	return &LighthouseCLClientLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer}
 }
 
-func (launcher *LighthouseCLClientLauncher) LaunchBootNode(
-	enclaveCtx *enclaves.EnclaveContext,
-	serviceId services.ServiceID,
-	elClientRpcSockets map[string]bool,
-	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
-) (
-	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
-	resultErr error,
-) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnrStrForStartingBootnode, elClientRpcSockets)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred starting boot Ligthhouse node with service ID '%v'", serviceId)
-	}
-	return clientCtx, nil
-}
-
-func (launcher *LighthouseCLClientLauncher) LaunchChildNode(
-	enclaveCtx *enclaves.EnclaveContext,
-	serviceId services.ServiceID,
-	bootnodeEnr string,
-	elClientRpcSockets map[string]bool,
-	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
-) (
-	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
-	resultErr error,
-) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnr, elClientRpcSockets)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred starting child Lighthouse node with service ID '%v' connected to boot node with ENR '%v'", serviceId, bootnodeEnr)
-	}
-	return clientCtx, nil
-}
-
-// ====================================================================================================
-//                                   Private Helper Methods
-// ====================================================================================================
-func (launcher *LighthouseCLClientLauncher) launchNode(
-	enclaveCtx *enclaves.EnclaveContext,
-	serviceId services.ServiceID,
-	bootnodeEnr string,
-	elClientRpcSockets map[string]bool,
-) (
-	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
-	resultErr error,
-) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(bootnodeEnr, elClientRpcSockets)
+func (launcher *LighthouseCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, bootnodeContext *cl.CLClientContext, elClientContext *el.ELClientContext, nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths) (resultClientCtx *cl.CLClientContext, resultErr error) {
+	containerConfigSupplier := launcher.getContainerConfigSupplier(bootnodeContext, elClientContext)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse CL client with service ID '%v'", serviceId)
@@ -106,7 +62,7 @@ func (launcher *LighthouseCLClientLauncher) launchNode(
 		return nil, stacktrace.NewError("Expected new Lighthouse service to have port with ID '%v', but none was found", httpPortID)
 	}
 
-	restClient := cl_client_rest_client.NewCLClientRESTClient(serviceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
+	restClient := cl_client_rest_client2.NewCLClientRESTClient(serviceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
 
 	if err := waitForAvailability(restClient); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lighthouse node to become available")
@@ -117,18 +73,21 @@ func (launcher *LighthouseCLClientLauncher) launchNode(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the new Lighthouse node's identity, which is necessary to retrieve its ENR")
 	}
 
-	result := cl_client_network.NewConsensusLayerClientContext(
-		serviceCtx,
+	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
-		httpPortID,
+		serviceCtx.GetPrivateIPAddress(),
+		httpPortNum,
 	)
 
 	return result, nil
 }
 
+// ====================================================================================================
+//                                   Private Helper Methods
+// ====================================================================================================
 func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
-	bootNodeEnr string,
-	elClientRpcSockets map[string]bool,
+	bootClClientCtx *cl.CLClientContext,
+	elClientCtx *el.ELClientContext,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(configDataDirpathRelToSharedDirRoot)
@@ -143,12 +102,11 @@ func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
 			)
 		}
 
-		elClientRpcUrls := []string{}
-		for rpcSocketStr := range elClientRpcSockets {
-			rpcUrlStr := fmt.Sprintf("http://%v", rpcSocketStr)
-			elClientRpcUrls = append(elClientRpcUrls, rpcUrlStr)
-		}
-		elClientRpcUrlsStr := strings.Join(elClientRpcUrls, ",")
+		elClientRpcUrlStr := fmt.Sprintf(
+			"http://%v:%v",
+			elClientCtx.GetIPAddress(),
+			elClientCtx.GetRPCPortNum(),
+		)
 
 		configDataDirpathOnService := configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer()
 		// NOTE: If connecting to the merge devnet remotely we DON'T want the following flags; when they're not set, the node's external IP address is auto-detected
@@ -180,11 +138,11 @@ func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
 			"--merge",
 			"--http-allow-sync-stalled",
 			"--disable-packet-filter",
-			"--execution-endpoints=" + elClientRpcUrlsStr,
-			"--eth1-endpoints=" + elClientRpcUrlsStr,
+			"--execution-endpoints=" + elClientRpcUrlStr,
+			"--eth1-endpoints=" + elClientRpcUrlStr,
 		}
-		if bootNodeEnr != bootnodeEnrStrForStartingBootnode {
-			cmdArgs = append(cmdArgs, "--boot-nodes=" + bootNodeEnr)
+		if bootClClientCtx != nil {
+			cmdArgs = append(cmdArgs, "--boot-nodes=" + bootClClientCtx.GetENR())
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
@@ -198,7 +156,7 @@ func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
 	}
 }
 
-func waitForAvailability(restClient *cl_client_rest_client.CLClientRESTClient) error {
+func waitForAvailability(restClient *cl_client_rest_client2.CLClientRESTClient) error {
 	for i := 0; i < maxNumHealthcheckRetries; i++ {
 		_, err := restClient.GetHealth()
 		if err == nil {

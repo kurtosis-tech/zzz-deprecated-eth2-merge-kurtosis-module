@@ -18,11 +18,11 @@ const (
 	endpointClass_node endpointClass = "node"
 
 	endpoint_identity endpoint = "identity"
-	endpoint_health endpoint = "health"
+	endpoint_health   endpoint = "health"
 
-	HealthStatus_Ready HealthStatus = "READY"
+	HealthStatus_Ready                     HealthStatus = "READY"
 	HealthStatus_SyncingWithIncompleteData HealthStatus = "SYNCING_WITH_INCOMPLETE_DATA"
-	HealthStatus_Error HealthStatus = "ERROR"
+	HealthStatus_Error                     HealthStatus = "ERROR"
 )
 // Defined on https://ethereum.github.io/beacon-APIs/#/Node/getHealth
 var healthResponseCodeToStatus = map[int]HealthStatus{
