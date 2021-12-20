@@ -163,6 +163,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--metrics",
 			"--metrics-address=0.0.0.0",
 			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
+			"--log-level=debug",
 		}
 		if bootnodeContext == nil {
 			// Copied from https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
