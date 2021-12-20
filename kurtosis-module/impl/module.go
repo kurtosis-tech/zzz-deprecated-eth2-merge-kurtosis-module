@@ -25,8 +25,10 @@ const (
 	// The number of validator keys that will be preregistered inside the CL genesis file when it's created
 	numValidatorsToPreregister = 100
 
-	numElNodes = 1
-	numClNodes = 3
+	// NOTE: We saw issues 1 Geth node & 3 Teku nodes was causing problems, and the Teku folks
+	//  let us know that generally each CL node should be paired with 1 EL node
+	// https://discord.com/channels/697535391594446898/697539289042649190/922266717667856424
+	numElAndClPairs = 1
 
 	// ----------------------------------- Genesis Config Constants -----------------------------------------
 	// We COULD drop this, but it won't represent mainnet
@@ -105,7 +107,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		clGenesisMnemonicsYmlTemplate,
 		preregisteredValidatorKeysMnemonic,
 		numValidatorsToPreregister,
-		numClNodes,
+		numElAndClPairs,
 		genesisUnixTimestamp,
 		networkId,
 		secondsPerSlot,
@@ -143,7 +145,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	)
 
 	allElClientContexts := []*el_client_network.ExecutionLayerClientContext{}
-	for i := 0; i < numElNodes; i++ {
+	for i := 0; i < numElAndClPairs; i++ {
 		elClientCtx, err := elNetwork.AddNode()
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding EL client node %v", i)
@@ -168,7 +170,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	)
 
 	allClClientContexts := []*cl_client_network.ConsensusLayerClientContext{}
-	for i := 0; i < numClNodes; i++ {
+	for i := 0; i < numElAndClPairs; i++ {
 		clClientCtx, err := clNetwork.AddNode()
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding CL client node %v", i)
