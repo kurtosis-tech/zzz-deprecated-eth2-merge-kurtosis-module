@@ -10,7 +10,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	recursive_copy "github.com/otiai10/copy"
-	"os"
 	"time"
 )
 
@@ -32,9 +31,13 @@ const (
 	configDataDirpathRelToSharedDirRoot = "config-data"
 
 	// Nimbus requires that its data directory already exists (because it expects you to bind-mount it), so we
-	//  have to put it in the shared dir and create it
-	consensusDataDirpathRelToSharedDirRoot = "consensus-data"
-	consensusDataDirPerms = 0700 // Nimbus wants the data dir to have these perms
+	//  have to to create it
+	consensusDataDirpathInServiceContainer = "$HOME/consensus-data"
+	consensusDataDirPermsStr               = "0700" // Nimbus wants the data dir to have these perms
+
+	// The entrypoint the image normally starts with (we need to override the entrypoint to create the
+	//  consensus data directory on the image before it starts)
+	imageDefaultEntrypoint = "/home/user/nimbus-eth2/build/nimbus_beacon_node"
 
 	validatorKeysDirpathRelToSharedDirRoot = "validator-keys"
 	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
@@ -120,11 +123,6 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			)
 		}
 
-		dataDirSharedPath := sharedDir.GetChildPath(consensusDataDirpathRelToSharedDirRoot)
-		if err := os.Mkdir(dataDirSharedPath.GetAbsPathOnThisContainer(), consensusDataDirPerms); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred creating the consensus data directory in the shared directory")
-		}
-
 		elClientWsUrlStr := fmt.Sprintf(
 			"ws://%v:%v",
 			elClientContext.GetIPAddress(),
@@ -149,9 +147,14 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 		//  1) https://github.com/status-im/nimbus-eth2/blob/stable/scripts/launch_local_testnet.sh
 		//  2) https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
 		cmdArgs := []string{
+			"mkdir",
+			consensusDataDirpathInServiceContainer,
+			"-m",
+			consensusDataDirPermsStr,
+			"&&",
 			"--non-interactive=true",
 			"--network=" + configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer(),
-			"--data-dir=" + dataDirSharedPath.GetAbsPathOnServiceContainer(),
+			"--data-dir=" + consensusDataDirpathInServiceContainer,
 			"--web3-url=" + elClientWsUrlStr,
 			"--nat=extip:" + privateIpAddr,
 			"--enr-auto-update=false",
@@ -181,7 +184,9 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			imageName,
 		).WithUsedPorts(
 			usedPorts,
-		).WithCmdOverride(
+		).WithEntrypointOverride([]string{
+			"sh", "-c",
+		}).WithCmdOverride(
 			cmdArgs,
 		).Build()
 
