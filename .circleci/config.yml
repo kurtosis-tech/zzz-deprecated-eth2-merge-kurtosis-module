@@ -38,7 +38,7 @@ jobs:
       - run: |
           source scripts/_constants.env
           docker_image_tag="$(bash ./scripts/get-docker-image-tag.sh)"
-          kurtosis module exec "${IMAGE_ORG_AND_REPO}:${docker_image_tag}" --execute-params '{"logLevel":"debug"}'
+          kurtosis module exec "${IMAGE_ORG_AND_REPO}:${docker_image_tag}" --load-params '{"logLevel":"debug"}'
 
   push_artifacts:
     executor: ubuntu_vm
