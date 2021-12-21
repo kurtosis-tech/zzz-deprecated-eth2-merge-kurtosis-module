@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	imageName = "consensys/teku:latest"
+	imageName                 = "consensys/teku:latest"
+	tekuBinaryFilepathInImage = "/opt/teku/bin/teku"
 
 	// The Docker container runs as the "teku" user so we can't write to root
 	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
@@ -39,17 +40,19 @@ const (
 	validatorKeysDirpathRelToSharedDirRoot = "validator-keys"
 	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
 
-	// Teku nodes take quite a while to start
+	// 1) The Teku container runs as the "teku" user
+	// 2) Teku requires write access to the validator secrets directory, so it can write a lockfile into it as it uses the keys
+	// 3) The module container runs as 'root'
+	// With these three things combined, it means that when the module container tries to write the validator keys/secrets into
+	//  the shared directory, it does so as 'root'. When Teku tries to consum the same files, it will get a failure because it
+	//  doesn't have permission to write to the 'validator-secrets' directory.
+	// To get around this, we copy the files AGAIN from
+	destValidatorKeysDirpathInServiceContainer = "~/validator-keys"
+	destValidatorSecretsDirpathInServiceContainer = "~/validator-secrets"
+
+	// Teku nodes take ~35s to bring their HTTP server up
 	maxNumHealthcheckRetries = 60
-	timeBetweenHealthcheckRetries = 2 * time.Second
-
-
-	// TODO Fix this being necessary; see https://github.com/kurtosis-tech/kurtosis-engine-server/issues/76
-	// The Teku container runs as the 'teku' user (NOT root). This means that when we generate files on the module container
-	//  (which runs as root) and send them to the Teku container via the bind-mounted shared directory, the Teku container
-	//  will be trying to read files owned by "root". If the files don't have 744 perms, then the Teku container will fail.
-	// To work around this, we make the files that the Teku container consumes world-readable
-	recursiveCopyDestinationFilePermMode = 744
+	timeBetweenHealthcheckRetries = 1 * time.Second
 )
 var usedPorts = map[string]*services.PortSpec{
 	// TODO Add metrics port
@@ -142,7 +145,6 @@ func getContainerConfigSupplier(
 		if err := recursive_copy.Copy(
 			validatorKeysDirpathOnModuleContainer,
 			validatorKeysSharedPath.GetAbsPathOnThisContainer(),
-			recursive_copy.Options{AddPermission: recursiveCopyDestinationFilePermMode},
 		); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
 		}
@@ -151,7 +153,6 @@ func getContainerConfigSupplier(
 		if err := recursive_copy.Copy(
 			validatorSecretsDirpathOnModuleContainer,
 			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
-			recursive_copy.Options{AddPermission: recursiveCopyDestinationFilePermMode},
 		); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
 		}
@@ -162,6 +163,17 @@ func getContainerConfigSupplier(
 			elClientContext.GetRPCPortNum(),
 		)
 		cmdArgs := []string{
+			"cp",
+			"-R",
+			validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
+			destValidatorKeysDirpathInServiceContainer,
+			"&&",
+			"cp",
+			"-R",
+			validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			destValidatorSecretsDirpathInServiceContainer,
+			"&&",
+			tekuBinaryFilepathInImage,
 			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--initial-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
 			"--data-path=" + consensusDataDirpathOnServiceContainer,
@@ -179,8 +191,8 @@ func getContainerConfigSupplier(
 			"--log-destination=CONSOLE",
 			fmt.Sprintf(
 				"--validator-keys=%v:%v",
-				validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
-				validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+				destValidatorSecretsDirpathInServiceContainer,
+				destValidatorSecretsDirpathInServiceContainer,
 			),
 			"--Xvalidators-suggested-fee-recipient-address=" + validatingRewardsAccount,
 		}
@@ -192,7 +204,9 @@ func getContainerConfigSupplier(
 			imageName,
 		).WithUsedPorts(
 			usedPorts,
-		).WithCmdOverride(
+		).WithEntrypointOverride([]string{
+			"sh", "-c",
+		}).WithCmdOverride(
 			cmdArgs,
 		).Build()
 
