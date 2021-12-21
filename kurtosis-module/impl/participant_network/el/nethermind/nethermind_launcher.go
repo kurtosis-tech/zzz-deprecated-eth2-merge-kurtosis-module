@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -20,9 +20,6 @@ import (
 const (
 	//Latest Nethermind Kintsugi image version released to date, can check latest here: https://github.com/NethermindEth/nethermind/issues/3581
 	imageName = "nethermindeth/nethermind:kintsugi_0.5"
-
-	// To start a bootnode, we provide this string to the launchNode function
-	bootnodeEnodeStrForStartingBootnode = ""
 
 	// The dirpath of the execution data directory on the client container
 	executionDataDirpathOnClientContainer = "/execution-data"
@@ -73,50 +70,13 @@ func NewNethermindELClientLauncher(nethermingGenesisJsonTemplate *template.Templ
 	}
 }
 
-func (launcher *NethermindELClientLauncher) LaunchBootNode(
+func (launcher *NethermindELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	networkId string,
-) (
-	resultClientCtx *el_client_network.ExecutionLayerClientContext,
-	resultErr error,
-) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, networkId, bootnodeEnodeStrForStartingBootnode)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred starting boot node with service ID '%v'", serviceId)
-	}
-	return clientCtx, nil
-}
-
-func (launcher *NethermindELClientLauncher) LaunchChildNode(
-	enclaveCtx *enclaves.EnclaveContext,
-	serviceId services.ServiceID,
-	networkId string,
-	bootnodeEnode string,
-) (
-	resultClientCtx *el_client_network.ExecutionLayerClientContext,
-	resultErr error,
-) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, networkId, bootnodeEnode)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred starting child node with service ID '%v' connected to boot node with enode '%v'", serviceId, bootnodeEnode)
-	}
-	return clientCtx, nil
-}
-
-// ====================================================================================================
-//                                       Private Helper Methods
-// ====================================================================================================
-func (launcher *NethermindELClientLauncher) launchNode(
-	enclaveCtx *enclaves.EnclaveContext,
-	serviceId services.ServiceID,
-	networkId string,
-	bootnodeEnode string, // NOTE: If this is emptystring, the node will be launched as a bootnode
-) (
-	resultClientCtx *el_client_network.ExecutionLayerClientContext,
-	resultErr error,
-) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(networkId, bootnodeEnode)
+	bootnodeContext *el.ELClientContext,
+) (resultClientCtx *el.ELClientContext, resultErr error) {
+	containerConfigSupplier := launcher.getContainerConfigSupplier(networkId, bootnodeContext)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
@@ -127,19 +87,23 @@ func (launcher *NethermindELClientLauncher) launchNode(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
 	}
 
-	result := el_client_network.NewExecutionLayerClientContext(
-		serviceCtx,
+	result := el.NewELClientContext(
+		// TODO TODO TODO TODO Get Nethermind ENR, so that CL clients can connect to it!!!
 		"", //Nethermind node info endpoint doesn't return ENR field https://docs.nethermind.io/nethermind/ethereum-client/json-rpc/admin
 		nodeInfo.Enode,
-		rpcPortId,
+		serviceCtx.GetPrivateIPAddress(),
+		rpcPortNum,
 	)
 
 	return result, nil
 }
 
+// ====================================================================================================
+//                                       Private Helper Methods
+// ====================================================================================================
 func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 	networkId string,
-	bootnodeEnode string, // NOTE: If this is emptystring, the node will be configured as a bootnode
+	bootnodeCtx *el.ELClientContext,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
@@ -178,10 +142,10 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--Merge.TerminalTotalDifficulty=%v", launcher.totalTerminalDifficulty),
 			"--Merge.BlockAuthorAccount=" + miningRewardsAccount,
 		}
-		if bootnodeEnode != bootnodeEnodeStrForStartingBootnode {
+		if bootnodeCtx != nil {
 			commandArgs = append(
 				commandArgs,
-				"--Discovery.Bootnodes="+bootnodeEnode,
+				"--Discovery.Bootnodes=" + bootnodeCtx.GetEnode(),
 			)
 		}
 

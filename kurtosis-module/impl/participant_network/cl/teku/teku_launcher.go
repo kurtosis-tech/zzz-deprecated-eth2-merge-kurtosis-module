@@ -2,19 +2,23 @@ package teku
 
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/cl_client_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/availability_waiter"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	recursive_copy "github.com/otiai10/copy"
 	"strings"
 	"time"
 )
 
 const (
-	imageName = "consensys/teku:latest"
+	imageName                 = "consensys/teku:latest"
+	tekuBinaryFilepathInImage = "/opt/teku/bin/teku"
 
 	// The Docker container runs as the "teku" user so we can't write to root
 	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
@@ -31,13 +35,23 @@ const (
 	discoveryPortNum uint16 = 9000
 	httpPortNum             = 4000
 
-	// To start a bootnode rather than a child node, we provide this string to the launchNode function
-	bootnodeEnrStrForStartingBootnode = ""
-
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir = "genesis.ssz"
 
-	// Teku nodes take quite a while to start
+	validatorKeysDirpathRelToSharedDirRoot = "validator-keys"
+	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
+
+	// 1) The Teku container runs as the "teku" user
+	// 2) Teku requires write access to the validator secrets directory, so it can write a lockfile into it as it uses the keys
+	// 3) The module container runs as 'root'
+	// With these three things combined, it means that when the module container tries to write the validator keys/secrets into
+	//  the shared directory, it does so as 'root'. When Teku tries to consum the same files, it will get a failure because it
+	//  doesn't have permission to write to the 'validator-secrets' directory.
+	// To get around this, we copy the files AGAIN from
+	destValidatorKeysDirpathInServiceContainer = "$HOME/validator-keys"
+	destValidatorSecretsDirpathInServiceContainer = "$HOME/validator-secrets"
+
+	// Teku nodes take ~35s to bring their HTTP server up
 	maxNumHealthcheckRetries = 60
 	timeBetweenHealthcheckRetries = 1 * time.Second
 )
@@ -57,68 +71,14 @@ func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, g
 	return &TekuCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer}
 }
 
-func (launcher *TekuCLClientLauncher) LaunchBootNode(
-	enclaveCtx *enclaves.EnclaveContext,
-	serviceId services.ServiceID,
-	elClientRpcSockets map[string]bool,
-	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
-) (resultClientCtx *cl_client_network.ConsensusLayerClientContext, resultErr error) {
-	clientCtx, err := launcher.launchNode(
-		enclaveCtx,
-		serviceId,
-		bootnodeEnrStrForStartingBootnode,
-		elClientRpcSockets,
-		nodeKeystoreDirpaths.TekuKeysDirpath,
-		nodeKeystoreDirpaths.TekuSecretsDirpath,
-	)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred starting boot Teku node with service ID '%v'", serviceId)
-	}
-	return clientCtx, nil
-}
-
-func (launcher *TekuCLClientLauncher) LaunchChildNode(
-	enclaveCtx *enclaves.EnclaveContext,
-	serviceId services.ServiceID,
-	bootnodeEnr string,
-	elClientRpcSockets map[string]bool,
-	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
-) (resultClientCtx *cl_client_network.ConsensusLayerClientContext, resultErr error) {
-	clientCtx, err := launcher.launchNode(
-		enclaveCtx,
-		serviceId,
-		bootnodeEnr,
-		elClientRpcSockets,
-		nodeKeystoreDirpaths.TekuKeysDirpath,
-		nodeKeystoreDirpaths.TekuSecretsDirpath,
-	)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred starting child Teku node with service ID '%v' connected to boot node with ENR '%v'", serviceId, bootnodeEnr)
-	}
-	return clientCtx, nil
-}
-
-// ====================================================================================================
-//                                   Private Helper Methods
-// ====================================================================================================
-func (launcher *TekuCLClientLauncher) launchNode(
-	enclaveCtx *enclaves.EnclaveContext,
-	serviceId services.ServiceID,
-	bootnodeEnr string,
-	elClientRpcSockets map[string]bool,
-	validatorKeysDirpathOnModuleContainer string,
-	validatorSecretsDirpathOnModuleContainer string,
-) (
-	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
-	resultErr error,
-) {
+func (launcher *TekuCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, bootnodeContext *cl.CLClientContext, elClientContext *el.ELClientContext, nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	containerConfigSupplier := getContainerConfigSupplier(
-		bootnodeEnr,
-		elClientRpcSockets,
+		bootnodeContext,
+		elClientContext,
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		launcher.genesisSszFilepathOnModuleContainer,
-		validatorKeysDirpathOnModuleContainer,
-		validatorSecretsDirpathOnModuleContainer,
+		nodeKeystoreDirpaths.TekuKeysDirpath,
+		nodeKeystoreDirpaths.TekuSecretsDirpath,
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
@@ -132,7 +92,7 @@ func (launcher *TekuCLClientLauncher) launchNode(
 
 	restClient := cl_client_rest_client.NewCLClientRESTClient(serviceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
 
-	if err := waitForAvailability(restClient); err != nil {
+	if err := availability_waiter.WaitForCLClientAvailability(restClient, maxNumHealthcheckRetries, timeBetweenHealthcheckRetries); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Teku node to become available")
 	}
 
@@ -141,18 +101,21 @@ func (launcher *TekuCLClientLauncher) launchNode(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the new Teku node's identity, which is necessary to retrieve its ENR")
 	}
 
-	result := cl_client_network.NewConsensusLayerClientContext(
-		serviceCtx,
+	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
-		httpPortID,
+		serviceCtx.GetPrivateIPAddress(),
+		httpPortNum,
 	)
 
 	return result, nil
 }
 
+// ====================================================================================================
+//                                   Private Helper Methods
+// ====================================================================================================
 func getContainerConfigSupplier(
-	bootNodeEnr string,
-	elClientRpcSockets map[string]bool,
+	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
+	elClientContext *el.ELClientContext,
 	genesisConfigYmlFilepathOnModuleContainer string,
 	genesisSszFilepathOnModuleContainer string,
 	validatorKeysDirpathOnModuleContainer string,
@@ -179,21 +142,46 @@ func getContainerConfigSupplier(
 			)
 		}
 
-		elClientRpcUrls := []string{}
-		for rpcSocketStr := range elClientRpcSockets {
-			rpcUrlStr := fmt.Sprintf("http://%v", rpcSocketStr)
-			elClientRpcUrls = append(elClientRpcUrls, rpcUrlStr)
+		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
+		if err := recursive_copy.Copy(
+			validatorKeysDirpathOnModuleContainer,
+			validatorKeysSharedPath.GetAbsPathOnThisContainer(),
+		); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
 		}
-		elClientRpcUrlsStr := strings.Join(elClientRpcUrls, ",")
 
+		validatorSecretsSharedPath := sharedDir.GetChildPath(validatorSecretsDirpathRelToSharedDirRoot)
+		if err := recursive_copy.Copy(
+			validatorSecretsDirpathOnModuleContainer,
+			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
+		); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
+		}
+
+		elClientRpcUrlStr := fmt.Sprintf(
+			"http://%v:%v",
+			elClientContext.GetIPAddress(),
+			elClientContext.GetRPCPortNum(),
+		)
 		cmdArgs := []string{
+			"cp",
+			"-R",
+			validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
+			destValidatorKeysDirpathInServiceContainer,
+			"&&",
+			"cp",
+			"-R",
+			validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			destValidatorSecretsDirpathInServiceContainer,
+			"&&",
+			tekuBinaryFilepathInImage,
 			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--initial-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
 			"--data-path=" + consensusDataDirpathOnServiceContainer,
 			"--data-storage-mode=PRUNE",
 			"--p2p-enabled=true",
-			"--eth1-endpoints=" + elClientRpcUrlsStr,
-			"--Xee-endpoint=" + elClientRpcUrlsStr,
+			"--eth1-endpoints=" + elClientRpcUrlStr,
+			"--Xee-endpoint=" + elClientRpcUrlStr,
 			"--p2p-advertised-ip=" + privateIpAddr,
 			"--rest-api-enabled=true",
 			"--rest-api-docs-enabled=true",
@@ -204,40 +192,27 @@ func getContainerConfigSupplier(
 			"--log-destination=CONSOLE",
 			fmt.Sprintf(
 				"--validator-keys=%v:%v",
-				validatorKeysDirpathOnModuleContainer,
-				validatorSecretsDirpathOnModuleContainer,
+				destValidatorKeysDirpathInServiceContainer,
+				destValidatorSecretsDirpathInServiceContainer,
 			),
 			"--Xvalidators-suggested-fee-recipient-address=" + validatingRewardsAccount,
 		}
-		if bootNodeEnr != bootnodeEnrStrForStartingBootnode {
-			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes=" + bootNodeEnr)
+		if bootnodeContext != nil {
+			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes=" + bootnodeContext.GetENR())
 		}
+		cmdStr := strings.Join(cmdArgs, " ")
 
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithUsedPorts(
 			usedPorts,
-		).WithCmdOverride(
-			cmdArgs,
-		).Build()
+		).WithEntrypointOverride([]string{
+			"sh", "-c",
+		}).WithCmdOverride([]string{
+			cmdStr,
+		}).Build()
 
 		return containerConfig, nil
 	}
 	return containerConfigSupplier
-}
-
-func waitForAvailability(restClient *cl_client_rest_client.CLClientRESTClient) error {
-	for i := 0; i < maxNumHealthcheckRetries; i++ {
-		_, err := restClient.GetHealth()
-		if err == nil {
-			// TODO check the healthstatus???
-			return nil
-		}
-		time.Sleep(timeBetweenHealthcheckRetries)
-	}
-	return stacktrace.NewError(
-		"Teku node didn't become available even after %v retries with %v between retries",
-		maxNumHealthcheckRetries,
-		timeBetweenHealthcheckRetries,
-	)
 }

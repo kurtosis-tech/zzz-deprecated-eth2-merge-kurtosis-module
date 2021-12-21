@@ -2,7 +2,7 @@ package forkmon
 
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -39,7 +39,7 @@ type configTemplateData struct {
 func LaunchForkmon(
 	enclaveCtx *enclaves.EnclaveContext,
 	configTemplate *template.Template,
-	clClientContexts []*cl_client_network.ConsensusLayerClientContext,
+	clClientContexts []*cl.CLClientContext,
 	genesisUnixTimestamp int64,
 	secondsPerSlot uint32,
 ) (string, error) {
@@ -70,7 +70,7 @@ func LaunchForkmon(
 
 func getContainerConfigSupplier(
 	configTemplate *template.Template,
-	clClientContexts []*cl_client_network.ConsensusLayerClientContext,
+	clClientContexts []*cl.CLClientContext,
 	genesisUnixTimestamp int64,
 	secondsPerSlot uint32,
 ) (
@@ -79,19 +79,9 @@ func getContainerConfigSupplier(
 ) {
 	allClClientInfo := []*clClientInfo{}
 	for _, clClientCtx := range clClientContexts {
-		clClientHttpPortId := clClientCtx.GetHTTPPortID()
-		serviceCtx := clClientCtx.GetServiceContext()
-		httpPort, found := serviceCtx.GetPrivatePorts()[clClientHttpPortId]
-		if !found {
-			return nil, stacktrace.NewError(
-				"Expected CL client '%v' to have HTTP port with ID '%v', but none was found",
-				serviceCtx.GetServiceID(),
-				clClientHttpPortId,
-			)
-		}
 		info := &clClientInfo{
-			IPAddr:  serviceCtx.GetPrivateIPAddress(),
-			PortNum: httpPort.GetNumber(),
+			IPAddr:  clClientCtx.GetIPAddress(),
+			PortNum: clClientCtx.GetHTTPPortNum(),
 		}
 		allClClientInfo = append(allClClientInfo, info)
 	}
