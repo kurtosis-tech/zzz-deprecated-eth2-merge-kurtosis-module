@@ -48,8 +48,8 @@ const (
 	//  the shared directory, it does so as 'root'. When Teku tries to consum the same files, it will get a failure because it
 	//  doesn't have permission to write to the 'validator-secrets' directory.
 	// To get around this, we copy the files AGAIN from
-	destValidatorKeysDirpathInServiceContainer = "~/validator-keys"
-	destValidatorSecretsDirpathInServiceContainer = "~/validator-secrets"
+	destValidatorKeysDirpathInServiceContainer = "$HOME/validator-keys"
+	destValidatorSecretsDirpathInServiceContainer = "$HOME/validator-secrets"
 
 	// Teku nodes take ~35s to bring their HTTP server up
 	maxNumHealthcheckRetries = 60
@@ -192,7 +192,7 @@ func getContainerConfigSupplier(
 			"--log-destination=CONSOLE",
 			fmt.Sprintf(
 				"--validator-keys=%v:%v",
-				destValidatorSecretsDirpathInServiceContainer,
+				destValidatorKeysDirpathInServiceContainer,
 				destValidatorSecretsDirpathInServiceContainer,
 			),
 			"--Xvalidators-suggested-fee-recipient-address=" + validatingRewardsAccount,
