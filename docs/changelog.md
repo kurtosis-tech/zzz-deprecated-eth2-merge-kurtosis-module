@@ -1,4 +1,6 @@
 # TBD
+### Features
+* Add Nethermind EL client
 
 # 0.2.1
 * Empty commit to try and kick CircleCI into actually building the tag
