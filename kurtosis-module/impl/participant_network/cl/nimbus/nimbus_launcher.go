@@ -44,6 +44,13 @@ const (
 	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
 	validatorSecretsDirPerms = 0600	// If we don't set these when we copy, Nimbus will burn a bunch of time doing it for us
 
+	// Nimbus needs write access to the validator keys/secrets directories, and b/c the module container runs as root
+	//  while the Nimbus container does not, we can't just point the Nimbus binary to the paths in the shared dir because
+	//  it won't be able to open them. To get around this, we copy the validator keys/secrets to a path inside the Nimbus
+	//  container that is owned by the container's user
+	validatorKeysDirpathOnServiceContainer = "$HOME/validator-keys"
+	validatorSecretsDirpathOnServiceContainer = "$HOME/validator-secrets"
+
 	maxNumHealthcheckRetries = 15
 	timeBetweenHealthcheckRetries = 1 * time.Second
 )
@@ -153,6 +160,16 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"-m",
 			consensusDataDirPermsStr,
 			"&&",
+			"cp",
+			"-R",
+			validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
+			validatorKeysDirpathOnServiceContainer,
+			"&&",
+			"cp",
+			"-R",
+			validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			validatorSecretsDirpathOnServiceContainer,
+			"&&",
 			defaultImageEntrypoint,
 			"--non-interactive=true",
 			"--network=" + configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer(),
@@ -163,8 +180,8 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--rest",
 			"--rest-address=0.0.0.0",
 			fmt.Sprintf("--rest-port=%v", httpPortNum),
-			"--validators-dir=" + validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
-			"--secrets-dir=" + validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			"--validators-dir=" + validatorKeysDirpathOnServiceContainer,
+			"--secrets-dir=" + validatorSecretsDirpathOnServiceContainer,
 			"--metrics",
 			"--metrics-address=0.0.0.0",
 			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
