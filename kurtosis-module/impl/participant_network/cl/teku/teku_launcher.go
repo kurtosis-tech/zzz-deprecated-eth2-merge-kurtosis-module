@@ -3,18 +3,22 @@ package teku
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
-	cl_client_rest_client2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/availability_waiter"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	recursive_copy "github.com/otiai10/copy"
+	"strings"
 	"time"
 )
 
 const (
-	imageName = "consensys/teku:latest"
+	imageName                 = "consensys/teku:latest"
+	tekuBinaryFilepathInImage = "/opt/teku/bin/teku"
 
 	// The Docker container runs as the "teku" user so we can't write to root
 	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
@@ -34,7 +38,20 @@ const (
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir = "genesis.ssz"
 
-	// Teku nodes take quite a while to start
+	validatorKeysDirpathRelToSharedDirRoot = "validator-keys"
+	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
+
+	// 1) The Teku container runs as the "teku" user
+	// 2) Teku requires write access to the validator secrets directory, so it can write a lockfile into it as it uses the keys
+	// 3) The module container runs as 'root'
+	// With these three things combined, it means that when the module container tries to write the validator keys/secrets into
+	//  the shared directory, it does so as 'root'. When Teku tries to consum the same files, it will get a failure because it
+	//  doesn't have permission to write to the 'validator-secrets' directory.
+	// To get around this, we copy the files AGAIN from
+	destValidatorKeysDirpathInServiceContainer = "$HOME/validator-keys"
+	destValidatorSecretsDirpathInServiceContainer = "$HOME/validator-secrets"
+
+	// Teku nodes take ~35s to bring their HTTP server up
 	maxNumHealthcheckRetries = 60
 	timeBetweenHealthcheckRetries = 1 * time.Second
 )
@@ -73,9 +90,9 @@ func (launcher *TekuCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext
 		return nil, stacktrace.NewError("Expected new Teku service to have port with ID '%v', but none was found", httpPortID)
 	}
 
-	restClient := cl_client_rest_client2.NewCLClientRESTClient(serviceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
+	restClient := cl_client_rest_client.NewCLClientRESTClient(serviceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
 
-	if err := waitForAvailability(restClient); err != nil {
+	if err := availability_waiter.WaitForCLClientAvailability(restClient, maxNumHealthcheckRetries, timeBetweenHealthcheckRetries); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Teku node to become available")
 	}
 
@@ -127,13 +144,39 @@ func getContainerConfigSupplier(
 			)
 		}
 
+		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
+		if err := recursive_copy.Copy(
+			validatorKeysDirpathOnModuleContainer,
+			validatorKeysSharedPath.GetAbsPathOnThisContainer(),
+		); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
+		}
+
+		validatorSecretsSharedPath := sharedDir.GetChildPath(validatorSecretsDirpathRelToSharedDirRoot)
+		if err := recursive_copy.Copy(
+			validatorSecretsDirpathOnModuleContainer,
+			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
+		); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
+		}
+
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
 			elClientContext.GetRPCPortNum(),
 		)
-
 		cmdArgs := []string{
+			"cp",
+			"-R",
+			validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
+			destValidatorKeysDirpathInServiceContainer,
+			"&&",
+			"cp",
+			"-R",
+			validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			destValidatorSecretsDirpathInServiceContainer,
+			"&&",
+			tekuBinaryFilepathInImage,
 			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--initial-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
 			"--data-path=" + consensusDataDirpathOnServiceContainer,
@@ -151,40 +194,27 @@ func getContainerConfigSupplier(
 			"--log-destination=CONSOLE",
 			fmt.Sprintf(
 				"--validator-keys=%v:%v",
-				validatorKeysDirpathOnModuleContainer,
-				validatorSecretsDirpathOnModuleContainer,
+				destValidatorKeysDirpathInServiceContainer,
+				destValidatorSecretsDirpathInServiceContainer,
 			),
 			"--Xvalidators-suggested-fee-recipient-address=" + validatingRewardsAccount,
 		}
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes=" + bootnodeContext.GetENR())
 		}
+		cmdStr := strings.Join(cmdArgs, " ")
 
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithUsedPorts(
 			usedPorts,
-		).WithCmdOverride(
-			cmdArgs,
-		).Build()
+		).WithEntrypointOverride([]string{
+			"sh", "-c",
+		}).WithCmdOverride([]string{
+			cmdStr,
+		}).Build()
 
 		return containerConfig, nil
 	}
 	return containerConfigSupplier
-}
-
-func waitForAvailability(restClient *cl_client_rest_client2.CLClientRESTClient) error {
-	for i := 0; i < maxNumHealthcheckRetries; i++ {
-		_, err := restClient.GetHealth()
-		if err == nil {
-			// TODO check the healthstatus???
-			return nil
-		}
-		time.Sleep(timeBetweenHealthcheckRetries)
-	}
-	return stacktrace.NewError(
-		"Teku node didn't become available even after %v retries with %v between retries",
-		maxNumHealthcheckRetries,
-		timeBetweenHealthcheckRetries,
-	)
 }
