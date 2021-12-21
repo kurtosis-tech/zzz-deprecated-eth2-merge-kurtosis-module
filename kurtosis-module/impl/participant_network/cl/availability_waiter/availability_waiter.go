@@ -16,6 +16,7 @@ func WaitForCLClientAvailability(restClient *cl_client_rest_client.CLClientRESTC
 		}
 		logrus.Debugf(
 			"CL client returned an error on GetHealth check; sleeping for %v: %v",
+			timeBetweenRetries,
 			err,
 		)
 		time.Sleep(timeBetweenRetries)
