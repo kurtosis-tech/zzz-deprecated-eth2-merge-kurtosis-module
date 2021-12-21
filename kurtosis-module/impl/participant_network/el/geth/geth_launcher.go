@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -47,9 +47,6 @@ const (
 	getNodeInfoRpcRequestBody = `{"jsonrpc":"2.0","method": "admin_nodeInfo","params":[],"id":1}`
 	getNodeInfoMaxRetries = 10
 	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
-
-	// To start a bootnode rather than a child node, we provide this string to the launchNode function
-	bootnodeEnodeStrForStartingBootnode = ""
 )
 var usedPorts = map[string]*services.PortSpec{
 	rpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
@@ -67,51 +64,8 @@ func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string) *GethE
 	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer}
 }
 
-func (launcher *GethELClientLauncher) LaunchBootNode(
-	enclaveCtx *enclaves.EnclaveContext,
-	serviceId services.ServiceID,
-	networkId string,
-) (
-	resultClientCtx *el_client_network.ExecutionLayerClientContext,
-	resultErr error,
-) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, networkId, bootnodeEnodeStrForStartingBootnode)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred starting boot Geth node with service ID '%v'", serviceId)
-	}
-	return clientCtx, nil
-}
-
-func (launcher *GethELClientLauncher) LaunchChildNode(
-	enclaveCtx *enclaves.EnclaveContext,
-	serviceId services.ServiceID,
-	networkId string,
-	bootnodeEnode string,
-) (
-	resultClientCtx *el_client_network.ExecutionLayerClientContext,
-	resultErr error,
-) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, networkId, bootnodeEnode)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred starting child Geth node with service ID '%v' connected to boot node with enode '%v'", serviceId, bootnodeEnode)
-	}
-	return clientCtx, nil
-}
-
-
-// ====================================================================================================
-//                                       Private Helper Methods
-// ====================================================================================================
-func (launcher *GethELClientLauncher) launchNode(
-	enclaveCtx *enclaves.EnclaveContext,
-	serviceId services.ServiceID,
-	networkId string,
-	bootnodeEnode string, // NOTE: If this is emptystring, the node will be launched as a bootnode
-) (
-	resultClientCtx *el_client_network.ExecutionLayerClientContext,
-	resultErr error,
-) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(networkId, bootnodeEnode)
+func (launcher *GethELClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, networkId string, bootnodeContext *el.ELClientContext) (resultClientCtx *el.ELClientContext, resultErr error) {
+	containerConfigSupplier := launcher.getContainerConfigSupplier(networkId, bootnodeContext)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
@@ -122,19 +76,23 @@ func (launcher *GethELClientLauncher) launchNode(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
 	}
 
-	result := el_client_network.NewExecutionLayerClientContext(
-		serviceCtx,
+	result := el.NewELClientContext(
 		nodeInfo.ENR,
 		nodeInfo.Enode,
-		rpcPortId,
+		serviceCtx.GetPrivateIPAddress(),
+		rpcPortNum,
 	)
 
 	return result, nil
 }
 
+
+// ====================================================================================================
+//                                       Private Helper Methods
+// ====================================================================================================
 func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	networkId string,
-	bootnodeEnode string, // NOTE: If this is emptystring, the node will be configured as a bootnode
+	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
@@ -166,10 +124,10 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--nat=extip:" + privateIpAddr,
 			"--verbosity=3",
 		}
-		if bootnodeEnode != bootnodeEnodeStrForStartingBootnode {
+		if bootnodeContext != nil {
 			commandArgs = append(
 				commandArgs,
-				"--bootnodes=" + bootnodeEnode,
+				"--bootnodes=" + bootnodeContext.GetEnode(),
 			)
 		}
 		commandStr := strings.Join(commandArgs, " ")
