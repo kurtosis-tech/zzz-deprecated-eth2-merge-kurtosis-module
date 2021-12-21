@@ -42,6 +42,14 @@ const (
 	// Teku nodes take quite a while to start
 	maxNumHealthcheckRetries = 60
 	timeBetweenHealthcheckRetries = 2 * time.Second
+
+
+	// TODO Fix this being necessary; see https://github.com/kurtosis-tech/kurtosis-engine-server/issues/76
+	// The Teku container runs as the 'teku' user (NOT root). This means that when we generate files on the module container
+	//  (which runs as root) and send them to the Teku container via the bind-mounted shared directory, the Teku container
+	//  will be trying to read files owned by "root". If the files don't have 744 perms, then the Teku container will fail.
+	// To work around this, we make the files that the Teku container consumes world-readable
+	recursiveCopyDestinationFilePermMode = 744
 )
 var usedPorts = map[string]*services.PortSpec{
 	// TODO Add metrics port
@@ -131,7 +139,11 @@ func getContainerConfigSupplier(
 		}
 
 		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
-		if err := recursive_copy.Copy(validatorKeysDirpathOnModuleContainer, validatorKeysSharedPath.GetAbsPathOnThisContainer()); err != nil {
+		if err := recursive_copy.Copy(
+			validatorKeysDirpathOnModuleContainer,
+			validatorKeysSharedPath.GetAbsPathOnThisContainer(),
+			recursive_copy.Options{AddPermission: recursiveCopyDestinationFilePermMode},
+		); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
 		}
 
@@ -139,6 +151,7 @@ func getContainerConfigSupplier(
 		if err := recursive_copy.Copy(
 			validatorSecretsDirpathOnModuleContainer,
 			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
+			recursive_copy.Options{AddPermission: recursiveCopyDestinationFilePermMode},
 		); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
 		}
