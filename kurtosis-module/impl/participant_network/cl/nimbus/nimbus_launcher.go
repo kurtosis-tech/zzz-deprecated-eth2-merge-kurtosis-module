@@ -182,7 +182,7 @@ func waitForAvailability(restClient *cl_client_rest_client2.CLClientRESTClient) 
 		time.Sleep(timeBetweenHealthcheckRetries)
 	}
 	return stacktrace.NewError(
-		"Nimbus node didn't become available even after %v retries with %v between retries",
+		"Lodestar node didn't become available even after %v retries with %v between retries",
 		maxNumHealthcheckRetries,
 		timeBetweenHealthcheckRetries,
 	)
