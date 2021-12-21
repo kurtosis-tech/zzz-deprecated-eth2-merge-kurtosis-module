@@ -164,6 +164,10 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--metrics-address=0.0.0.0",
 			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
 			"--log-level=debug",
+			// There's a bug where if we don't set this flag, the Nimbus nodes won't work:
+			// https://discord.com/channels/641364059387854899/674288681737256970/922890280120750170
+			// https://github.com/status-im/nimbus-eth2/issues/2451
+			"--doppelganger-detection=false",
 		}
 		if bootnodeContext == nil {
 			// Copied from https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
