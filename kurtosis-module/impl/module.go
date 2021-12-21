@@ -5,6 +5,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/forkmon"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/nimbus"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/teku"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
@@ -24,7 +25,8 @@ const (
 	// The number of validator keys that will be preregistered inside the CL genesis file when it's created
 	numValidatorsToPreregister = 100
 
-	numParticipants = 1
+	// TODO Maaaaaaaybe can't have just a single validator???? One of the Nimbus guys said that
+	numParticipants = 2
 
 	// ----------------------------------- Genesis Config Constants -----------------------------------------
 	// We COULD drop this, but it won't represent mainnet
@@ -137,6 +139,9 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 			clGenesisPaths.GetConfigYMLFilepath(),
 			clGenesisPaths.GetGenesisSSZFilepath(),
 		),
+		participant_network.ParticipantCLClientType_Nimbus: nimbus.NewNimbusLauncher(
+			clGenesisPaths.GetParentDirpath(),
+		),
 	}
 	logrus.Info("Successfully created EL & CL client launchers")
 
@@ -154,7 +159,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	for i := 0; i < numParticipants; i++ {
 		participant, err := network.AddParticipant(
 			participant_network.ParticipantELClientType_Geth,
-			participant_network.ParticipantCLClientType_Teku,
+			participant_network.ParticipantCLClientType_Nimbus,
 		)
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding participant %v", i)

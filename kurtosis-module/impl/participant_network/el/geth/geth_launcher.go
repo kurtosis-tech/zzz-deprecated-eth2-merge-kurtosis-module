@@ -81,6 +81,7 @@ func (launcher *GethELClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext
 		nodeInfo.Enode,
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
+		wsPortNum,
 	)
 
 	return result, nil
@@ -119,6 +120,8 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			//  that users should NOT store private information in these Kurtosis nodes!
 			"--http.api=admin,engine,net,eth",
 			"--ws",
+			"--ws.addr=0.0.0.0",
+			fmt.Sprintf("--ws.port=%v", wsPortNum),
 			"--ws.api=engine,net,eth",
 			"--allow-insecure-unlock",
 			"--nat=extip:" + privateIpAddr,

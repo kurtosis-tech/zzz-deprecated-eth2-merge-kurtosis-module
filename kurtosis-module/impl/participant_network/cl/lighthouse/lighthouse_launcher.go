@@ -69,6 +69,8 @@ func (launcher *LighthouseCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveC
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lighthouse node to become available")
 	}
 
+	// TODO add validator availability using teh validator API: https://ethereum.github.io/beacon-APIs/?urls.primaryName=v1#/ValidatorRequiredApi
+
 	nodeIdentity, err := restClient.GetNodeIdentity()
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred getting the new Lighthouse node's identity, which is necessary to retrieve its ENR")

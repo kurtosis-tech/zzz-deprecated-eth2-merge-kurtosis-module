@@ -93,6 +93,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 		nodeInfo.Enode,
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
+		wsPortNum,
 	)
 
 	return result, nil

@@ -63,7 +63,7 @@ func GeneratePrelaunchData(
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred generating genesis data")
 	}
-	logrus.Info("Successfully geneerated genesis data")
+	logrus.Info("Successfully generated genesis data")
 
 	logrus.Info("Generating validator keystores for nodes...")
 	generateKeystoresResult, err := generateKeystores(

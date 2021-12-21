@@ -1,5 +1,6 @@
 # TBD
 ### Features
+* Added Nimbus CL client
 * Add Nethermind EL client
 
 # 0.2.1
