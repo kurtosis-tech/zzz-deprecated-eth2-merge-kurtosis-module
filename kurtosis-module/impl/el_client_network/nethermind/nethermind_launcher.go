@@ -5,21 +5,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
-	"math/rand"
 	"net/http"
-	"os"
 	"strconv"
 	"text/template"
 	"time"
 )
 
 const (
+	//Latest Nethermind Kintsugi image version released to date, can check latest here: https://github.com/NethermindEth/nethermind/issues/3581
 	imageName = "nethermindeth/nethermind:kintsugi_0.5"
+
 	// To start a bootnode, we provide this string to the launchNode function
 	bootnodeEnodeStrForStartingBootnode = ""
 
@@ -27,9 +28,7 @@ const (
 	executionDataDirpathOnClientContainer = "/execution-data"
 
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
-	sharedGenesisJsonRelFilepath = "nethermind_genesis.json"
-
-	configDirpath = "configs"
+	sharedNethermindGenesisJsonRelFilepath = "nethermind_genesis.json"
 
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
 
@@ -38,24 +37,22 @@ const (
 	discoveryPortNum uint16 = 30303
 
 	// Port IDs
-	rpcPortId = "rpc"
-	wsPortId  = "ws"
+	rpcPortId          = "rpc"
+	wsPortId           = "ws"
 	tcpDiscoveryPortId = "tcp-discovery"
 	udpDiscoveryPortId = "udp-discovery"
 
 	jsonContentTypeHeader = "application/json"
-	rpcRequestTimeout = 5 * time.Second
+	rpcRequestTimeout     = 5 * time.Second
 
-	getNodeInfoRpcRequestBody = `{"jsonrpc":"2.0","method": "admin_nodeInfo","params":[],"id":1}`
-	getNodeInfoMaxRetries = 60 //TODO try to adjust
+	getNodeInfoRpcRequestBody     = `{"jsonrpc":"2.0","method": "admin_nodeInfo","params":[],"id":1}`
+	getNodeInfoMaxRetries         = 20
 	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
-
-	kintsugiConfigFilename ="kurtosis-config.cfg"
 )
 
 var usedPorts = map[string]*services.PortSpec{
-	rpcPortId: services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
-	wsPortId: services.NewPortSpec(wsPortNum, services.PortProtocol_TCP),
+	rpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
+	wsPortId:           services.NewPortSpec(wsPortNum, services.PortProtocol_TCP),
 	tcpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
@@ -64,19 +61,15 @@ type nethermindTemplateData struct {
 	NetworkID string
 }
 
-type nethermindConfigTemplateData struct {
-	TestNodeKey string
-}
-
 type NethermindELClientLauncher struct {
-	genesisJsonTemplate *template.Template
-	configTemplate *template.Template
+	nethermindGenesisJsonTemplate *template.Template
+	totalTerminalDifficulty       uint64
 }
 
-func NewNethermindELClientLauncher(genesisJsonTemplate *template.Template, configTemplate *template.Template) *NethermindELClientLauncher {
+func NewNethermindELClientLauncher(nethermingGenesisJsonTemplate *template.Template, totalTerminalDifficulty uint64) *NethermindELClientLauncher {
 	return &NethermindELClientLauncher{
-		genesisJsonTemplate: genesisJsonTemplate,
-		configTemplate: configTemplate,
+		nethermindGenesisJsonTemplate: nethermingGenesisJsonTemplate,
+		totalTerminalDifficulty:       totalTerminalDifficulty,
 	}
 }
 
@@ -134,15 +127,12 @@ func (launcher *NethermindELClientLauncher) launchNode(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
 	}
 
-	logrus.Infof("Node info: %+v", nodeInfo)
-
 	result := el_client_network.NewExecutionLayerClientContext(
 		serviceCtx,
-		"",  //Nethermind node info endpoint doesn't return ENR field https://docs.nethermind.io/nethermind/ethereum-client/json-rpc/admin
+		"", //Nethermind node info endpoint doesn't return ENR field https://docs.nethermind.io/nethermind/ethereum-client/json-rpc/admin
 		nodeInfo.Enode,
 		rpcPortId,
 	)
-
 
 	return result, nil
 }
@@ -153,7 +143,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
-		genesisJsonOnModuleContainerSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
+		nethermindGenesisJsonOnModuleContainerSharedPath := sharedDir.GetChildPath(sharedNethermindGenesisJsonRelFilepath)
 
 		networkIdHexStr, err := getNetworkIdHexSting(networkId)
 		if err != nil {
@@ -164,67 +154,36 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			NetworkID: networkIdHexStr,
 		}
 
-		fp, err := os.Create(genesisJsonOnModuleContainerSharedPath.GetAbsPathOnThisContainer())
-		if err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred opening file '%v' for writing", genesisJsonOnModuleContainerSharedPath.GetAbsPathOnThisContainer())
+		if err := service_launch_utils.FillTemplateToSharedPath(launcher.nethermindGenesisJsonTemplate, nethermindTmplData, nethermindGenesisJsonOnModuleContainerSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred filling the Nethermind genesis json template")
 		}
-		defer fp.Close()
-
-		if err = launcher.genesisJsonTemplate.Execute(fp, nethermindTmplData); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred filling the template")
-		}
-
-		kintsugiConfigSharedPath := sharedDir.GetChildPath(kintsugiConfigFilename)
-
-		nethermindConfigTmplData := nethermindConfigTemplateData{
-			TestNodeKey: getRandomTestNodeKey(),
-		}
-
-		kintsugiConfigFilePath, err := os.Create(kintsugiConfigSharedPath.GetAbsPathOnThisContainer())
-		if err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred opening file '%v' for writing", kintsugiConfigSharedPath.GetAbsPathOnThisContainer())
-		}
-		defer fp.Close()
-
-		if err = launcher.configTemplate.Execute(kintsugiConfigFilePath, nethermindConfigTmplData); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred filling the template")
-		}
-
-
-		/*if err := service_launch_utils.CopyFileToSharedPath(kintsugiConfigFilepathInModuleContainer, kintsugiConfigSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", kintsugiConfigFilepathInModuleContainer, kintsugiConfigSharedPath)
-		}*/
 
 		commandArgs := []string{
 			"--config",
-			kintsugiConfigSharedPath.GetAbsPathOnServiceContainer(),
+			"kintsugi",
 			"--datadir=" + executionDataDirpathOnClientContainer,
-			"--Init.ChainSpecPath=" + genesisJsonOnModuleContainerSharedPath.GetAbsPathOnServiceContainer(),
+			"--Init.ChainSpecPath=" + nethermindGenesisJsonOnModuleContainerSharedPath.GetAbsPathOnServiceContainer(),
 			"--Init.WebSocketsEnabled=true",
-			"--Init.IsMining=true",
-			//"--Init.DiscoveryEnabled=true",
 			"--Init.DiagnosticMode=None",
-			//"--Init.StoreReceipts=true",
-			//"--Init.EnableUnsecuredDevWallet=true",
 			"--JsonRpc.Enabled=true",
-			"--JsonRpc.EnabledModules=net,eth,consensus,engine,admin,subscribe,trace,txpool,web3,personal,proof,parity,health,debug",
+			"--JsonRpc.EnabledModules=net,eth,consensus,engine,admin",
+			"--JsonRpc.Host=0.0.0.0",
 			fmt.Sprintf("--JsonRpc.Port=%v", rpcPortNum),
 			fmt.Sprintf("--JsonRpc.WebSocketsPort=%v", wsPortNum),
-			"--JsonRpc.Host=0.0.0.0",
 			fmt.Sprintf("--Network.ExternalIp=%v", privateIpAddr),
 			fmt.Sprintf("--Network.LocalIp=%v", privateIpAddr),
 			fmt.Sprintf("--Network.DiscoveryPort=%v", discoveryPortNum),
 			fmt.Sprintf("--Network.P2PPort=%v", discoveryPortNum),
+			"--Merge.Enabled=true",
+			fmt.Sprintf("--Merge.TerminalTotalDifficulty=%v", launcher.totalTerminalDifficulty),
+			"--Merge.BlockAuthorAccount=" + miningRewardsAccount,
 		}
 		if bootnodeEnode != bootnodeEnodeStrForStartingBootnode {
-			logrus.Infof("Entra a setear el bootnode: %v", bootnodeEnode)
 			commandArgs = append(
 				commandArgs,
-				"--Discovery.Bootnodes=" + bootnodeEnode,
+				"--Discovery.Bootnodes="+bootnodeEnode,
 			)
 		}
-
-		logrus.Infof("Command Args: %+v", commandArgs)
 
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
@@ -280,7 +239,7 @@ func sendRpcCall(privateIpAddr string, requestBody string, targetStruct interfac
 		return stacktrace.Propagate(err, "Error reading the RPC call response body")
 	}
 	bodyString := string(bodyBytes)
-	logrus.Infof("Response for RPC call %v: %v", requestBody, bodyString)
+	logrus.Debugf("Response for RPC call %v: %v", requestBody, bodyString)
 
 	json.Unmarshal(bodyBytes, targetStruct)
 	if err := json.Unmarshal(bodyBytes, targetStruct); err != nil {
@@ -289,7 +248,7 @@ func sendRpcCall(privateIpAddr string, requestBody string, targetStruct interfac
 	return nil
 }
 
-func getNetworkIdHexSting(networkId string) (string, error){
+func getNetworkIdHexSting(networkId string) (string, error) {
 	uintBase := 10
 	uintBits := 64
 	networkIdUint64, err := strconv.ParseUint(networkId, uintBase, uintBits)
@@ -303,14 +262,4 @@ func getNetworkIdHexSting(networkId string) (string, error){
 		)
 	}
 	return fmt.Sprintf("0x%x", networkIdUint64), nil
-}
-
-func getRandomTestNodeKey() string {
-	rand.Seed(time.Now().UnixNano())
-	min := 10
-	max := 99
-	randomNumber := rand.Intn(max - min + 1) + min
-	randomTestNodeKey := fmt.Sprintf("0x45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2%v", randomNumber)
-	logrus.Infof("New random TestNodeKey: %v", randomTestNodeKey)
-	return randomTestNodeKey
 }

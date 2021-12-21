@@ -14,9 +14,6 @@ import (
 	"path"
 	"text/template"
 	"time"
-
-	// "path"
-	// "text/template"
 )
 
 const (
@@ -100,6 +97,10 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the CL mnemonics YAML template")
 	}
+	/*nethermindGenesisJsonTemplate, err := parseTemplate(nethermindGenesisJsonTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis json template")
+	}*/
 	prelaunchData, err := prelaunch_data_generator.GeneratePrelaunchData(
 		enclaveCtx,
 		gethGenesisConfigTemplate,
@@ -121,22 +122,10 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	}
 	logrus.Info("Successfully generated prelaunch data")
 
-	// TODO Nethermind template-filling here
-	/*
-	tmpl, err := template.New(templateFilename).ParseFiles(templateFilepath)
-	template.New(
-		// For some reason, the template name has to match the basename of the file:
-		//  https://stackoverflow.com/questions/49043292/error-template-is-an-incomplete-or-empty-template
-		path.Base(nethermindGenesisJsonTemplateFilepath),
-	).Parse(
-		gethGenesisJsonFilepath,
-	)
-	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis JSON template file '%v'", nethermindGenesisJsonTemplateFilepath)
-	}
-	 */
 
 	logrus.Info("Launching a network of EL clients...")
+	//nethermindClientLauncher := nethermind.NewNethermindELClientLauncher(nethermindGenesisJsonTemplate, totalTerminalDifficulty)
+
 	gethClientLauncher := geth.NewGethELClientLauncher(prelaunchData.GethELGenesisJsonFilepathOnModuleContainer)
 	elNetwork := el_client_network.NewExecutionLayerNetwork(
 		enclaveCtx,
