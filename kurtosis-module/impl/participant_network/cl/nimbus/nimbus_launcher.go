@@ -10,6 +10,7 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	recursive_copy "github.com/otiai10/copy"
+	"strings"
 	"time"
 )
 
@@ -180,6 +181,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 		} else {
 			cmdArgs = append(cmdArgs, "--bootstrap-node=" + bootnodeContext.GetENR())
 		}
+		cmdStr := strings.Join(cmdArgs, " ")
 
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
@@ -187,9 +189,9 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			usedPorts,
 		).WithEntrypointOverride([]string{
 			"sh", "-c",
-		}).WithCmdOverride(
-			cmdArgs,
-		).Build()
+		}).WithCmdOverride([]string{
+			cmdStr,
+		}).Build()
 
 		return containerConfig, nil
 	}
