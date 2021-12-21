@@ -3,6 +3,7 @@ package cl_client_network
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -17,7 +18,8 @@ const (
 type ConsensusLayerNetwork struct {
 	enclaveCtx       *enclaves.EnclaveContext
 	elClientContexts []*el_client_network.ExecutionLayerClientContext
-	totalTerminalDifficulty uint32
+
+	preregisteredValidatorKeysForNodes []*prelaunch_data_generator.NodeTypeKeystoreDirpaths
 
 	// TODO refactor to have an ID so we can launch different clients
 	clientLauncher ConsensusLayerClientLauncher
@@ -30,17 +32,17 @@ type ConsensusLayerNetwork struct {
 func NewConsensusLayerNetwork(
 	enclaveCtx *enclaves.EnclaveContext,
 	elClientContexts []*el_client_network.ExecutionLayerClientContext,
-	totalTerminalDifficulty uint32,
 	clientLauncher ConsensusLayerClientLauncher,
+	preregisteredValidatorKeysForNodes []*prelaunch_data_generator.NodeTypeKeystoreDirpaths,
 ) *ConsensusLayerNetwork {
 	return &ConsensusLayerNetwork{
-		enclaveCtx: enclaveCtx,
-		elClientContexts: elClientContexts,
-		totalTerminalDifficulty: totalTerminalDifficulty,
-		clientLauncher: clientLauncher,
-		nodeClientCtx: map[uint32]*ConsensusLayerClientContext{},
-		nextNodeIndex: bootnodeNodeIndex,
-		mutex: &sync.Mutex{},
+		enclaveCtx:                         enclaveCtx,
+		elClientContexts:                   elClientContexts,
+		preregisteredValidatorKeysForNodes: preregisteredValidatorKeysForNodes,
+		clientLauncher:                     clientLauncher,
+		nodeClientCtx:                      map[uint32]*ConsensusLayerClientContext{},
+		nextNodeIndex:                      bootnodeNodeIndex,
+		mutex:                              &sync.Mutex{},
 	}
 }
 
@@ -54,6 +56,14 @@ func (network *ConsensusLayerNetwork) AddNode() (*ConsensusLayerClientContext, e
 	}
 
 	newNodeIndex := network.nextNodeIndex
+	if newNodeIndex >= uint32(len(network.preregisteredValidatorKeysForNodes)) {
+		return nil, stacktrace.NewError(
+			"Cannot add new node; when the CL genesis was generated with preregistered validator keys, only %v validator nodes were expected",
+			len(network.preregisteredValidatorKeysForNodes),
+		)
+	}
+	newNodeKeystores := network.preregisteredValidatorKeysForNodes[newNodeIndex]
+
 	serviceId := services.ServiceID(fmt.Sprintf("%v%v", serviceIdPrefix, newNodeIndex))
 	var newClientCtx *ConsensusLayerClientContext
 	var nodeLaunchErr error
@@ -62,7 +72,7 @@ func (network *ConsensusLayerNetwork) AddNode() (*ConsensusLayerClientContext, e
 			network.enclaveCtx,
 			serviceId,
 			elClientRpcSocketStrs,
-			network.totalTerminalDifficulty,
+			newNodeKeystores,
 		)
 	} else {
 		bootnodeClientCtx, found := network.nodeClientCtx[bootnodeNodeIndex]
@@ -74,7 +84,7 @@ func (network *ConsensusLayerNetwork) AddNode() (*ConsensusLayerClientContext, e
 			serviceId,
 			bootnodeClientCtx.GetENR(),
 			elClientRpcSocketStrs,
-			network.totalTerminalDifficulty,
+			newNodeKeystores,
 		)
 	}
 	if nodeLaunchErr != nil {

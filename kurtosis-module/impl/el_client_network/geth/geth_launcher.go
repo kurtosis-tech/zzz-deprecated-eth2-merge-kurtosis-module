@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/el_client_network"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
-	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -33,7 +32,7 @@ const (
 	// NOTE: This can't be 0x00000....000
 	// See: https://github.com/ethereum/go-ethereum/issues/19547
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
-	numMiningThreads = 3
+	numMiningThreads = 2
 
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
 	sharedGenesisJsonRelFilepath = "genesis.json"
@@ -138,33 +137,16 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	bootnodeEnode string, // NOTE: If this is emptystring, the node will be configured as a bootnode
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		genesisJsonOnModuleContainerSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
-
-		srcFp, err := os.Open(launcher.genesisJsonFilepathOnModuleContainer)
-		if err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred opening the genesis JSON file '%v' on the module container", launcher.genesisJsonFilepathOnModuleContainer)
-		}
-
-		destFilepath := genesisJsonOnModuleContainerSharedPath.GetAbsPathOnThisContainer()
-		destFp, err := os.Create(destFilepath)
-		if err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred opening the genesis JSON destination filepath '%v' on the module container", destFilepath)
-		}
-
-		if _, err := io.Copy(destFp, srcFp); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis file from the module container '%v' to the shared directory of the client container '%v'",
-				launcher.genesisJsonFilepathOnModuleContainer,
-				destFilepath,
-			)
+		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModuleContainer, genesisJsonSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedGenesisJsonRelFilepath)
 		}
 
 		commandArgs := []string{
 			"geth",
 			"init",
 			"--datadir=" + executionDataDirpathOnClientContainer,
-			genesisJsonOnModuleContainerSharedPath.GetAbsPathOnServiceContainer(),
+			genesisJsonSharedPath.GetAbsPathOnServiceContainer(),
 			"&&",
 			"geth",
 			"--mine",

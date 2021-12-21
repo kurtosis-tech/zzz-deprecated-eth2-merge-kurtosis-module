@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network/cl_client_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -53,12 +54,12 @@ func (launcher *LighthouseCLClientLauncher) LaunchBootNode(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	elClientRpcSockets map[string]bool,
-	totalTerminalDifficulty uint32,
+	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
 ) (
 	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
 	resultErr error,
 ) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnrStrForStartingBootnode, elClientRpcSockets, totalTerminalDifficulty)
+	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnrStrForStartingBootnode, elClientRpcSockets)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred starting boot Ligthhouse node with service ID '%v'", serviceId)
 	}
@@ -70,12 +71,12 @@ func (launcher *LighthouseCLClientLauncher) LaunchChildNode(
 	serviceId services.ServiceID,
 	bootnodeEnr string,
 	elClientRpcSockets map[string]bool,
-	totalTerminalDifficulty uint32,
+	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
 ) (
 	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
 	resultErr error,
 ) {
-	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnr, elClientRpcSockets, totalTerminalDifficulty)
+	clientCtx, err := launcher.launchNode(enclaveCtx, serviceId, bootnodeEnr, elClientRpcSockets)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred starting child Lighthouse node with service ID '%v' connected to boot node with ENR '%v'", serviceId, bootnodeEnr)
 	}
@@ -90,12 +91,11 @@ func (launcher *LighthouseCLClientLauncher) launchNode(
 	serviceId services.ServiceID,
 	bootnodeEnr string,
 	elClientRpcSockets map[string]bool,
-	totalTerminalDiffulty uint32,
 ) (
 	resultClientCtx *cl_client_network.ConsensusLayerClientContext,
 	resultErr error,
 ) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(bootnodeEnr, elClientRpcSockets, totalTerminalDiffulty)
+	containerConfigSupplier := launcher.getContainerConfigSupplier(bootnodeEnr, elClientRpcSockets)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse CL client with service ID '%v'", serviceId)
@@ -129,7 +129,6 @@ func (launcher *LighthouseCLClientLauncher) launchNode(
 func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
 	bootNodeEnr string,
 	elClientRpcSockets map[string]bool,
-	totalTerminalDiffulty uint32,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(configDataDirpathRelToSharedDirRoot)
@@ -183,7 +182,6 @@ func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
 			"--disable-packet-filter",
 			"--execution-endpoints=" + elClientRpcUrlsStr,
 			"--eth1-endpoints=" + elClientRpcUrlsStr,
-			fmt.Sprintf("--terminal-total-difficulty-override=%v", totalTerminalDiffulty),
 		}
 		if bootNodeEnr != bootnodeEnrStrForStartingBootnode {
 			cmdArgs = append(cmdArgs, "--boot-nodes=" + bootNodeEnr)

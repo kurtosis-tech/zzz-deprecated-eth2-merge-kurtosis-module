@@ -3,10 +3,10 @@ package forkmon
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/cl_client_network"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"os"
 	"text/template"
 )
 
@@ -104,14 +104,8 @@ func getContainerConfigSupplier(
 
 	containerConfigSupplier := func (privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		configFileSharedPath := sharedDir.GetChildPath(configRelFilepathInSharedDir)
-		configFilepathOnModuleContainer := configFileSharedPath.GetAbsPathOnThisContainer()
-		configFpOnModuleContainer, err := os.Create(configFilepathOnModuleContainer)
-		if err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred opening config filepath '%v' for writing", configFilepathOnModuleContainer)
-		}
-
-		if err := configTemplate.Execute(configFpOnModuleContainer, templateData); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred filling the config file template to output file '%v'", configFilepathOnModuleContainer)
+		if err := service_launch_utils.FillTemplateToSharedPath(configTemplate, templateData, configFileSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred filling the config file template")
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
