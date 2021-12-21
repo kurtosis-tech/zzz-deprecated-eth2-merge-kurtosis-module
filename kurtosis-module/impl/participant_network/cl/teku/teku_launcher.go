@@ -12,6 +12,7 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	recursive_copy "github.com/otiai10/copy"
+	"strings"
 	"time"
 )
 
@@ -199,6 +200,7 @@ func getContainerConfigSupplier(
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes=" + bootnodeContext.GetENR())
 		}
+		cmdStr := strings.Join(cmdArgs, " ")
 
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
@@ -206,9 +208,9 @@ func getContainerConfigSupplier(
 			usedPorts,
 		).WithEntrypointOverride([]string{
 			"sh", "-c",
-		}).WithCmdOverride(
-			cmdArgs,
-		).Build()
+		}).WithCmdOverride([]string{
+			cmdStr,
+		}).Build()
 
 		return containerConfig, nil
 	}
