@@ -3,6 +3,7 @@ package lighthouse
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/availability_waiter"
 	cl_client_rest_client2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
@@ -64,7 +65,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveC
 
 	restClient := cl_client_rest_client2.NewCLClientRESTClient(serviceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
 
-	if err := waitForAvailability(restClient); err != nil {
+	if err := availability_waiter.WaitForCLClientAvailability(restClient, maxNumHealthcheckRetries, timeBetweenHealthcheckRetries); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lighthouse node to become available")
 	}
 
@@ -154,20 +155,4 @@ func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
 		).Build()
 		return containerConfig, nil
 	}
-}
-
-func waitForAvailability(restClient *cl_client_rest_client2.CLClientRESTClient) error {
-	for i := 0; i < maxNumHealthcheckRetries; i++ {
-		_, err := restClient.GetHealth()
-		if err == nil {
-			// TODO check the healthstatus???
-			return nil
-		}
-		time.Sleep(timeBetweenHealthcheckRetries)
-	}
-	return stacktrace.NewError(
-		"Lighthouse node didn't become available even after %v retries with %v between retries",
-		maxNumHealthcheckRetries,
-		timeBetweenHealthcheckRetries,
-	)
 }

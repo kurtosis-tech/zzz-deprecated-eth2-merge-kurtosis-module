@@ -149,7 +149,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	}
 	logrus.Info("Successfully created EL & CL client launchers")
 
-	logrus.Info("Adding participants...")
+	logrus.Infof("Adding %v participants...", numParticipants)
 	keystoresGenerationResult := prelaunchData.KeystoresGenerationResult
 	network := participant_network.NewParticipantNetwork(
 		enclaveCtx,
@@ -170,6 +170,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		}
 		allClClientContexts = append(allClClientContexts, participant.GetCLClientContext())
 	}
+	logrus.Infof("Successfully added %v partitipcants", numParticipants)
 
 	logrus.Info("Launching forkmon...")
 	forkmonConfigTemplate, err := parseTemplate(forkmonConfigTemplateFilepath)
