@@ -11,6 +11,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/nethermind"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
@@ -127,6 +128,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	elClientLaunchers := map[participant_network.ParticipantELClientType]el.ELClientLauncher{
 		participant_network.ParticipantELClientType_Geth: geth.NewGethELClientLauncher(
 			prelaunchData.GethELGenesisJsonFilepathOnModuleContainer,
+			genesis_consts.PrefundedAccounts,
 		),
 		participant_network.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
 			nethermindGenesisJsonTemplate,

@@ -13,6 +13,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path"
 	"strings"
 	"time"
 )
@@ -41,17 +43,22 @@ const (
 
 	// The dirpath of the execution data directory on the client container
 	executionDataDirpathOnClientContainer = "/execution-data"
+	keystoreDirpathOnClientContainer = executionDataDirpathOnClientContainer + "/keystore"
 
+	gethKeysRelDirpathInSharedDir = "geth-keys"
 
 	jsonContentTypeHeader = "application/json"
 	rpcRequestTimeout = 5 * time.Second
 
 	getNodeInfoRpcRequestBody = `{"jsonrpc":"2.0","method": "admin_nodeInfo","params":[],"id":1}`
-	getNodeInfoMaxRetries = 10
-	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
 
-	gethAccountPassword = "password"  // Password that the Geth accounts will be locked with
-	gethAccountPasswordFile = "/tmp/password.txt"	 // Importing an account to
+	expectedSecondsForGethInit = 5
+	expectedSecondsPerKeyImport = 8
+	expectedSecondsAfterNodeStartUntilHttpServerIsAvailable = 10
+	getNodeInfoTimeBetweenRetries = 1 * time.Second
+
+	gethAccountPassword      = "password"          // Password that the Geth accounts will be locked with
+	gethAccountPasswordsFile = "/tmp/password.txt" // Importing an account to
 )
 var usedPorts = map[string]*services.PortSpec{
 	rpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
@@ -74,8 +81,8 @@ type GethELClientLauncher struct {
 	prefundedAccountInfo []*genesis_consts.PrefundedAccount
 }
 
-func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string) *GethELClientLauncher {
-	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer}
+func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount) *GethELClientLauncher {
+	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo}
 }
 
 func (launcher *GethELClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, networkId string, bootnodeContext *el.ELClientContext) (resultClientCtx *el.ELClientContext, resultErr error) {
@@ -85,7 +92,7 @@ func (launcher *GethELClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
 	}
 
-	nodeInfo, err := getNodeInfoWithRetry(serviceCtx.GetPrivateIPAddress())
+	nodeInfo, err := launcher.getNodeInfoWithRetry(serviceCtx.GetPrivateIPAddress())
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
 	}
@@ -115,47 +122,48 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedGenesisJsonRelFilepath)
 		}
 
-		initDatadirCmdArgs := []string{
-			"geth",
-			"init",
-			"--datadir=" + executionDataDirpathOnClientContainer,
+		gethKeysDirSharedPath := sharedDir.GetChildPath(gethKeysRelDirpathInSharedDir)
+		if err := os.Mkdir(gethKeysDirSharedPath.GetAbsPathOnThisContainer(), os.ModePerm); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred creating the Geth keys directory in the shared dir")
+		}
+
+		accountAddressesToUnlock := []string{}
+		for _, prefundedAccount := range launcher.prefundedAccountInfo {
+			keyFilepathOnModuleContainer := prefundedAccount.GethKeyFilepath
+			keyFilename := path.Base(keyFilepathOnModuleContainer)
+			keyRelFilepathInSharedDir := path.Join(gethKeysRelDirpathInSharedDir, keyFilename)
+			keyFileSharedPath := sharedDir.GetChildPath(keyRelFilepathInSharedDir)
+			if err := service_launch_utils.CopyFileToSharedPath(keyFilepathOnModuleContainer, keyFileSharedPath); err != nil {
+				return nil, stacktrace.Propagate(err, "An error occurred copying key file '%v' to the shared directory", keyFilepathOnModuleContainer)
+			}
+
+			accountAddressesToUnlock = append(accountAddressesToUnlock, prefundedAccount.Address)
+		}
+
+		initDatadirCmdStr := fmt.Sprintf(
+			"geth init --datadir=%v %v",
+			executionDataDirpathOnClientContainer,
 			genesisJsonSharedPath.GetAbsPathOnServiceContainer(),
-		}
+		)
 
-		createPasswordFileCmdArgs := []string{
-			"echo",
+		copyKeysIntoKeystoreCmdStr := fmt.Sprintf(
+			"cp -r %v/* %v/",
+			gethKeysDirSharedPath.GetAbsPathOnServiceContainer(),
+			keystoreDirpathOnClientContainer,
+		)
+
+		createPasswordsFileCmdStr := fmt.Sprintf(
+			"{ for i in $(seq 1 %v); do echo \"%v\" >> %v; done; }",
+			len(launcher.prefundedAccountInfo),
 			gethAccountPassword,
-			">",
-			gethAccountPasswordFile,
-		}
+			gethAccountPasswordsFile,
+		)
 
-		allSubcommandArgs := [][]string{
-			initDatadirCmdArgs,
-			createPasswordFileCmdArgs,
-		}
-		for _, account := range launcher.prefundedAccountInfo {
-			keyFilepath := "/tmp/" + account.Address
-			createKeyfileCmdArgs := []string{
-				"echo",
-				account.PrivKey,
-				">",
-				keyFilepath,
-			}
-			allSubcommandArgs = append(allSubcommandArgs, createKeyfileCmdArgs)
-
-			importAccountCmdArgs := []string{
-				"geth",
-				"account",
-				"import",
-				"--datadir=" + executionDataDirpathOnClientContainer,
-				"--password=" + gethAccountPasswordFile,
-				keyFilepath,
-			}
-			allSubcommandArgs = append(allSubcommandArgs, importAccountCmdArgs)
-		}
-
+		accountsToUnlockStr := strings.Join(accountAddressesToUnlock, ",")
 		launchNodeCmdArgs := []string{
 			"geth",
+			"--unlock=" + accountsToUnlockStr,
+			"--password=" + gethAccountPasswordsFile,
 			"--mine",
 			"--miner.etherbase=" + miningRewardsAccount,
 			fmt.Sprintf("--miner.threads=%v", numMiningThreads),
@@ -181,14 +189,15 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 				"--bootnodes=" + bootnodeContext.GetEnode(),
 			)
 		}
-		allSubcommandArgs = append(allSubcommandArgs, launchNodeCmdArgs)
+		launchNodeCmdStr := strings.Join(launchNodeCmdArgs, " ")
 
-		allSubcommandStrs := []string{}
-		for _, subcommandArgs := range allSubcommandArgs {
-			subcommandStr := strings.Join(subcommandArgs, " ")
-			allSubcommandStrs = append(allSubcommandStrs, subcommandStr)
+		subcommandStrs := []string{
+			initDatadirCmdStr,
+			copyKeysIntoKeystoreCmdStr,
+			createPasswordsFileCmdStr,
+			launchNodeCmdStr,
 		}
-		commandStr := strings.Join(allSubcommandStrs, " && ")
+		commandStr := strings.Join(subcommandStrs, " && ")
 
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
@@ -205,9 +214,11 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	return result
 }
 
-func getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
+func (launcher *GethELClientLauncher) getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
+	maxNumRetries := expectedSecondsForGethInit + len(launcher.prefundedAccountInfo) * expectedSecondsPerKeyImport + expectedSecondsAfterNodeStartUntilHttpServerIsAvailable
+
 	getNodeInfoResponse := new(GetNodeInfoResponse)
-	for i := 0; i < getNodeInfoMaxRetries; i++ {
+	for i := 0; i < maxNumRetries; i++ {
 		if err := sendRpcCall(privateIpAddr, getNodeInfoRpcRequestBody, getNodeInfoResponse); err == nil {
 			return getNodeInfoResponse.Result, nil
 		} else {
@@ -215,7 +226,7 @@ func getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
 		}
 		time.Sleep(getNodeInfoTimeBetweenRetries)
 	}
-	return NodeInfo{}, stacktrace.NewError("Couldn't get the node's info even after %v retries with %v between retries", getNodeInfoMaxRetries, getNodeInfoTimeBetweenRetries)
+	return NodeInfo{}, stacktrace.NewError("Couldn't get the node's info even after %v retries with %v between retries", maxNumRetries, getNodeInfoTimeBetweenRetries)
 }
 
 func sendRpcCall(privateIpAddr string, requestBody string, targetStruct interface{}) error {
