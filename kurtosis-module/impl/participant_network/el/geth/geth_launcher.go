@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -17,6 +18,7 @@ import (
 )
 
 const (
+	// TODO CHANGE THIS
 	imageName = "kurtosistech/go-ethereum:d99ac5a7d"
 
 	rpcPortNum       uint16 = 8545
@@ -47,6 +49,9 @@ const (
 	getNodeInfoRpcRequestBody = `{"jsonrpc":"2.0","method": "admin_nodeInfo","params":[],"id":1}`
 	getNodeInfoMaxRetries = 10
 	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
+
+	gethAccountPassword = "password"  // Password that the Geth accounts will be locked with
+	gethAccountPasswordFile = "/tmp/password.txt"	 // Importing an account to
 )
 var usedPorts = map[string]*services.PortSpec{
 	rpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
@@ -55,9 +60,18 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
 var entrypointArgs = []string{"sh", "-c"}
+var prefundedAccountPrivateKeys = []string{
+	"ef5177cd0b6b21c87db5a0bf35d4084a8a57a9d6a064f86d51ac85f2b873a4e2",  // m/44'/60'/0'/0/0
+	"48fcc39ae27a0e8bf0274021ae6ebd8fe4a0e12623d61464c498900b28feb567", // m/44'/60'/0'/0/1
+	"7988b3a148716ff800414935b305436493e1f25237a2a03e5eebc343735e2f31", // m/44'/60'/0'/0/2
+	"b3c409b6b0b3aa5e65ab2dc1930534608239a478106acf6f3d9178e9f9b00b35", // m/44'/60'/0'/0/3
+	"df9bb6de5d3dc59595bcaa676397d837ff49441d211878c024eabda2cd067c9f", // m/44'/60'/0'/0/4
+	"7da08f856b5956d40a72968f93396f6acff17193f013e8053f6fbb6c08c194d6", // m/44'/60'/0'/0/5
+}
 
 type GethELClientLauncher struct {
 	genesisJsonFilepathOnModuleContainer string
+	prefundedAccountInfo []*genesis_consts.PrefundedAccount
 }
 
 func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string) *GethELClientLauncher {
@@ -101,12 +115,46 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedGenesisJsonRelFilepath)
 		}
 
-		commandArgs := []string{
+		initDatadirCmdArgs := []string{
 			"geth",
 			"init",
 			"--datadir=" + executionDataDirpathOnClientContainer,
 			genesisJsonSharedPath.GetAbsPathOnServiceContainer(),
-			"&&",
+		}
+
+		createPasswordFileCmdArgs := []string{
+			"echo",
+			gethAccountPassword,
+			">",
+			gethAccountPasswordFile,
+		}
+
+		allSubcommandArgs := [][]string{
+			initDatadirCmdArgs,
+			createPasswordFileCmdArgs,
+		}
+		for _, account := range launcher.prefundedAccountInfo {
+			keyFilepath := "/tmp/" + account.Address
+			createKeyfileCmdArgs := []string{
+				"echo",
+				account.PrivKey,
+				">",
+				keyFilepath,
+			}
+			allSubcommandArgs = append(allSubcommandArgs, createKeyfileCmdArgs)
+
+			importAccountCmdArgs := []string{
+				"geth",
+				"account",
+				"import",
+				"--datadir=" + executionDataDirpathOnClientContainer,
+				"--password=" + gethAccountPasswordFile,
+				keyFilepath,
+			}
+			allSubcommandArgs = append(allSubcommandArgs, importAccountCmdArgs)
+		}
+
+		launchNodeCmdArgs := []string{
 			"geth",
 			"--mine",
 			"--miner.etherbase=" + miningRewardsAccount,
@@ -128,12 +176,19 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--verbosity=3",
 		}
 		if bootnodeContext != nil {
-			commandArgs = append(
-				commandArgs,
+			launchNodeCmdArgs = append(
+				launchNodeCmdArgs,
 				"--bootnodes=" + bootnodeContext.GetEnode(),
 			)
 		}
-		commandStr := strings.Join(commandArgs, " ")
+		allSubcommandArgs = append(allSubcommandArgs, launchNodeCmdArgs)
+
+		allSubcommandStrs := []string{}
+		for _, subcommandArgs := range allSubcommandArgs {
+			subcommandStr := strings.Join(subcommandArgs, " ")
+			allSubcommandStrs = append(allSubcommandStrs, subcommandStr)
+		}
+		commandStr := strings.Join(allSubcommandStrs, " && ")
 
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
