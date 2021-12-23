@@ -27,7 +27,7 @@ const (
 	numValidatorsToPreregister = 100
 
 	// TODO Maaaaaaaybe can't have just a single validator???? One of the Nimbus guys said that
-	numParticipants = 1
+	numParticipants = 2
 
 	// ----------------------------------- Genesis Config Constants -----------------------------------------
 	// We COULD drop this, but it won't represent mainnet

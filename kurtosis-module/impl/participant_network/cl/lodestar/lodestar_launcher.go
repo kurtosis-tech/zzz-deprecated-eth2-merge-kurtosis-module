@@ -36,7 +36,7 @@ const (
 	maxNumHealthcheckRetries      = 20
 	timeBetweenHealthcheckRetries = 1 * time.Second
 
-	maxNumSyncCheckRetries      = 100
+	maxNumSyncCheckRetries      = 30
 	timeBetweenSyncCheckRetries = 1 * time.Second
 
 	beaconSuffixServiceId    = "beacon"
