@@ -19,6 +19,7 @@ const (
 
 	endpoint_identity endpoint = "identity"
 	endpoint_health   endpoint = "health"
+	endpoint_syncing   endpoint = "syncing"
 
 	HealthStatus_Ready                     HealthStatus = "READY"
 	HealthStatus_SyncingWithIncompleteData HealthStatus = "SYNCING_WITH_INCOMPLETE_DATA"
@@ -55,6 +56,33 @@ func (client *CLClientRESTClient) GetHealth() (HealthStatus, error) {
 		return "", stacktrace.NewError("Received unrecognized status code '%v' from the health endpoint", statusCode)
 	}
 	return result, nil
+}
+
+func (client *CLClientRESTClient) GetNodeSyncingData() (*SyncingData, error) {
+	url := client.getUrl(endpointClass_node, endpoint_syncing)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred getting the node's syncing data")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, stacktrace.Propagate(err, "Wrong status code when getting the node's syncing data, expected 200 but got %v status code", resp.Status)
+	}
+
+	respBody := resp.Body
+	defer respBody.Close()
+	bodyBytes, err := ioutil.ReadAll(respBody)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred reading the response body")
+	}
+
+	logrus.Debugf("Syncing data from '%v': %v", url, string(bodyBytes))
+
+	respObj := new(GetNodeSyncingDataResponse)
+	if err := json.Unmarshal(bodyBytes, respObj); err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred deserializing the response body")
+	}
+
+	return respObj.Data, nil
 }
 
 func (client *CLClientRESTClient) GetNodeIdentity() (*NodeIdentity, error) {

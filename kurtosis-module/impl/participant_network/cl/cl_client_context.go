@@ -13,9 +13,11 @@ func NewCLClientContext(enr string, ipAddr string, httpPortNum uint16) *CLClient
 func (ctx *CLClientContext) GetENR() string {
 	return ctx.enr
 }
+
 func (ctx *CLClientContext) GetIPAddress() string {
 	return ctx.ipAddr
 }
+
 func (ctx *CLClientContext) GetHTTPPortNum() uint16 {
 	return ctx.httpPortNum
 }

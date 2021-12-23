@@ -2,7 +2,8 @@
 ### Features
 * Added a functioning Nimbus CL client
 * Added Nethermind EL client
-* Added a Lodestar CL beacon Launcher
+* Added a Lodestar CL (beacon, validator) Launcher
+* Added new `GetNodeSyncingData` method in cl rest client
 
 # 0.2.1
 * Empty commit to try and kick CircleCI into actually building the tag

@@ -27,7 +27,7 @@ const (
 	numValidatorsToPreregister = 100
 
 	// TODO Maaaaaaaybe can't have just a single validator???? One of the Nimbus guys said that
-	numParticipants = 2
+	numParticipants = 1
 
 	// ----------------------------------- Genesis Config Constants -----------------------------------------
 	// We COULD drop this, but it won't represent mainnet
@@ -164,7 +164,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	for i := 0; i < numParticipants; i++ {
 		participant, err := network.AddParticipant(
 			participant_network.ParticipantELClientType_Geth,
-			participant_network.ParticipantCLClientType_Nimbus,
+			participant_network.ParticipantCLClientType_Lodestar,
 		)
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding participant %v", i)
