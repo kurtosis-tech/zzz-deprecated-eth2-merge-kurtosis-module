@@ -12,6 +12,8 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/nethermind"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/transaction_spammer"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
@@ -27,7 +29,8 @@ const (
 	numValidatorsToPreregister = 100
 
 	// TODO Maaaaaaaybe can't have just a single validator???? One of the Nimbus guys said that
-	numParticipants = 2
+	numParticipants = 1
+	// numParticipants = 2
 
 	// ----------------------------------- Genesis Config Constants -----------------------------------------
 	// We COULD drop this, but it won't represent mainnet
@@ -128,6 +131,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	elClientLaunchers := map[participant_network.ParticipantELClientType]el.ELClientLauncher{
 		participant_network.ParticipantELClientType_Geth: geth.NewGethELClientLauncher(
 			prelaunchData.GethELGenesisJsonFilepathOnModuleContainer,
+			genesis_consts.PrefundedAccounts,
 		),
 		participant_network.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
 			nethermindGenesisJsonTemplate,
@@ -160,6 +164,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		clClientLaunchers,
 	)
 
+	allElClientContexts := []*el.ELClientContext{}
 	allClClientContexts := []*cl.CLClientContext{}
 	for i := 0; i < numParticipants; i++ {
 		participant, err := network.AddParticipant(
@@ -169,9 +174,18 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding participant %v", i)
 		}
+		allElClientContexts = append(allElClientContexts, participant.GetELClientContext())
 		allClClientContexts = append(allClClientContexts, participant.GetCLClientContext())
 	}
 	logrus.Infof("Successfully added %v partitipcants", numParticipants)
+
+
+	logrus.Info("Launching transaction spammer...")
+	// TODO Upgrade the transaction spammer so it can take in multiple EL client addresses
+	if err := transaction_spammer.LaunchTransanctionSpammer(enclaveCtx, genesis_consts.PrefundedAccounts, allElClientContexts[0]); err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred launching the transaction spammer")
+	}
+	logrus.Info("Successfully launched transaction spammer")
 
 	logrus.Info("Launching forkmon...")
 	forkmonConfigTemplate, err := parseTemplate(forkmonConfigTemplateFilepath)
