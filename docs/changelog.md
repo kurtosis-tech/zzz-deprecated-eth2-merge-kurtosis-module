@@ -2,6 +2,7 @@
 ### Features
 * Added Nimbus CL client
 * Add Nethermind EL client
+* Added a transaction spammer to blast the network with transactions after all the nodes come up
 
 # 0.2.1
 * Empty commit to try and kick CircleCI into actually building the tag
