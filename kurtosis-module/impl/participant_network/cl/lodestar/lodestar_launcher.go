@@ -63,8 +63,6 @@ func (launcher *LodestarClientLauncher) Launch(
 		elClientContext,
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		launcher.genesisSszFilepathOnModuleContainer,
-		nodeKeystoreDirpaths.TekuKeysDirpath,
-		nodeKeystoreDirpaths.TekuSecretsDirpath,
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
@@ -86,7 +84,7 @@ func (launcher *LodestarClientLauncher) Launch(
 
 	nodeIdentity, err := restClient.GetNodeIdentity()
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred getting the new Teku node's identity, which is necessary to retrieve its ENR")
+		return nil, stacktrace.Propagate(err, "An error occurred getting the new Lodestar node's identity, which is necessary to retrieve its ENR")
 	}
 
 	result := cl.NewCLClientContext(
@@ -107,8 +105,6 @@ func getContainerConfigSupplier(
 		elClientContext *el.ELClientContext,
 		genesisConfigYmlFilepathOnModuleContainer string,
 		genesisSszFilepathOnModuleContainer string,
-		validatorKeysDirpathOnModuleContainer string,
-		validatorSecretsDirpathOnModuleContainer string,
 		) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
@@ -187,7 +183,7 @@ func waitForAvailability(restClient *cl_client_rest_client.CLClientRESTClient) e
 		time.Sleep(timeBetweenHealthcheckRetries)
 	}
 	return stacktrace.NewError(
-		"Teku node didn't become available even after %v retries with %v between retries",
+		"Lodestar node didn't become available even after %v retries with %v between retries",
 		maxNumHealthcheckRetries,
 		timeBetweenHealthcheckRetries,
 	)

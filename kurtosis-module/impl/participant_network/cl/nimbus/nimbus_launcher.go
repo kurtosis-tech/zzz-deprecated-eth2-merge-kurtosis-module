@@ -10,7 +10,7 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	recursive_copy "github.com/otiai10/copy"
-	"os"
+	"strings"
 	"time"
 )
 
@@ -22,21 +22,34 @@ const (
 	tcpDiscoveryPortID = "tcp-discovery"
 	udpDiscoveryPortID = "udp-discovery"
 	httpPortID         = "http"
+	metricsPortID      = "metrics"
 
 	// Port nums
 	discoveryPortNum uint16 = 9000
 	httpPortNum             = 4000
+	metricsPortNum          = 8008
 
 	configDataDirpathRelToSharedDirRoot = "config-data"
 
 	// Nimbus requires that its data directory already exists (because it expects you to bind-mount it), so we
-	//  have to put it in the shared dir and create it
-	consensusDataDirpathRelToSharedDirRoot = "consensus-data"
-	consensusDataDirPerms = 0700 // Nimbus wants the data dir to have these perms
+	//  have to to create it
+	consensusDataDirpathInServiceContainer = "$HOME/consensus-data"
+	consensusDataDirPermsStr               = "0700" // Nimbus wants the data dir to have these perms
+
+	// The entrypoint the image normally starts with (we need to override the entrypoint to create the
+	//  consensus data directory on the image before it starts)
+	defaultImageEntrypoint = "/home/user/nimbus-eth2/build/nimbus_beacon_node"
 
 	validatorKeysDirpathRelToSharedDirRoot = "validator-keys"
 	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
 	validatorSecretsDirPerms = 0600	// If we don't set these when we copy, Nimbus will burn a bunch of time doing it for us
+
+	// Nimbus needs write access to the validator keys/secrets directories, and b/c the module container runs as root
+	//  while the Nimbus container does not, we can't just point the Nimbus binary to the paths in the shared dir because
+	//  it won't be able to open them. To get around this, we copy the validator keys/secrets to a path inside the Nimbus
+	//  container that is owned by the container's user
+	validatorKeysDirpathOnServiceContainer = "$HOME/validator-keys"
+	validatorSecretsDirpathOnServiceContainer = "$HOME/validator-secrets"
 
 	maxNumHealthcheckRetries = 15
 	timeBetweenHealthcheckRetries = 1 * time.Second
@@ -45,6 +58,7 @@ var usedPorts = map[string]*services.PortSpec{
 	tcpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
+	metricsPortID:         services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
 }
 
 type NimbusLauncher struct {
@@ -117,11 +131,6 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			)
 		}
 
-		dataDirSharedPath := sharedDir.GetChildPath(consensusDataDirpathRelToSharedDirRoot)
-		if err := os.Mkdir(dataDirSharedPath.GetAbsPathOnThisContainer(), consensusDataDirPerms); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred creating the consensus data directory in the shared directory")
-		}
-
 		elClientWsUrlStr := fmt.Sprintf(
 			"ws://%v:%v",
 			elClientContext.GetIPAddress(),
@@ -142,30 +151,64 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
 		}
 
+		// Sources for these flags:
+		//  1) https://github.com/status-im/nimbus-eth2/blob/stable/scripts/launch_local_testnet.sh
+		//  2) https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
 		cmdArgs := []string{
+			"mkdir",
+			consensusDataDirpathInServiceContainer,
+			"-m",
+			consensusDataDirPermsStr,
+			"&&",
+			"cp",
+			"-R",
+			validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
+			validatorKeysDirpathOnServiceContainer,
+			"&&",
+			"cp",
+			"-R",
+			validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			validatorSecretsDirpathOnServiceContainer,
+			"&&",
+			defaultImageEntrypoint,
 			"--non-interactive=true",
 			"--network=" + configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer(),
-			"--data-dir=" + dataDirSharedPath.GetAbsPathOnServiceContainer(),
+			"--data-dir=" + consensusDataDirpathInServiceContainer,
 			"--web3-url=" + elClientWsUrlStr,
 			"--nat=extip:" + privateIpAddr,
 			"--enr-auto-update=false",
 			"--rest",
 			"--rest-address=0.0.0.0",
 			fmt.Sprintf("--rest-port=%v", httpPortNum),
-			"--validators-dir=" + validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
-			"--secrets-dir=" + validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			"--validators-dir=" + validatorKeysDirpathOnServiceContainer,
+			"--secrets-dir=" + validatorSecretsDirpathOnServiceContainer,
+			"--metrics",
+			"--metrics-address=0.0.0.0",
+			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
+			"--log-level=debug",
+			// There's a bug where if we don't set this flag, the Nimbus nodes won't work:
+			// https://discord.com/channels/641364059387854899/674288681737256970/922890280120750170
+			// https://github.com/status-im/nimbus-eth2/issues/2451
+			"--doppelganger-detection=false",
 		}
-		if bootnodeContext != nil {
+		if bootnodeContext == nil {
+			// Copied from https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
+			// See explanation there
+			cmdArgs = append(cmdArgs, "--subscribe-all-subnets")
+		} else {
 			cmdArgs = append(cmdArgs, "--bootstrap-node=" + bootnodeContext.GetENR())
 		}
+		cmdStr := strings.Join(cmdArgs, " ")
 
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithUsedPorts(
 			usedPorts,
-		).WithCmdOverride(
-			cmdArgs,
-		).Build()
+		).WithEntrypointOverride([]string{
+			"sh", "-c",
+		}).WithCmdOverride([]string{
+			cmdStr,
+		}).Build()
 
 		return containerConfig, nil
 	}
@@ -182,7 +225,7 @@ func waitForAvailability(restClient *cl_client_rest_client2.CLClientRESTClient) 
 		time.Sleep(timeBetweenHealthcheckRetries)
 	}
 	return stacktrace.NewError(
-		"Lodestar node didn't become available even after %v retries with %v between retries",
+		"Nimbus node didn't become available even after %v retries with %v between retries",
 		maxNumHealthcheckRetries,
 		timeBetweenHealthcheckRetries,
 	)
