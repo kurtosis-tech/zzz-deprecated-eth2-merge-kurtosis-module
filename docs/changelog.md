@@ -1,7 +1,8 @@
 # TBD
 ### Features
-* Added Nimbus CL client
-* Add Nethermind EL client
+* Added a functioning Nimbus CL client
+* Added Nethermind EL client
+* Added a Lodestar CL beacon Launcher
 
 # 0.2.1
 * Empty commit to try and kick CircleCI into actually building the tag
