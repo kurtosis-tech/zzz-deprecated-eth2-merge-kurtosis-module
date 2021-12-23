@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	// TODO publish
-	imageName = "txn-fuzzer"
+	imageName = "kurtosistech/tx-fuzz:0.2.0"
 
 	serviceId = "transaction-spammer"
 )
