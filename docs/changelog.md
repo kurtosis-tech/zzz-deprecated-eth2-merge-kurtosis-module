@@ -1,7 +1,8 @@
 # TBD
 ### Features
-* Added Nimbus CL client
-* Add Nethermind EL client
+* Added a functioning Nimbus CL client
+* Added Nethermind EL client
+* Added a Lodestar CL beacon Launcher
 * Added a transaction spammer to blast the network with transactions after all the nodes come up
 
 # 0.2.1
