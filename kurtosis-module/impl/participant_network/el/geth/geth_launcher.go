@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -12,11 +13,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path"
 	"strings"
 	"time"
 )
 
 const (
+	// TODO CHANGE THIS
 	imageName = "kurtosistech/go-ethereum:d99ac5a7d"
 
 	rpcPortNum       uint16 = 8545
@@ -39,14 +43,22 @@ const (
 
 	// The dirpath of the execution data directory on the client container
 	executionDataDirpathOnClientContainer = "/execution-data"
+	keystoreDirpathOnClientContainer = executionDataDirpathOnClientContainer + "/keystore"
 
+	gethKeysRelDirpathInSharedDir = "geth-keys"
 
 	jsonContentTypeHeader = "application/json"
 	rpcRequestTimeout = 5 * time.Second
 
 	getNodeInfoRpcRequestBody = `{"jsonrpc":"2.0","method": "admin_nodeInfo","params":[],"id":1}`
-	getNodeInfoMaxRetries = 10
-	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
+
+	expectedSecondsForGethInit = 5
+	expectedSecondsPerKeyImport = 8
+	expectedSecondsAfterNodeStartUntilHttpServerIsAvailable = 10
+	getNodeInfoTimeBetweenRetries = 1 * time.Second
+
+	gethAccountPassword      = "password"          // Password that the Geth accounts will be locked with
+	gethAccountPasswordsFile = "/tmp/password.txt" // Importing an account to
 )
 var usedPorts = map[string]*services.PortSpec{
 	rpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
@@ -55,13 +67,22 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
 var entrypointArgs = []string{"sh", "-c"}
+var prefundedAccountPrivateKeys = []string{
+	"ef5177cd0b6b21c87db5a0bf35d4084a8a57a9d6a064f86d51ac85f2b873a4e2",  // m/44'/60'/0'/0/0
+	"48fcc39ae27a0e8bf0274021ae6ebd8fe4a0e12623d61464c498900b28feb567", // m/44'/60'/0'/0/1
+	"7988b3a148716ff800414935b305436493e1f25237a2a03e5eebc343735e2f31", // m/44'/60'/0'/0/2
+	"b3c409b6b0b3aa5e65ab2dc1930534608239a478106acf6f3d9178e9f9b00b35", // m/44'/60'/0'/0/3
+	"df9bb6de5d3dc59595bcaa676397d837ff49441d211878c024eabda2cd067c9f", // m/44'/60'/0'/0/4
+	"7da08f856b5956d40a72968f93396f6acff17193f013e8053f6fbb6c08c194d6", // m/44'/60'/0'/0/5
+}
 
 type GethELClientLauncher struct {
 	genesisJsonFilepathOnModuleContainer string
+	prefundedAccountInfo []*genesis_consts.PrefundedAccount
 }
 
-func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string) *GethELClientLauncher {
-	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer}
+func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount) *GethELClientLauncher {
+	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo}
 }
 
 func (launcher *GethELClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, networkId string, bootnodeContext *el.ELClientContext) (resultClientCtx *el.ELClientContext, resultErr error) {
@@ -71,7 +92,7 @@ func (launcher *GethELClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
 	}
 
-	nodeInfo, err := getNodeInfoWithRetry(serviceCtx.GetPrivateIPAddress())
+	nodeInfo, err := launcher.getNodeInfoWithRetry(serviceCtx.GetPrivateIPAddress())
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
 	}
@@ -101,13 +122,48 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedGenesisJsonRelFilepath)
 		}
 
-		commandArgs := []string{
-			"geth",
-			"init",
-			"--datadir=" + executionDataDirpathOnClientContainer,
+		gethKeysDirSharedPath := sharedDir.GetChildPath(gethKeysRelDirpathInSharedDir)
+		if err := os.Mkdir(gethKeysDirSharedPath.GetAbsPathOnThisContainer(), os.ModePerm); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred creating the Geth keys directory in the shared dir")
+		}
+
+		accountAddressesToUnlock := []string{}
+		for _, prefundedAccount := range launcher.prefundedAccountInfo {
+			keyFilepathOnModuleContainer := prefundedAccount.GethKeyFilepath
+			keyFilename := path.Base(keyFilepathOnModuleContainer)
+			keyRelFilepathInSharedDir := path.Join(gethKeysRelDirpathInSharedDir, keyFilename)
+			keyFileSharedPath := sharedDir.GetChildPath(keyRelFilepathInSharedDir)
+			if err := service_launch_utils.CopyFileToSharedPath(keyFilepathOnModuleContainer, keyFileSharedPath); err != nil {
+				return nil, stacktrace.Propagate(err, "An error occurred copying key file '%v' to the shared directory", keyFilepathOnModuleContainer)
+			}
+
+			accountAddressesToUnlock = append(accountAddressesToUnlock, prefundedAccount.Address)
+		}
+
+		initDatadirCmdStr := fmt.Sprintf(
+			"geth init --datadir=%v %v",
+			executionDataDirpathOnClientContainer,
 			genesisJsonSharedPath.GetAbsPathOnServiceContainer(),
-			"&&",
+		)
+
+		copyKeysIntoKeystoreCmdStr := fmt.Sprintf(
+			"cp -r %v/* %v/",
+			gethKeysDirSharedPath.GetAbsPathOnServiceContainer(),
+			keystoreDirpathOnClientContainer,
+		)
+
+		createPasswordsFileCmdStr := fmt.Sprintf(
+			"{ for i in $(seq 1 %v); do echo \"%v\" >> %v; done; }",
+			len(launcher.prefundedAccountInfo),
+			gethAccountPassword,
+			gethAccountPasswordsFile,
+		)
+
+		accountsToUnlockStr := strings.Join(accountAddressesToUnlock, ",")
+		launchNodeCmdArgs := []string{
 			"geth",
+			"--unlock=" + accountsToUnlockStr,
+			"--password=" + gethAccountPasswordsFile,
 			"--mine",
 			"--miner.etherbase=" + miningRewardsAccount,
 			fmt.Sprintf("--miner.threads=%v", numMiningThreads),
@@ -128,12 +184,20 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--verbosity=3",
 		}
 		if bootnodeContext != nil {
-			commandArgs = append(
-				commandArgs,
+			launchNodeCmdArgs = append(
+				launchNodeCmdArgs,
 				"--bootnodes=" + bootnodeContext.GetEnode(),
 			)
 		}
-		commandStr := strings.Join(commandArgs, " ")
+		launchNodeCmdStr := strings.Join(launchNodeCmdArgs, " ")
+
+		subcommandStrs := []string{
+			initDatadirCmdStr,
+			copyKeysIntoKeystoreCmdStr,
+			createPasswordsFileCmdStr,
+			launchNodeCmdStr,
+		}
+		commandStr := strings.Join(subcommandStrs, " && ")
 
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
@@ -150,9 +214,11 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	return result
 }
 
-func getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
+func (launcher *GethELClientLauncher) getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
+	maxNumRetries := expectedSecondsForGethInit + len(launcher.prefundedAccountInfo) * expectedSecondsPerKeyImport + expectedSecondsAfterNodeStartUntilHttpServerIsAvailable
+
 	getNodeInfoResponse := new(GetNodeInfoResponse)
-	for i := 0; i < getNodeInfoMaxRetries; i++ {
+	for i := 0; i < maxNumRetries; i++ {
 		if err := sendRpcCall(privateIpAddr, getNodeInfoRpcRequestBody, getNodeInfoResponse); err == nil {
 			return getNodeInfoResponse.Result, nil
 		} else {
@@ -160,7 +226,7 @@ func getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
 		}
 		time.Sleep(getNodeInfoTimeBetweenRetries)
 	}
-	return NodeInfo{}, stacktrace.NewError("Couldn't get the node's info even after %v retries with %v between retries", getNodeInfoMaxRetries, getNodeInfoTimeBetweenRetries)
+	return NodeInfo{}, stacktrace.NewError("Couldn't get the node's info even after %v retries with %v between retries", maxNumRetries, getNodeInfoTimeBetweenRetries)
 }
 
 func sendRpcCall(privateIpAddr string, requestBody string, targetStruct interface{}) error {
