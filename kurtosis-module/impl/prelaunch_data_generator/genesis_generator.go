@@ -61,6 +61,7 @@ type clGenesisConfigTemplateData struct {
 	NetworkId                          string
 	SecondsPerSlot                     uint32
 	UnixTimestamp                      int64
+	Delay 							   uint64
 	TotalTerminalDifficulty            uint64
 	AltairForkEpoch                    uint64
 	MergeForkEpoch                     uint64
@@ -74,6 +75,7 @@ func generateGenesisData(
 	clGenesisConfigYmlTemplate *template.Template,
 	clMnemonicsYmlTemplate *template.Template,
 	unixTimestamp int64,
+	delay uint64,
 	networkId string,
 	secondsPerSlot uint32,
 	altairForkEpoch uint64,
@@ -95,6 +97,7 @@ func generateGenesisData(
 		NetworkId:                          networkId,
 		SecondsPerSlot:                     secondsPerSlot,
 		UnixTimestamp:                      unixTimestamp,
+		Delay:                              delay,
 		TotalTerminalDifficulty:            totalTerminalDifficulty,
 		AltairForkEpoch:                    altairForkEpoch,
 		MergeForkEpoch:                     mergeForkEpoch,

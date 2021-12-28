@@ -6,6 +6,7 @@ This is a [Kurtosis module][module-docs] that does the following:
 1. Spins up two Nimbus CL clients
 1. Adds [a transaction spammer](https://github.com/kurtosis-tech/tx-fuzz) that will repeatedly send transactions to the network
 1. Launches [a consensus monitor](https://github.com/ralexstokes/ethereum_consensus_monitor) instance attached to the network
+1. Waits until epoch finalization occurs (i.e. finalized_epoch > 0 and finalized_epoch = current_epoch - 3)
 
 ### Quickstart
 1. [Install Docker if you haven't done so already][docker-installation]

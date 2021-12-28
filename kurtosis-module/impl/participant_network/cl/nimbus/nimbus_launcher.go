@@ -104,6 +104,7 @@ func (launcher NimbusLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, servi
 		nodeIdentity.ENR,
 		serviceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		restClient,
 	)
 
 	return result, nil
@@ -185,7 +186,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--metrics",
 			"--metrics-address=0.0.0.0",
 			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
-			"--log-level=debug",
+			"--log-level=info", // TODO make configurable
 			// There's a bug where if we don't set this flag, the Nimbus nodes won't work:
 			// https://discord.com/channels/641364059387854899/674288681737256970/922890280120750170
 			// https://github.com/status-im/nimbus-eth2/issues/2451
