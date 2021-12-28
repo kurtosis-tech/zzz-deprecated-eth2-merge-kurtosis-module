@@ -15,9 +15,9 @@ This is a [Kurtosis module][module-docs] that does the following:
     ```
     docker image ls
     ```
-1. Execute the module:
+1. Execute the module, setting `waitForFinalization` to `true` if you want to block until the network has at least one finalized epoch:
     ```
-    kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module
+    kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module --execute-params '{"waitForFinalization":false}'
     ```
 
 Kurtosis will create a new enclave to house the services of the Ethereum network. [This page][using-the-cli] contains documentation for managing the enclave & viewing detailed information about it.

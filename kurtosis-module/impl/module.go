@@ -91,6 +91,10 @@ var mergeDevnet3BootnodeEnodes = []string{
 }
  */
 
+type ExecuteParams struct {
+	WaitForFinalization bool	`json:"waitForFinalization"`
+}
+
 type ExecuteResponse struct {
 	ForkmonPublicURL string	`json:"forkmonUrl"`
 }
@@ -103,6 +107,13 @@ func NewEth2KurtosisModule() *Eth2KurtosisModule {
 }
 
 func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
+	logrus.Info("Deserializing execute params...")
+	paramsObj := new(ExecuteParams)
+	if err := json.Unmarshal([]byte(serializedParams), paramsObj); err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred deserializing the serialized params")
+	}
+	logrus.Info("Successfully deserialized execute params")
+
 	logrus.Info("Generating prelaunch data...")
 	genesisUnixTimestamp := time.Now().Unix()
 	gethGenesisConfigTemplate, err := parseTemplate(gethGenesisGenerationConfigYmlTemplateFilepath)
@@ -217,13 +228,15 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	)
 	logrus.Info("Successfully launched forkmon")
 
-	logrus.Info("Waiting for the first finalized epoch...")
-	firstClClientCtx := allClClientContexts[0]
-	firstClClientRestClient := firstClClientCtx.GetRESTClient()
-	if err := waitUntilFirstFinalizedEpoch(firstClClientRestClient); err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred waiting until the first finalized epoch occurred")
+	if paramsObj.WaitForFinalization {
+		logrus.Info("Waiting for the first finalized epoch...")
+		firstClClientCtx := allClClientContexts[0]
+		firstClClientRestClient := firstClClientCtx.GetRESTClient()
+		if err := waitUntilFirstFinalizedEpoch(firstClClientRestClient); err != nil {
+			return "", stacktrace.Propagate(err, "An error occurred waiting until the first finalized epoch occurred")
+		}
+		logrus.Info("First finalized epoch occurred successfully")
 	}
-	logrus.Info("First finalized epoch occurred successfully")
 
 	responseObj := &ExecuteResponse{
 		ForkmonPublicURL: forkmonPublicUrl,
