@@ -80,6 +80,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveC
 		nodeIdentity.ENR,
 		serviceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		restClient,
 	)
 
 	return result, nil

@@ -5,6 +5,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/forkmon"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/lodestar"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/nimbus"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/teku"
@@ -33,8 +34,12 @@ const (
 	// numParticipants = 2
 
 	// ----------------------------------- Genesis Config Constants -----------------------------------------
-	// We COULD drop this, but it won't represent mainnet
+	// Seems to be hardcoded
+	slotsPerEpoch = uint32(32)
+
+	// If we drop this, things start to behave strangely, with slots that are of variable time lengths
 	secondsPerSlot = uint32(12)
+
 	altairForkEpoch = uint64(1)  // Set per Parithosh's recommendation
 	mergeForkEpoch = uint64(2)   // Set per Parithosh's recommendation
 	// TODO Should be set to roughly one hour (??) so that this is reached AFTER the CL gets the merge fork version (per Parithosh)
@@ -43,6 +48,9 @@ const (
 	// This is the mnemonic that will be used to generate validator keys which will be preregistered in the CL genesis.ssz that we create
 	// This is the same mnemonic that should be used to generate the validator keys that we'll load into our CL nodes when we run them
 	preregisteredValidatorKeysMnemonic = "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
+
+	// TODO What units are these?
+	genesisDelay = 0
 	// --------------------------------- End Genesis Config Constants ----------------------------------------
 
 	// ----------------------------------- Static File Constants -----------------------------------------
@@ -67,6 +75,13 @@ const (
 	// TODO uncomment these when the module can either start a private network OR connect to an existing devnet
 	// mergeDevnet3NetworkId = "1337602"
 	// mergeDevnet3ClClientBootnodeEnr = "enr:-Iq4QKuNB_wHmWon7hv5HntHiSsyE1a6cUTK1aT7xDSU_hNTLW3R4mowUboCsqYoh1kN9v3ZoSu_WuvW9Aw0tQ0Dxv6GAXxQ7Nv5gmlkgnY0gmlwhLKAlv6Jc2VjcDI1NmsxoQK6S-Cii_KmfFdUJL2TANL3ksaKUnNXvTCv1tLwXs0QgIN1ZHCCIyk"
+
+	// In normal operation, the finalized epoch will be this many epochs behind head
+	expectedNumEpochsBehindHeadForFinalizedEpoch = uint64(3)
+	firstHeadEpochWhereFinalizedEpochIsPossible = expectedNumEpochsBehindHeadForFinalizedEpoch + 1
+	timeBetweenFinalizedEpochChecks = 5 * time.Second
+	// TODO FIGURE OUT WHY THIS HAPPENS AND GET RID OF IT
+	extraDelayBeforeSlotCountStartsIncreasing = 4 * time.Minute
 )
 /*
 var mergeDevnet3BootnodeEnodes = []string{
@@ -76,18 +91,29 @@ var mergeDevnet3BootnodeEnodes = []string{
 }
  */
 
+type ExecuteParams struct {
+	WaitForFinalization bool	`json:"waitForFinalization"`
+}
+
 type ExecuteResponse struct {
 	ForkmonPublicURL string	`json:"forkmonUrl"`
 }
 
-type ExampleExecutableKurtosisModule struct {
+type Eth2KurtosisModule struct {
 }
 
-func NewExampleExecutableKurtosisModule() *ExampleExecutableKurtosisModule {
-	return &ExampleExecutableKurtosisModule{}
+func NewEth2KurtosisModule() *Eth2KurtosisModule {
+	return &Eth2KurtosisModule{}
 }
 
-func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
+func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
+	logrus.Info("Deserializing execute params...")
+	paramsObj := new(ExecuteParams)
+	if err := json.Unmarshal([]byte(serializedParams), paramsObj); err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred deserializing the serialized params")
+	}
+	logrus.Info("Successfully deserialized execute params")
+
 	logrus.Info("Generating prelaunch data...")
 	genesisUnixTimestamp := time.Now().Unix()
 	gethGenesisConfigTemplate, err := parseTemplate(gethGenesisGenerationConfigYmlTemplateFilepath)
@@ -115,6 +141,7 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 		numValidatorsToPreregister,
 		numParticipants,
 		genesisUnixTimestamp,
+		genesisDelay,
 		networkId,
 		secondsPerSlot,
 		altairForkEpoch,
@@ -201,6 +228,16 @@ func (e ExampleExecutableKurtosisModule) Execute(enclaveCtx *enclaves.EnclaveCon
 	)
 	logrus.Info("Successfully launched forkmon")
 
+	if paramsObj.WaitForFinalization {
+		logrus.Info("Waiting for the first finalized epoch...")
+		firstClClientCtx := allClClientContexts[0]
+		firstClClientRestClient := firstClClientCtx.GetRESTClient()
+		if err := waitUntilFirstFinalizedEpoch(firstClClientRestClient); err != nil {
+			return "", stacktrace.Propagate(err, "An error occurred waiting until the first finalized epoch occurred")
+		}
+		logrus.Info("First finalized epoch occurred successfully")
+	}
+
 	responseObj := &ExecuteResponse{
 		ForkmonPublicURL: forkmonPublicUrl,
 	}
@@ -224,4 +261,35 @@ func parseTemplate(filepath string) (*template.Template, error) {
 		return nil, stacktrace.Propagate(err, "An error occurred parsing template file '%v'", filepath)
 	}
 	return tmpl, nil
+}
+
+func waitUntilFirstFinalizedEpoch(restClient *cl_client_rest_client.CLClientRESTClient) error {
+	// If we wait long enough that we might be in this epoch, we've waited too long - finality should already have happened
+	waitedTooLongEpoch := firstHeadEpochWhereFinalizedEpochIsPossible + 1
+	timeoutSeconds := waitedTooLongEpoch * uint64(slotsPerEpoch) * uint64(secondsPerSlot)
+	timeout := time.Duration(timeoutSeconds) * time.Second + extraDelayBeforeSlotCountStartsIncreasing
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		currentSlot, err := restClient.GetCurrentSlot()
+		if err != nil {
+			return stacktrace.Propagate(err, "An error occurred getting the current slot using the REST client, which should never happen")
+		}
+		currentEpoch := currentSlot / uint64(slotsPerEpoch)
+		finalizedEpoch, err := restClient.GetFinalizedEpoch()
+		if err != nil {
+			return stacktrace.Propagate(err, "An error occurred getting the finalized epoch using the REST client, which should never happen")
+		}
+		if finalizedEpoch > 0 && finalizedEpoch + expectedNumEpochsBehindHeadForFinalizedEpoch == currentEpoch {
+			return nil
+		}
+		logrus.Debugf(
+			"Finalized epoch hasn't occurred yet; current slot = '%v', current epoch = '%v', and finalized epoch = '%v'",
+			currentSlot,
+			currentEpoch,
+			finalizedEpoch,
+		 )
+		time.Sleep(timeBetweenFinalizedEpochChecks)
+	}
+	return stacktrace.NewError("Waited for %v for the finalized epoch to be %v epochs behind the current epoch, but it didn't happen", timeout, expectedNumEpochsBehindHeadForFinalizedEpoch)
 }
