@@ -17,13 +17,13 @@ type LoadModuleParams struct {
 	LogLevel string `json:"logLevel"`
 }
 
-type ExampleExecutableKurtosisModuleConfigurator struct{}
+type Eth2KurtosisModuleConfigurator struct{}
 
-func NewExampleExecutableKurtosisModuleConfigurator() *ExampleExecutableKurtosisModuleConfigurator {
-	return &ExampleExecutableKurtosisModuleConfigurator{}
+func NewEth2KurtosisModuleConfigurator() *Eth2KurtosisModuleConfigurator {
+	return &Eth2KurtosisModuleConfigurator{}
 }
 
-func (t ExampleExecutableKurtosisModuleConfigurator) ParseParamsAndCreateExecutableModule(serializedCustomParamsStr string) (kurtosis_modules.ExecutableKurtosisModule, error) {
+func (t Eth2KurtosisModuleConfigurator) ParseParamsAndCreateExecutableModule(serializedCustomParamsStr string) (kurtosis_modules.ExecutableKurtosisModule, error) {
 	serializedCustomParamsBytes := []byte(serializedCustomParamsStr)
 	var args LoadModuleParams
 	if err := json.Unmarshal(serializedCustomParamsBytes, &args); err != nil {
@@ -35,7 +35,7 @@ func (t ExampleExecutableKurtosisModuleConfigurator) ParseParamsAndCreateExecuta
 		return nil, stacktrace.Propagate(err, "An error occurred setting the log level")
 	}
 
-	module := NewExampleExecutableKurtosisModule()
+	module := NewEth2KurtosisModule()
 
 	return module, nil
 }

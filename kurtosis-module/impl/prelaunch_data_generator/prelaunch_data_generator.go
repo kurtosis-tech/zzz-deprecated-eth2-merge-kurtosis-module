@@ -30,6 +30,7 @@ func GeneratePrelaunchData(
 	numValidatorKeysToPreregister uint32,
 	numClNodesToStart uint32,
 	genesisUnixTimestamp int64,
+	genesisDelay uint64,
 	networkId string,
 	secondsPerSlot uint32,
 	altairForkEpoch uint64,
@@ -52,6 +53,7 @@ func GeneratePrelaunchData(
 		clGenesisConfigYmlTemplate,
 		clGenesisMnemonicsYmlTemplate,
 		genesisUnixTimestamp,
+		genesisDelay,
 		networkId,
 		secondsPerSlot,
 		altairForkEpoch,
@@ -63,7 +65,7 @@ func GeneratePrelaunchData(
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred generating genesis data")
 	}
-	logrus.Info("Successfully geneerated genesis data")
+	logrus.Info("Successfully generated genesis data")
 
 	logrus.Info("Generating validator keystores for nodes...")
 	generateKeystoresResult, err := generateKeystores(
