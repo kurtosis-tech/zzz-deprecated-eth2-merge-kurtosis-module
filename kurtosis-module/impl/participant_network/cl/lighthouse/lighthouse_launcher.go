@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/availability_waiter"
-	cl_client_rest_client2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
@@ -52,7 +52,7 @@ func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string) *L
 }
 
 func (launcher *LighthouseCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, bootnodeContext *cl.CLClientContext, elClientContext *el.ELClientContext, nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths) (resultClientCtx *cl.CLClientContext, resultErr error) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(bootnodeContext, elClientContext)
+	containerConfigSupplier := launcher.getBeaconContainerConfigSupplier(bootnodeContext, elClientContext)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse CL client with service ID '%v'", serviceId)
@@ -63,7 +63,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveC
 		return nil, stacktrace.NewError("Expected new Lighthouse service to have port with ID '%v', but none was found", httpPortID)
 	}
 
-	restClient := cl_client_rest_client2.NewCLClientRESTClient(serviceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
+	restClient := cl_client_rest_client.NewCLClientRESTClient(serviceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
 
 	if err := availability_waiter.WaitForCLClientAvailability(restClient, maxNumHealthcheckRetries, timeBetweenHealthcheckRetries); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lighthouse node to become available")
@@ -89,7 +89,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveC
 // ====================================================================================================
 //                                   Private Helper Methods
 // ====================================================================================================
-func (launcher *LighthouseCLClientLauncher) getContainerConfigSupplier(
+func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 	bootClClientCtx *cl.CLClientContext,
 	elClientCtx *el.ELClientContext,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {

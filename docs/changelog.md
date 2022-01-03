@@ -1,4 +1,6 @@
 # TBD
+### Fixes
+* Get rid of the 300-second delay in the generated CL genesis
 
 # 0.2.2
 ### Features
