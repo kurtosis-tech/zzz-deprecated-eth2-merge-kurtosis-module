@@ -9,7 +9,6 @@ import (
 )
 
 const (
-	imageName                    = "kurtosistech/ethereum-genesis-generator"
 	serviceId services.ServiceID = "eth-genesis-generator"
 
 	containerStopTimeoutSeconds = 3
