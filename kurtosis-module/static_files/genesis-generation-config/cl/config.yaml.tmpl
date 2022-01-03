@@ -10,7 +10,7 @@ MIN_GENESIS_ACTIVE_VALIDATOR_COUNT: {{ .NumValidatorKeysToPreregister }}
 # This is an invalid valid and should be updated when you create the genesis
 MIN_GENESIS_TIME: {{ .UnixTimestamp }}
 GENESIS_FORK_VERSION: 0x13001020
-GENESIS_DELAY: 120
+GENESIS_DELAY: {{ .Delay }}
 
 
 # Forking

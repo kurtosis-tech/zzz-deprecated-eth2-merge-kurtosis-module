@@ -107,6 +107,7 @@ func (launcher *TekuCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext
 		nodeIdentity.ENR,
 		serviceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		restClient,
 	)
 
 	return result, nil
