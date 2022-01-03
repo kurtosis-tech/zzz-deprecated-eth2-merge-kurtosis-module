@@ -11,7 +11,6 @@ import (
 )
 
 type endpointClass string
-type endpoint string
 type HealthStatus string
 
 const (
@@ -66,6 +65,33 @@ func (client *CLClientRESTClient) GetHealth() (HealthStatus, error) {
 	return result, nil
 }
 
+func (client *CLClientRESTClient) GetNodeSyncingData() (*SyncingData, error) {
+	url := client.getUrl(endpointClass_node, "syncing")
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred getting the node's syncing data")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, stacktrace.Propagate(err, "Wrong status code when getting the node's syncing data, expected 200 but got %v status code", resp.Status)
+	}
+
+	respBody := resp.Body
+	defer respBody.Close()
+	bodyBytes, err := ioutil.ReadAll(respBody)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred reading the response body")
+	}
+
+	logrus.Debugf("Syncing data from '%v': %v", url, string(bodyBytes))
+
+	respObj := new(GetNodeSyncingDataResponse)
+	if err := json.Unmarshal(bodyBytes, respObj); err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred deserializing the response body")
+	}
+
+	return respObj.Data, nil
+}
+
 func (client *CLClientRESTClient) GetNodeIdentity() (*NodeIdentity, error) {
 	respObj := new(GetNodeIdentityResponse)
 	if err := client.getAndParseResponse(endpointClass_node, "identity", respObj); err != nil {
@@ -92,7 +118,7 @@ func (client *CLClientRESTClient) GetCurrentSlot() (uint64, error) {
 			currentSlotStr,
 			slotUintBase,
 			slotUintBits,
-		 )
+		)
 	}
 	return currentSlot, nil
 }
@@ -112,7 +138,7 @@ func (client *CLClientRESTClient) GetFinalizedEpoch() (uint64, error) {
 			finalizedEpochStr,
 			epochUintBase,
 			epochUintBits,
-		 )
+		)
 	}
 	return finalizedEpoch, nil
 }
