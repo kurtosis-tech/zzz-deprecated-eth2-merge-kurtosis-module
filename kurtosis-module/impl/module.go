@@ -196,7 +196,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	for i := 0; i < numParticipants; i++ {
 		participant, err := network.AddParticipant(
 			participant_network.ParticipantELClientType_Geth,
-			participant_network.ParticipantCLClientType_Nimbus,
+			participant_network.ParticipantCLClientType_Lodestar,
 		)
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding participant %v", i)

@@ -10,6 +10,8 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	"github.com/sirupsen/logrus"
+	"path"
 	"time"
 )
 
@@ -33,6 +35,12 @@ const (
 
 	maxNumHealthcheckRetries      = 20
 	timeBetweenHealthcheckRetries = 1 * time.Second
+
+	maxNumSyncCheckRetries      = 30
+	timeBetweenSyncCheckRetries = 1 * time.Second
+
+	beaconSuffixServiceId    = "beacon"
+	validatorSuffixServiceId = "validator"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -58,38 +66,57 @@ func (launcher *LodestarClientLauncher) Launch(
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
-	containerConfigSupplier := getContainerConfigSupplier(
+	beaconServiceId := serviceId + "-" + beaconSuffixServiceId
+	validatorServiceId := serviceId + "-" + validatorSuffixServiceId
+
+	beaconContainerConfigSupplier := getBeaconContainerConfigSupplier(
 		bootnodeContext,
 		elClientContext,
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		launcher.genesisSszFilepathOnModuleContainer,
 	)
-	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	beaconServiceCtx, err := enclaveCtx.AddService(beaconServiceId, beaconContainerConfigSupplier)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred launching the Lodestar CL client with service ID '%v'", serviceId)
+		return nil, stacktrace.Propagate(err, "An error occurred launching the Lodestar CL beacon client with service ID '%v'", serviceId)
 	}
 
-	httpPort, found := serviceCtx.GetPrivatePorts()[httpPortID]
+	httpPort, found := beaconServiceCtx.GetPrivatePorts()[httpPortID]
 	if !found {
-		return nil, stacktrace.NewError("Expected new Lodestar service to have port with ID '%v', but none was found", httpPortID)
+		return nil, stacktrace.NewError("Expected new Lodestar beacon service to have port with ID '%v', but none was found", httpPortID)
 	}
 
-	restClient := cl_client_rest_client.NewCLClientRESTClient(serviceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
+	restClient := cl_client_rest_client.NewCLClientRESTClient(beaconServiceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
 
 	if err := waitForAvailability(restClient); err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lodestar node to become available")
+		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lodestar beacon node to become available")
 	}
-
-	// TODO add validator availability using teh validator API: https://ethereum.github.io/beacon-APIs/?urls.primaryName=v1#/ValidatorRequiredApi
 
 	nodeIdentity, err := restClient.GetNodeIdentity()
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred getting the new Lodestar node's identity, which is necessary to retrieve its ENR")
+		return nil, stacktrace.Propagate(err, "An error occurred getting the new Lodestar beacon node's identity, which is necessary to retrieve its ENR")
+	}
+
+	beaconHttpUrl := fmt.Sprintf("http://%v:%v", beaconServiceCtx.GetPrivateIPAddress(), httpPortNum)
+
+	validatorContainerConfigSupplier := getValidatorContainerConfigSupplier(
+		validatorServiceId,
+		beaconHttpUrl,
+		launcher.genesisConfigYmlFilepathOnModuleContainer,
+		nodeKeystoreDirpaths.RawKeysDirpath,
+		nodeKeystoreDirpaths.LodestarSecretsDirpath,
+	)
+	_, err = enclaveCtx.AddService(validatorServiceId, validatorContainerConfigSupplier)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred launching the Lodestar CL validator client with service ID '%v'", serviceId)
+	}
+
+	if err := waitForSync(restClient); err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lodestar validator node to become synced with the beacon node")
 	}
 
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
-		serviceCtx.GetPrivateIPAddress(),
+		beaconServiceCtx.GetPrivateIPAddress(),
 		httpPortNum,
 		restClient,
 	)
@@ -101,7 +128,7 @@ func (launcher *LodestarClientLauncher) Launch(
 //                                   Private Helper Methods
 // ====================================================================================================
 
-func getContainerConfigSupplier(
+func getBeaconContainerConfigSupplier(
 		bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 		elClientContext *el.ELClientContext,
 		genesisConfigYmlFilepathOnModuleContainer string,
@@ -174,6 +201,53 @@ func getContainerConfigSupplier(
 	return containerConfigSupplier
 }
 
+func getValidatorContainerConfigSupplier(
+	serviceId services.ServiceID,
+	beaconEndpoint string,
+	genesisConfigYmlFilepathOnModuleContainer string,
+	validatorKeysDirpathOnModuleContainer string,
+	validatorSecretsDirpathOnModuleContainer string,
+) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
+	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
+		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
+			return nil, stacktrace.Propagate(
+				err,
+				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
+				genesisConfigYmlFilepathOnModuleContainer,
+				genesisConfigYmlRelFilepathInSharedDir,
+			)
+		}
+
+		rootDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
+
+		logrus.Infof("Lodestar Keystore Dirpath: %v", validatorKeysDirpathOnModuleContainer)
+		logrus.Infof("Lodestar Secrets Dirpath: %v", validatorSecretsDirpathOnModuleContainer)
+
+		cmdArgs := []string{
+			"validator",
+			"--rootDir=" + rootDirpath,
+			"--paramsFile=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
+			"--server=" + beaconEndpoint,
+			"--keystoresDir=" + validatorKeysDirpathOnModuleContainer,
+			"--secretsDir=" + validatorSecretsDirpathOnModuleContainer,
+			"--logLevel=debug",
+		}
+
+		containerConfig := services.NewContainerConfigBuilder(
+			imageName,
+		).WithUsedPorts(
+			usedPorts,
+		).WithCmdOverride(
+			cmdArgs,
+		).Build()
+
+		return containerConfig, nil
+	}
+	return containerConfigSupplier
+}
+
+
 func waitForAvailability(restClient *cl_client_rest_client.CLClientRESTClient) error {
 	for i := 0; i < maxNumHealthcheckRetries; i++ {
 		_, err := restClient.GetHealth()
@@ -187,5 +261,20 @@ func waitForAvailability(restClient *cl_client_rest_client.CLClientRESTClient) e
 		"Lodestar node didn't become available even after %v retries with %v between retries",
 		maxNumHealthcheckRetries,
 		timeBetweenHealthcheckRetries,
+	)
+}
+
+func waitForSync(restClient *cl_client_rest_client.CLClientRESTClient) error {
+	for i := 0; i < maxNumSyncCheckRetries; i++ {
+		syncingData, err := restClient.GetNodeSyncingData()
+		if err == nil && syncingData.IsSyncing {
+			return nil
+		}
+		time.Sleep(timeBetweenSyncCheckRetries)
+	}
+	return stacktrace.NewError(
+		"Lodestar validator node didn't become syncing with beacon node even after %v retries with %v between retries",
+		maxNumSyncCheckRetries,
+		timeBetweenSyncCheckRetries,
 	)
 }
