@@ -6,8 +6,6 @@ CONFIG_NAME: testnet # needs to exist because of Prysm. Otherwise it conflicts w
 # ---------------------------------------------------------------
 # `2**14` (= 16,384)
 MIN_GENESIS_ACTIVE_VALIDATOR_COUNT: {{ .NumValidatorKeysToPreregister }}
-# Mar-01-2021 08:53:32 AM +UTC
-# This is an invalid valid and should be updated when you create the genesis
 MIN_GENESIS_TIME: {{ .UnixTimestamp }}
 GENESIS_FORK_VERSION: 0x13001020
 GENESIS_DELAY: {{ .Delay }}
@@ -28,9 +26,9 @@ MERGE_FORK_EPOCH: {{ .MergeForkEpoch }}
 TERMINAL_TOTAL_DIFFICULTY: {{ .TotalTerminalDifficulty }}
 # 0x0000...000 indicates that we use TERMINAL_TOTAL_DIFFICULTY instead of a block has to trigger the merge
 # See also: https://eips.ethereum.org/EIPS/eip-3675
-# TERMINAL_BLOCK_HASH: 0x0000000000000000000000000000000000000000000000000000000000000000
+TERMINAL_BLOCK_HASH: 0x0000000000000000000000000000000000000000000000000000000000000000
 # NOTE: This is commented out because Nimbus warns us that it's an unrecognized parameter
-# TERMINAL_BLOCK_HASH_ACTIVATION_EPOCH: 18446744073709551615
+TERMINAL_BLOCK_HASH_ACTIVATION_EPOCH: 18446744073709551615
 # Sharding
 SHARDING_FORK_VERSION: 0x03001020
 SHARDING_FORK_EPOCH: 18446744073709551615

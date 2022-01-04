@@ -1,10 +1,20 @@
 # TBD
 
+# 0.2.3
+### Features
+* Added the ability to specify arbitrary numbers of participants with EL/CL combos, and default to one Geth+Nimbus participant
+* Added instructions to the README for configuring the module
+
+### Fixes
+* Get rid of the 300-second delay in the generated CL genesis
+* Added the Lighthouse validator node
+
 # 0.2.2
 ### Features
 * Added a functioning Nimbus CL client
 * Added Nethermind EL client
-* Added a Lodestar CL beacon Launcher
+* Added a Lodestar CL (beacon, validator) Launcher
+* * Added new `GetNodeSyncingData` method in cl rest client
 * Added a transaction spammer to blast the network with transactions after all the nodes come up
 * Added optional waiting until epoch finalization occurs
 

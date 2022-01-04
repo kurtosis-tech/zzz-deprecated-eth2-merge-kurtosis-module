@@ -5,46 +5,41 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
-	"path"
+	"os"
 	"strings"
 	"text/template"
 )
 
 const (
-	// The filepaths, relative to shared dir root, where we're going to put EL & CL config
-	// (and then copy them into the expected locations on image start)
-	elGenesisConfigYmlRelFilepathInSharedDir = "el-genesis-config.yml"
-	clGenesisConfigYmlRelFilepathInSharedDir = "cl-genesis-config.yml"
-	clMnemonicsYmlRelFilepathInSharedDir = "cl-mnemonics.yml"
+	imageName                    = "kurtosistech/ethereum-genesis-generator:0.1.4"
 
-	// The genesis generation is configured by dropping files into a specific hardcoded location
-	// These are those locations
-	// See https://github.com/skylenet/ethereum-genesis-generator
-	expectedConfigDirpathOnService     = "/config"
-	expectedELConfigDirpathOnService   = expectedConfigDirpathOnService + "/el"
-	expectedELGenesisConfigYmlFilepath = expectedELConfigDirpathOnService + "/genesis-config.yaml"
-	expectedCLConfigDirpathOnService   = expectedConfigDirpathOnService + "/cl"
-	expectedCLGenesisConfigYmlFilepath = expectedCLConfigDirpathOnService + "/config.yaml"
-	expectedCLMnemonicsYmlFilepath = expectedCLConfigDirpathOnService + "/mnemonics.yaml"
-
-	// The generator container hardcodes the location where it'll write the output to; this is the location
-	outputGenesisDataDirpathOnGeneratorContainer = "/data"
-
-	// Location, relative to the root of shared dir, where the genesis data will be copied to from the generator container
-	//  so that the module container can store and use it
-	genesisDataRelDirpathInSharedDir = "data"
-
-	// This is the entrypoint that the Dockerfile uses (though we override it so that we can do some extra work
-	//  before it runs)
-	entrypointFromDockerfile = "/work/entrypoint.sh"
+	// Path on the Docker image of the script that should be run
+	generateGenesisScriptFilepath = "/work/generate-genesis.sh"
 
 	generationCommandExpectedExitCode = 0
 
-	// Paths, *relative to the root of the output genesis data directory, where the generator writes data
-	outputGethGenesisJsonRelFilepath    = "el/geth.json"
-	outputClGenesisRelDirpath           = "cl"
-	outputClGenesisConfigYmlRelFilepath = outputClGenesisRelDirpath + "/config.yaml"
-	outputClGenesisSszRelFilepath       = outputClGenesisRelDirpath + "/genesis.ssz"
+	elDataDirname = "el"
+	clDataDirname = "cl"
+
+	// ------------------------------ Config directory paths -------------------------------
+	configDataRelDirpathInSharedDir = "config"
+
+	elConfigDataRelDirpathInSharedDir = configDataRelDirpathInSharedDir + "/" + elDataDirname
+	elGenesisConfigYmlRelFilepathInSharedDir = elConfigDataRelDirpathInSharedDir + "/genesis-config.yaml"
+
+	clConfigDataRelDirpathInSharedDir = configDataRelDirpathInSharedDir + "/" + clDataDirname
+	clGenesisConfigYmlRelFilepathInSharedDir = clConfigDataRelDirpathInSharedDir + "/config.yaml"
+	clMnemonicsConfigYmlRelFilepathInSharedDir = clConfigDataRelDirpathInSharedDir + "/mnemonics.yaml"
+
+	// ------------------------------ Output directory paths -------------------------------
+	outputDataRelDirpathInSharedDir = "output"
+
+	elOutputDataRelDirpathInSharedDir = outputDataRelDirpathInSharedDir + "/" + elDataDirname
+	outputGethGenesisJsonRelFilepath    = elOutputDataRelDirpathInSharedDir + "/geth.json"
+
+	clOutputDataRelDirpathInSharedDir   = outputDataRelDirpathInSharedDir + "/" + clDataDirname
+	outputClGenesisConfigYmlRelFilepath = clOutputDataRelDirpathInSharedDir + "/config.yaml"
+	outputClGenesisSszRelFilepath       = clOutputDataRelDirpathInSharedDir + "/genesis.ssz"
 )
 // We run the genesis generation as an exec command instead, so that we get immediate feedback if it fails
 var entrypoingArgs = []string{
@@ -107,6 +102,19 @@ func generateGenesisData(
 
 	sharedDir := serviceCtx.GetSharedDirectory()
 
+	relDirpathsToCreate := []string{
+		configDataRelDirpathInSharedDir,
+		elConfigDataRelDirpathInSharedDir,
+		clConfigDataRelDirpathInSharedDir,
+	}
+	for _, relDirpathToCreate := range relDirpathsToCreate {
+		sharedPathToCreate := sharedDir.GetChildPath(relDirpathToCreate)
+		absDirpathToCreateOnModuleContainer := sharedPathToCreate.GetAbsPathOnThisContainer()
+		if err := os.Mkdir(absDirpathToCreateOnModuleContainer, os.ModePerm); err != nil {
+			return "", nil, stacktrace.Propagate(err, "An error occurred creating directory at relative path '%v' inside the shared directory", absDirpathToCreateOnModuleContainer)
+		}
+	}
+
 	// Make the Geth genesis config available to the generator
 	gethGenesisConfigYmlSharedPath := sharedDir.GetChildPath(elGenesisConfigYmlRelFilepathInSharedDir)
 	if err := service_launch_utils.FillTemplateToSharedPath(gethGenesisConfigYmlTemplate, elTemplateData, gethGenesisConfigYmlSharedPath); err != nil {
@@ -120,34 +128,16 @@ func generateGenesisData(
 	}
 
 	// Make the CL mnemonics file available to the generator container
-	clMnemonicsYmlSharedPath := sharedDir.GetChildPath(clMnemonicsYmlRelFilepathInSharedDir)
+	clMnemonicsYmlSharedPath := sharedDir.GetChildPath(clMnemonicsConfigYmlRelFilepathInSharedDir)
 	if err := service_launch_utils.FillTemplateToSharedPath(clMnemonicsYmlTemplate, clTemplateData, clMnemonicsYmlSharedPath); err != nil {
-		return "", nil, stacktrace.Propagate(err, "An error occurred filling the CL mnemonics YML template")
+		return "", nil, stacktrace.Propagate(err, "An error occurred filling the CL mnemonics config YML template")
 	}
 
-	outputSharedPath := sharedDir.GetChildPath(genesisDataRelDirpathInSharedDir)
-
+	configSharedPath := sharedDir.GetChildPath(configDataRelDirpathInSharedDir)
+	outputSharedPath := sharedDir.GetChildPath(outputDataRelDirpathInSharedDir)
 	cmdArgs := []string{
-		// We first symlink the EL & CL config dirpaths in the shared directory (which we've populated) to the locations
-		//  where the container expects, so that it picks up the files we're dropping into place
-		"cp",
-		gethGenesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
-		expectedELGenesisConfigYmlFilepath,
-		"&&",
-		"cp",
-		clGenesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
-		expectedCLGenesisConfigYmlFilepath,
-		"&&",
-		"cp",
-		clMnemonicsYmlSharedPath.GetAbsPathOnServiceContainer(),
-		expectedCLMnemonicsYmlFilepath,
-		"&&",
-		entrypointFromDockerfile,
-		"all",
-		"&&",
-		"cp",
-		"-R",
-		outputGenesisDataDirpathOnGeneratorContainer,
+		generateGenesisScriptFilepath,
+		configSharedPath.GetAbsPathOnServiceContainer(),
 		outputSharedPath.GetAbsPathOnServiceContainer(),
 	}
 	cmdStr := strings.Join(cmdArgs, " ")
@@ -168,12 +158,15 @@ func generateGenesisData(
 	}
 	logrus.Debugf("Genesis generation output:\n%v", output)
 
-	outputDirpathOnModuleContainer := outputSharedPath.GetAbsPathOnThisContainer()
-	gethGenesisJsonFilepathOnModuleContainer := path.Join(
-		outputDirpathOnModuleContainer,
+
+	gethGenesisJsonFilepathOnModuleContainer := sharedDir.GetChildPath(
 		outputGethGenesisJsonRelFilepath,
+	).GetAbsPathOnThisContainer()
+	clGenesisPaths := NewCLGenesisPaths(
+		sharedDir.GetChildPath(clOutputDataRelDirpathInSharedDir).GetAbsPathOnThisContainer(),
+		sharedDir.GetChildPath(outputClGenesisConfigYmlRelFilepath).GetAbsPathOnThisContainer(),
+		sharedDir.GetChildPath(outputClGenesisSszRelFilepath).GetAbsPathOnThisContainer(),
 	)
-	clGenesisPaths := getClGenesisPathsFromOutputDirpath(outputDirpathOnModuleContainer)
 
 	return gethGenesisJsonFilepathOnModuleContainer, clGenesisPaths, nil
 }
@@ -186,26 +179,4 @@ func getContainerConfig(privateIpAddr string, sharedDir *services.SharedPath) (*
 	).Build()
 
 	return containerConfig, nil
-}
-
-func getClGenesisPathsFromOutputDirpath(outputDirpathOnModuleContainer string) *CLGenesisPaths {
-	clGenesisDirpathOnModuleContainer := path.Join(
-		outputDirpathOnModuleContainer,
-		outputClGenesisRelDirpath,
-	)
-	clGenesisConfigYmlFilepathOnModuleContainer := path.Join(
-		outputDirpathOnModuleContainer,
-		outputClGenesisConfigYmlRelFilepath,
-	)
-	clGenesisSszFilepathOnModuleContainer := path.Join(
-		outputDirpathOnModuleContainer,
-		outputClGenesisSszRelFilepath,
-	)
-
-	clGenesisPaths := NewCLGenesisPaths(
-		clGenesisDirpathOnModuleContainer,
-		clGenesisConfigYmlFilepathOnModuleContainer,
-		clGenesisSszFilepathOnModuleContainer,
-	)
-	return clGenesisPaths
 }
