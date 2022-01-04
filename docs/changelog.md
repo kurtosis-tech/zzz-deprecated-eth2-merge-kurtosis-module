@@ -1,4 +1,6 @@
 # TBD
+
+# 0.2.3
 ### Features
 * Added the ability to specify arbitrary numbers of participants with EL/CL combos, and default to one Geth+Nimbus participant
 * Added instructions to the README for configuring the module
