@@ -1,6 +1,7 @@
 # TBD
 ### Fixes
 * Get rid of the 300-second delay in the generated CL genesis
+* Added the Lighthouse validator node
 
 # 0.2.2
 ### Features
