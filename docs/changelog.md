@@ -1,4 +1,7 @@
 # TBD
+### Features
+* Added the ability to specify arbitrary numbers of participants with EL/CL combos, and default to one Geth+Nimbus participant
+
 ### Fixes
 * Get rid of the 300-second delay in the generated CL genesis
 * Added the Lighthouse validator node
