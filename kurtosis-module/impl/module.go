@@ -8,6 +8,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/lodestar"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/nimbus"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/prysm"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/teku"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
@@ -89,7 +90,7 @@ var mergeDevnet3BootnodeEnodes = []string{
 	"enode://588ef56694223ce3212d7c56e5b6f3e8ba46a9c29522fdc6fef15657f505a7314b9bd32f2d53c4564bc6b9259c3d5c79fc96257eff9cd489004c4d9cbb3c0707@137.184.203.157:30303",
 	"enode://46b2ecd18c24463413b7328e9a59c72d955874ad5ddb9cd9659d322bedd2758a6cefb8378e2309a028bd3cdf2beca0b18c3457f03e772f35d0cd06c37ce75eee@137.184.213.208:30303",
 }
- */
+*/
 
 type ExecuteParams struct {
 	WaitForFinalization bool	`json:"waitForFinalization"`
@@ -177,7 +178,11 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		participant_network.ParticipantCLClientType_Lodestar: lodestar.NewLodestarCLClientLauncher(
 			clGenesisPaths.GetConfigYMLFilepath(),
 			clGenesisPaths.GetGenesisSSZFilepath(),
-	    ),
+		),
+		participant_network.ParticipantCLClientType_Prysm: prysm.NewPrysmCLCLientLauncher(
+			clGenesisPaths.GetConfigYMLFilepath(),
+			clGenesisPaths.GetGenesisSSZFilepath(),
+		),
 	}
 	logrus.Info("Successfully created EL & CL client launchers")
 
@@ -196,7 +201,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	for i := 0; i < numParticipants; i++ {
 		participant, err := network.AddParticipant(
 			participant_network.ParticipantELClientType_Geth,
-			participant_network.ParticipantCLClientType_Lodestar,
+			participant_network.ParticipantCLClientType_Prysm,
 		)
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred adding participant %v", i)
