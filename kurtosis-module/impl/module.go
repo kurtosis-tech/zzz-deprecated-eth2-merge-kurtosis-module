@@ -34,6 +34,11 @@ const (
 	gethClientKeyword = "geth"
 	nethermindClientKeyword = "nethermind"
 	nimbusClientKeyword = "nimbus"
+	tekuClientKeyword = "teku"
+	lodestarClientKeyword = "lodestar"
+	lighthouseClientKeyword = "lighthouse"
+	prysmClientKeyword = "prysm"
+
 	defaultWaitForFinalization = false
 	// --------------------------------- End Params Constants ---------------------------------------
 
@@ -102,10 +107,10 @@ var elClientKeywords = map[string]participant_network.ParticipantELClientType{
 // Defines the strings users can use to define the types of CL clients the participant network will contain
 var clClientKeywords = map[string]participant_network.ParticipantCLClientType{
 	nimbusClientKeyword: participant_network.ParticipantCLClientType_Nimbus,
-	"lighthouse": participant_network.ParticipantCLClientType_Lighthouse,
-	"lodestar": participant_network.ParticipantCLClientType_Lodestar,
-	"prysm": participant_network.ParticipantCLClientType_Prysm,
-	"teku": participant_network.ParticipantCLClientType_Teku,
+	lighthouseClientKeyword: participant_network.ParticipantCLClientType_Lighthouse,
+	lodestarClientKeyword: participant_network.ParticipantCLClientType_Lodestar,
+	prysmClientKeyword: participant_network.ParticipantCLClientType_Prysm,
+	tekuClientKeyword: participant_network.ParticipantCLClientType_Teku,
 }
 var defaultParticipants = []*ParticipantParams{
 	{
