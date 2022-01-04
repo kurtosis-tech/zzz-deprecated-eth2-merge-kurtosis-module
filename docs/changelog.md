@@ -1,6 +1,7 @@
 # TBD
 ### Features
 * Added the ability to specify arbitrary numbers of participants with EL/CL combos, and default to one Geth+Nimbus participant
+* Added instructions to the README for configuring the module
 
 ### Fixes
 * Get rid of the 300-second delay in the generated CL genesis
