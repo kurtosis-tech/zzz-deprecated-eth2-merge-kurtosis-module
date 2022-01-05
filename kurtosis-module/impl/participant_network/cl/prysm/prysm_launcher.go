@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	beaconNodeImageName    = "prysmaticlabs/prysm-beacon-chain:stable"
-	validatorNodeImageName = "prysmaticlabs/prysm-validator:stable"
+	beaconNodeImageName    = "prysmaticlabs/prysm-beacon-chain:latest"
+	validatorNodeImageName = "prysmaticlabs/prysm-validator:latest"
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 
@@ -40,6 +40,10 @@ const (
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
+	prysmPasswordTxtRelFilepathInSharedDir = "prysm-password.txt"
+
+	validatorKeysRelDirpathInSharedDir    = "validator-keys"
+	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
 
 	maxNumHealthcheckRetries      = 20
 	timeBetweenHealthcheckRetries = 1 * time.Second
@@ -50,10 +54,6 @@ const (
 	beaconSuffixServiceId    = "beacon"
 	validatorSuffixServiceId = "validator"
 
-	validatorKeysRelDirpathInSharedDir    = "validator-keys"
-	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
-
-	prysmPasswordTxtRelFilepathInSharedDir = "prysm-password.txt"
 )
 
 var beaconNodeUsedPorts = map[string]*services.PortSpec{
@@ -130,6 +130,11 @@ func (launcher *PrysmClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the new Prysm beacon node's identity, which is necessary to retrieve its ENR")
 	}
 
+	/*
+	if err := waitForSync(restClient); err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Prysm beacon node to become synced with the eth1 node")
+	}*/
+
 	beaconRPCEndpoint := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), rpcPortNum)
 	beaconRPCGatewayEndpoint := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), rpcGatewayPortNum)
 	validatorContainerConfigSupplier := getValidatorContainerConfigSupplier(
@@ -196,7 +201,7 @@ func getBeaconContainerConfigSupplier(
 
 		cmdArgs := []string{
 			"--accept-terms-of-use=true", //it's mandatory in order to run the node
-			"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
+			//"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
 			"--datadir=" + consensusDataDirpathOnServiceContainer,
 			"--chain-config-file=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--genesis-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
@@ -210,9 +215,10 @@ func getBeaconContainerConfigSupplier(
 			fmt.Sprintf("--p2p-udp-port=%v", discoveryUDPPortNum),
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", beaconMonitoringPortNum),
+			"--verbosity=debug",
 		}
 		if bootnodeContext != nil {
-			cmdArgs = append(cmdArgs, "--peer="+bootnodeContext.GetENR())
+			cmdArgs = append(cmdArgs, "--bootstrap-node="+bootnodeContext.GetENR())
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
@@ -278,7 +284,7 @@ func getValidatorContainerConfigSupplier(
 
 		cmdArgs := []string{
 			"--accept-terms-of-use=true", //it's mandatory in order to run the node
-			"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
+			//"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
 			"--beacon-rpc-gateway-provider=" + beaconRPCGatewayEndpoint,
 			"--beacon-rpc-provider=" + beaconRPCEndpoint,
 			"--wallet-dir=" + validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
@@ -286,6 +292,7 @@ func getValidatorContainerConfigSupplier(
 			"--datadir=" + rootDirpath,
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
+			"--verbosity=debug",
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
@@ -314,5 +321,20 @@ func waitForAvailability(restClient *cl_client_rest_client.CLClientRESTClient) e
 		"Prysm node didn't become available even after %v retries with %v between retries",
 		maxNumHealthcheckRetries,
 		timeBetweenHealthcheckRetries,
+	)
+}
+
+func waitForSync(restClient *cl_client_rest_client.CLClientRESTClient) error {
+	for i := 0; i < maxNumSyncCheckRetries; i++ {
+		syncingData, err := restClient.GetNodeSyncingData()
+		if err == nil && syncingData.IsSyncing {
+			return nil
+		}
+		time.Sleep(timeBetweenSyncCheckRetries)
+	}
+	return stacktrace.NewError(
+		"Prysm beacon node didn't become syncing with eth1 node even after %v retries with %v between retries",
+		maxNumSyncCheckRetries,
+		timeBetweenSyncCheckRetries,
 	)
 }

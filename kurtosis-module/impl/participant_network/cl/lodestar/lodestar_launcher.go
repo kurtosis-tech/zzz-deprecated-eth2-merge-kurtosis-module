@@ -90,6 +90,10 @@ func (launcher *LodestarClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lodestar beacon node to become available")
 	}
 
+	if err := waitForSync(restClient); err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lodestar beacon node to become synced with the eth1 node")
+	}
+
 	nodeIdentity, err := restClient.GetNodeIdentity()
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred getting the new Lodestar beacon node's identity, which is necessary to retrieve its ENR")
@@ -107,10 +111,6 @@ func (launcher *LodestarClientLauncher) Launch(
 	_, err = enclaveCtx.AddService(validatorServiceId, validatorContainerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lodestar CL validator client with service ID '%v'", serviceId)
-	}
-
-	if err := waitForSync(restClient); err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lodestar validator node to become synced with the beacon node")
 	}
 
 	result := cl.NewCLClientContext(
@@ -269,7 +269,7 @@ func waitForSync(restClient *cl_client_rest_client.CLClientRESTClient) error {
 		time.Sleep(timeBetweenSyncCheckRetries)
 	}
 	return stacktrace.NewError(
-		"Lodestar validator node didn't become syncing with beacon node even after %v retries with %v between retries",
+		"Lodestar beacon node didn't become syncing with eth1 node even after %v retries with %v between retries",
 		maxNumSyncCheckRetries,
 		timeBetweenSyncCheckRetries,
 	)
