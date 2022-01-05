@@ -6,6 +6,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/lighthouse"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/lodestar"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/nimbus"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/prysm"
@@ -30,9 +31,17 @@ const (
 	// The number of validator keys that will be preregistered inside the CL genesis file when it's created
 	numValidatorsToPreregister = 100
 
-	// TODO Maaaaaaaybe can't have just a single validator???? One of the Nimbus guys said that
-	numParticipants = 1
-	// numParticipants = 2
+	// ----------------------------------- Params Constants -----------------------------------------
+	gethClientKeyword = "geth"
+	nethermindClientKeyword = "nethermind"
+	nimbusClientKeyword = "nimbus"
+	tekuClientKeyword = "teku"
+	lodestarClientKeyword = "lodestar"
+	lighthouseClientKeyword = "lighthouse"
+	prysmClientKeyword = "prysm"
+
+	defaultWaitForFinalization = false
+	// --------------------------------- End Params Constants ---------------------------------------
 
 	// ----------------------------------- Genesis Config Constants -----------------------------------------
 	// Seems to be hardcoded
@@ -93,9 +102,35 @@ var mergeDevnet3BootnodeEnodes = []string{
 	"enode://588ef56694223ce3212d7c56e5b6f3e8ba46a9c29522fdc6fef15657f505a7314b9bd32f2d53c4564bc6b9259c3d5c79fc96257eff9cd489004c4d9cbb3c0707@137.184.203.157:30303",
 	"enode://46b2ecd18c24463413b7328e9a59c72d955874ad5ddb9cd9659d322bedd2758a6cefb8378e2309a028bd3cdf2beca0b18c3457f03e772f35d0cd06c37ce75eee@137.184.213.208:30303",
 }
-*/
+ */
+// Defines the strings users can use to define the types of EL clients the participant network will contain
+var elClientKeywords = map[string]participant_network.ParticipantELClientType{
+	gethClientKeyword: participant_network.ParticipantELClientType_Geth,
+	nethermindClientKeyword: participant_network.ParticipantELClientType_Nethermind,
+}
+// Defines the strings users can use to define the types of CL clients the participant network will contain
+var clClientKeywords = map[string]participant_network.ParticipantCLClientType{
+	nimbusClientKeyword: participant_network.ParticipantCLClientType_Nimbus,
+	lighthouseClientKeyword: participant_network.ParticipantCLClientType_Lighthouse,
+	lodestarClientKeyword: participant_network.ParticipantCLClientType_Lodestar,
+	prysmClientKeyword: participant_network.ParticipantCLClientType_Prysm,
+	tekuClientKeyword: participant_network.ParticipantCLClientType_Teku,
+}
+var defaultParticipants = []*ParticipantParams{
+	{
+		ELClientKeyword: gethClientKeyword,
+		CLClientKeyword: nimbusClientKeyword,
+	},
+}
 
+type ParticipantParams struct {
+	ELClientKeyword string `json:"el"`
+	CLClientKeyword string `json:"cl"`
+}
 type ExecuteParams struct {
+	// Participants
+	Participants []*ParticipantParams	`json:"participants"`
+
 	WaitForFinalization bool	`json:"waitForFinalization"`
 }
 
@@ -112,10 +147,11 @@ func NewEth2KurtosisModule() *Eth2KurtosisModule {
 
 func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
 	logrus.Info("Deserializing execute params...")
-	paramsObj := new(ExecuteParams)
-	if err := json.Unmarshal([]byte(serializedParams), paramsObj); err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred deserializing the serialized params")
+	paramsObj, err := deserializeAndValidateParams(serializedParams)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred deserializing & validating the params")
 	}
+	numParticipants := len(paramsObj.Participants)
 	logrus.Info("Successfully deserialized execute params")
 
 	logrus.Info("Generating prelaunch data...")
@@ -147,7 +183,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		clGenesisMnemonicsYmlTemplate,
 		preregisteredValidatorKeysMnemonic,
 		numValidatorsToPreregister,
-		numParticipants,
+		uint32(numParticipants),
 		genesisUnixTimestamp,
 		genesisDelay,
 		networkId,
@@ -185,7 +221,10 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		participant_network.ParticipantCLClientType_Lodestar: lodestar.NewLodestarCLClientLauncher(
 			clGenesisPaths.GetConfigYMLFilepath(),
 			clGenesisPaths.GetGenesisSSZFilepath(),
-		),
+	    ),
+		participant_network.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
+			clGenesisPaths.GetParentDirpath(),
+		 ),
 		participant_network.ParticipantCLClientType_Prysm: prysm.NewPrysmCLCLientLauncher(
 			clGenesisPaths.GetConfigYMLFilepath(),
 			clGenesisPaths.GetGenesisSSZFilepath(),
@@ -207,13 +246,25 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 
 	allElClientContexts := []*el.ELClientContext{}
 	allClClientContexts := []*cl.CLClientContext{}
-	for i := 0; i < numParticipants; i++ {
+	for idx, participantParams := range paramsObj.Participants {
+		elClientTypeKeyword := participantParams.ELClientKeyword
+		clClientTypeKeyword := participantParams.CLClientKeyword
+
+		// Don't need to validate because we already did when deserializing
+		elClientType := elClientKeywords[elClientTypeKeyword]
+		clClientType := clClientKeywords[clClientTypeKeyword]
 		participant, err := network.AddParticipant(
-			participant_network.ParticipantELClientType_Geth,
-			participant_network.ParticipantCLClientType_Prysm,
+			elClientType,
+			clClientType,
 		)
 		if err != nil {
-			return "", stacktrace.Propagate(err, "An error occurred adding participant %v", i)
+			return "", stacktrace.Propagate(
+				err,
+				"An error occurred adding participant %v with EL type '%v' and CL type '%v'",
+				idx,
+				elClientTypeKeyword,
+				clClientTypeKeyword,
+			 )
 		}
 		allElClientContexts = append(allElClientContexts, participant.GetELClientContext())
 		allClClientContexts = append(allClClientContexts, participant.GetCLClientContext())
@@ -261,6 +312,35 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 
 	return string(responseStr), nil
+}
+
+func deserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
+	paramsObj := &ExecuteParams{
+		Participants: defaultParticipants,
+		WaitForFinalization: defaultWaitForFinalization,
+	}
+	if err := json.Unmarshal([]byte(paramsStr), paramsObj); err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred deserializing the serialized params")
+	}
+	if len(paramsObj.Participants) == 0 {
+		return nil, stacktrace.NewError("At least one participant is required")
+	}
+	for idx, participant := range paramsObj.Participants {
+		if idx == 0 && participant.ELClientKeyword == nethermindClientKeyword {
+			return nil, stacktrace.NewError("Cannot use a Nethermind client for the first participant because Nethermind clients don't mine on Eth1")
+		}
+
+		elClientKeyword := participant.ELClientKeyword
+		if _, found := elClientKeywords[elClientKeyword]; !found {
+			return nil, stacktrace.NewError("Participant %v declares unrecognized EL client type '%v'", idx, elClientKeyword)
+		}
+
+		clClientKeyword := participant.CLClientKeyword
+		if _, found := clClientKeywords[clClientKeyword]; !found {
+			return nil, stacktrace.NewError("Participant %v declares unrecognized CL client type '%v'", idx, clClientKeyword)
+		}
+	}
+	return paramsObj, nil
 }
 
 func parseTemplate(filepath string) (*template.Template, error) {

@@ -92,7 +92,7 @@ func (launcher *TekuCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext
 
 	restClient := cl_client_rest_client.NewCLClientRESTClient(serviceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
 
-	if err := availability_waiter.WaitForCLClientAvailability(restClient, maxNumHealthcheckRetries, timeBetweenHealthcheckRetries); err != nil {
+	if err := availability_waiter.WaitForBeaconClientAvailability(restClient, maxNumHealthcheckRetries, timeBetweenHealthcheckRetries); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Teku node to become available")
 	}
 

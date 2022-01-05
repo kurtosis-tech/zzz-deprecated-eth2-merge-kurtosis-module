@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func WaitForCLClientAvailability(restClient *cl_client_rest_client.CLClientRESTClient, numRetries uint32, timeBetweenRetries time.Duration) error {
+func WaitForBeaconClientAvailability(restClient *cl_client_rest_client.CLClientRESTClient, numRetries uint32, timeBetweenRetries time.Duration) error {
 	for i := uint32(0); i < numRetries; i++ {
 		_, err := restClient.GetHealth()
 		if err == nil {
