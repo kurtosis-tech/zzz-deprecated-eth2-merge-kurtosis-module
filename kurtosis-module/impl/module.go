@@ -66,6 +66,9 @@ const (
 	// Nethermind
 	nethermindGenesisJsonTemplateFilepath = staticFilesDirpath + "/nethermind-genesis.json.tmpl"
 
+	// Prysm
+	prysmPasswordTxtTemplateFilepath = staticFilesDirpath + "/prysm-password.txt.tmpl"
+
 	// Forkmon config
 	forkmonConfigTemplateFilepath = staticFilesDirpath + "/forkmon-config/config.toml.tmpl"
 	// --------------------------------- End Static File Constants ----------------------------------------
@@ -133,6 +136,10 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis json template")
 	}
+	prysmPassowordTxtTemplate, err := parseTemplate(prysmPasswordTxtTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing the Prysm password txt template")
+	}
 	prelaunchData, err := prelaunch_data_generator.GeneratePrelaunchData(
 		enclaveCtx,
 		gethGenesisConfigTemplate,
@@ -182,6 +189,8 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		participant_network.ParticipantCLClientType_Prysm: prysm.NewPrysmCLCLientLauncher(
 			clGenesisPaths.GetConfigYMLFilepath(),
 			clGenesisPaths.GetGenesisSSZFilepath(),
+			prelaunchData.KeystoresGenerationResult.PrysmPassword,
+			prysmPassowordTxtTemplate,
 		),
 	}
 	logrus.Info("Successfully created EL & CL client launchers")

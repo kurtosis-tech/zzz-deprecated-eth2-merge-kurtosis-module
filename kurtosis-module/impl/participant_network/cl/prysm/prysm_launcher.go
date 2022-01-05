@@ -12,6 +12,7 @@ import (
 	"github.com/kurtosis-tech/stacktrace"
 	recursive_copy "github.com/otiai10/copy"
 	"path"
+	"text/template"
 	"time"
 )
 
@@ -19,21 +20,23 @@ const (
 	beaconNodeImageName    = "prysmaticlabs/prysm-beacon-chain:stable"
 	validatorNodeImageName = "prysmaticlabs/prysm-validator:stable"
 
-	prysmValidatorBinaryFilepathInImage = "/app/cmd/validator/validator"
-
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 
 	// Port IDs
-	tcpDiscoveryPortID = "tcp-discovery"
-	udpDiscoveryPortID = "udp-discovery"
-	httpPortID         = "http"
-	gatewayPortID      = "gateway"
+	tcpDiscoveryPortID        = "tcp-discovery"
+	udpDiscoveryPortID        = "udp-discovery"
+	rpcPortID                 = "rpc"
+	rpcGatewayPortID          = "rpc-gateway"
+	beaconMonitoringPortID    = "beacon-monitoring"
+	validatorMonitoringPortID = "validator-monitoring"
 
 	// Port nums
-	discoveryTCPPortNum uint16 = 13000
-	discoveryUDPPortNum uint16 = 12000
-	httpPortNum         uint16 = 4000
-	gatewayPortNum      uint16 = 3500
+	discoveryTCPPortNum        uint16 = 13000
+	discoveryUDPPortNum        uint16 = 12000
+	rpcPortNum                 uint16 = 4000
+	rpcGatewayPortNum          uint16 = 3500
+	beaconMonitoringPortNum    uint16 = 8080
+	validatorMonitoringPortNum uint16 = 8081
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
@@ -48,24 +51,46 @@ const (
 	validatorSuffixServiceId = "validator"
 
 	validatorKeysRelDirpathInSharedDir    = "validator-keys"
-	validatorSecretsRelDirpathInSharedDir = "validator-secrets"  //TODO try with "validator-secrets/direct"
+	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
+
+	prysmPasswordTxtRelFilepathInSharedDir = "prysm-password.txt"
 )
 
-var usedPorts = map[string]*services.PortSpec{
-	// TODO Add metrics port
+var beaconNodeUsedPorts = map[string]*services.PortSpec{
 	tcpDiscoveryPortID: services.NewPortSpec(discoveryTCPPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortID: services.NewPortSpec(discoveryUDPPortNum, services.PortProtocol_UDP),
-	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
-	gatewayPortID:      services.NewPortSpec(gatewayPortNum, services.PortProtocol_TCP),
+	rpcPortID:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
+	rpcGatewayPortID:   services.NewPortSpec(rpcGatewayPortNum, services.PortProtocol_TCP),
+	beaconMonitoringPortID: services.NewPortSpec(beaconMonitoringPortNum, services.PortProtocol_TCP),
+}
+
+var validatorNodeUsedPorts = map[string]*services.PortSpec{
+	validatorMonitoringPortID: services.NewPortSpec(validatorMonitoringPortNum, services.PortProtocol_TCP),
+}
+
+type prysmPasswordTemplateData struct {
+	Password string
 }
 
 type PrysmClientLauncher struct {
 	genesisConfigYmlFilepathOnModuleContainer string
 	genesisSszFilepathOnModuleContainer       string
+	prysmPassword                             string
+	prysmPasswordTxtTemplate                  *template.Template
 }
 
-func NewPrysmCLCLientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string) *PrysmClientLauncher {
-	return &PrysmClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer}
+func NewPrysmCLCLientLauncher(
+	genesisConfigYmlFilepathOnModuleContainer string,
+	genesisSszFilepathOnModuleContainer string,
+	prysmPassword string,
+	prysmPasswordTxtTemplate *template.Template,
+) *PrysmClientLauncher {
+	return &PrysmClientLauncher{
+		genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer,
+		genesisSszFilepathOnModuleContainer:       genesisSszFilepathOnModuleContainer,
+		prysmPassword:                             prysmPassword,
+		prysmPasswordTxtTemplate:                  prysmPasswordTxtTemplate,
+	}
 }
 
 func (launcher *PrysmClientLauncher) Launch(
@@ -89,12 +114,12 @@ func (launcher *PrysmClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Prysm CL beacon client with service ID '%v'", serviceId)
 	}
 
-	gatewayPort, found := beaconServiceCtx.GetPrivatePorts()[gatewayPortID]
+	rpcGatewayPort, found := beaconServiceCtx.GetPrivatePorts()[rpcGatewayPortID]
 	if !found {
-		return nil, stacktrace.NewError("Expected new Prysm beacon service to have port with ID '%v', but none was found", gatewayPortID)
+		return nil, stacktrace.NewError("Expected new Prysm beacon service to have port with ID '%v', but none was found", rpcGatewayPortID)
 	}
 
-	restClient := cl_client_rest_client.NewCLClientRESTClient(beaconServiceCtx.GetPrivateIPAddress(), gatewayPort.GetNumber())
+	restClient := cl_client_rest_client.NewCLClientRESTClient(beaconServiceCtx.GetPrivateIPAddress(), rpcGatewayPort.GetNumber())
 
 	if err := waitForAvailability(restClient); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Prysm beacon node to become available")
@@ -105,13 +130,17 @@ func (launcher *PrysmClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the new Prysm beacon node's identity, which is necessary to retrieve its ENR")
 	}
 
-	beaconHttpUrl := fmt.Sprintf("http://%v:%v", beaconServiceCtx.GetPrivateIPAddress(), httpPortNum)
+	beaconRPCEndpoint := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), rpcPortNum)
+	beaconRPCGatewayEndpoint := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), rpcGatewayPortNum)
 	validatorContainerConfigSupplier := getValidatorContainerConfigSupplier(
 		validatorServiceId,
-		beaconHttpUrl,
+		beaconRPCEndpoint,
+		beaconRPCGatewayEndpoint,
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		nodeKeystoreDirpaths.RawKeysDirpath,
 		nodeKeystoreDirpaths.PrysmDirpath,
+		launcher.prysmPassword,
+		launcher.prysmPasswordTxtTemplate,
 	)
 	_, err = enclaveCtx.AddService(validatorServiceId, validatorContainerConfigSupplier)
 	if err != nil {
@@ -121,7 +150,7 @@ func (launcher *PrysmClientLauncher) Launch(
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
-		gatewayPortNum,
+		rpcGatewayPortNum,
 		restClient,
 	)
 
@@ -174,13 +203,13 @@ func getBeaconContainerConfigSupplier(
 			"--http-web3provider=" + elClientRpcUrlStr,
 			"--http-modules=prysm,eth",
 			"--rpc-host=" + privateIpAddr,
-			fmt.Sprintf("--rpc-port=%v", httpPortNum),
+			fmt.Sprintf("--rpc-port=%v", rpcPortNum),
 			"--grpc-gateway-host=0.0.0.0",
-			fmt.Sprintf("--grpc-gateway-port=%v", gatewayPortNum),
-			//"--monitoring-host=0.0.0.0",
-			//fmt.Sprintf("--monitoring-port=%v", gatewayPortNum),
+			fmt.Sprintf("--grpc-gateway-port=%v", rpcGatewayPortNum),
 			fmt.Sprintf("--p2p-tcp-port=%v", discoveryTCPPortNum),
 			fmt.Sprintf("--p2p-udp-port=%v", discoveryUDPPortNum),
+			"--monitoring-host=" + privateIpAddr,
+			fmt.Sprintf("--monitoring-port=%v", beaconMonitoringPortNum),
 		}
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--peer="+bootnodeContext.GetENR())
@@ -189,7 +218,7 @@ func getBeaconContainerConfigSupplier(
 		containerConfig := services.NewContainerConfigBuilder(
 			beaconNodeImageName,
 		).WithUsedPorts(
-			usedPorts,
+			beaconNodeUsedPorts,
 		).WithCmdOverride(
 			cmdArgs,
 		).Build()
@@ -201,10 +230,13 @@ func getBeaconContainerConfigSupplier(
 
 func getValidatorContainerConfigSupplier(
 	serviceId services.ServiceID,
-	beaconEndpoint string,
+	beaconRPCEndpoint string,
+	beaconRPCGatewayEndpoint string,
 	genesisConfigYmlFilepathOnModuleContainer string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
+	prysmPassword string,
+	prysmPasswordTxtTemplate *template.Template,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
@@ -233,70 +265,33 @@ func getValidatorContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
 		}
 
+		prysmPasswordTemplData := &prysmPasswordTemplateData{
+			Password: prysmPassword,
+		}
+
+		prysmPasswordTxtSharedPath := sharedDir.GetChildPath(prysmPasswordTxtRelFilepathInSharedDir)
+		if err := service_launch_utils.FillTemplateToSharedPath(prysmPasswordTxtTemplate, prysmPasswordTemplData, prysmPasswordTxtSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred filling the Prysm password txt template")
+		}
+
 		rootDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
 
 		cmdArgs := []string{
 			"--accept-terms-of-use=true", //it's mandatory in order to run the node
 			"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
-			"--beacon-rpc-provider=" + beaconEndpoint,
+			"--beacon-rpc-gateway-provider=" + beaconRPCGatewayEndpoint,
+			"--beacon-rpc-provider=" + beaconRPCEndpoint,
 			"--wallet-dir=" + validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			"--wallet-password-file=" + prysmPasswordTxtSharedPath.GetAbsPathOnServiceContainer(),
 			"--datadir=" + rootDirpath,
-		}
-
-		/*
-		cmdArgs := []string{
-			"--accept-terms-of-use=true", //it's mandatory in order to run the node
-			"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
-			"--datadir=" + rootDirpath,
-			"--chain-config-file=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
-			"--beacon-rpc-provider=" + beaconEndpoint,
-			"--wallet-dir=" + validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
-			"--grpc-gateway-host=0.0.0.0",
-			fmt.Sprintf("--grpc-gateway-port=%v", gatewayPortNum),
-			//"--monitoring-host=0.0.0.0",
-			//fmt.Sprintf("--monitoring-port=%v", gatewayPortNum),
-			"--enable-doppelganger=false",
+			"--monitoring-host=" + privateIpAddr,
+			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
 			validatorNodeImageName,
 		).WithUsedPorts(
-			usedPorts,
-		).WithCmdOverride(
-			cmdArgs,
-		).Build()
-
-		*/
-
-		/*
-			cmdArgs := []string{
-				prysmValidatorBinaryFilepathInImage,
-				"--accept-terms-of-use=true", //it's mandatory in order to run the node
-				"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
-				"accounts",
-				"import",
-				"--keys-dir=" + validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
-				"--wallet-dir=" + validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
-				"&&",
-				prysmValidatorBinaryFilepathInImage,
-				"--accept-terms-of-use=true", //it's mandatory in order to run the node
-				"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
-				"--datadir=" + rootDirpath,
-				"--chain-config-file=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
-				"--beacon-rpc-gateway-provider=" + beaconEndpoint,
-				"--wallet-dir=" + validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
-				"--grpc-gateway-host=0.0.0.0",
-				fmt.Sprintf("--grpc-gateway-port=%v", gatewayPortNum),
-				"--monitoring-host=0.0.0.0",
-				fmt.Sprintf("--monitoring-port=%v", gatewayPortNum),
-				"--enable-doppelganger=false",
-			}
-
-			cmdStr := strings.Join(cmdArgs, " ")*/
-		containerConfig := services.NewContainerConfigBuilder(
-			validatorNodeImageName,
-		).WithUsedPorts(
-			usedPorts,
+			validatorNodeUsedPorts,
 		).WithCmdOverride(
 			cmdArgs,
 		).Build()
