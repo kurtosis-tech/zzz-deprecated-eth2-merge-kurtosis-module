@@ -3,6 +3,7 @@ package lodestar
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/availability_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
@@ -28,15 +29,11 @@ const (
 	discoveryPortNum uint16 = 9000
 	httpPortNum             = 4000
 
-
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
 
 	maxNumHealthcheckRetries      = 20
 	timeBetweenHealthcheckRetries = 1 * time.Second
-
-	maxNumSyncCheckRetries      = 30
-	timeBetweenSyncCheckRetries = 1 * time.Second
 
 	beaconSuffixServiceId    = "beacon"
 	validatorSuffixServiceId = "validator"
@@ -84,17 +81,12 @@ func (launcher *LodestarClientLauncher) Launch(
 		return nil, stacktrace.NewError("Expected new Lodestar beacon service to have port with ID '%v', but none was found", httpPortID)
 	}
 
-	restClient := cl_client_rest_client.NewCLClientRESTClient(beaconServiceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
-
-	if err := waitForAvailability(restClient); err != nil {
+	beaconRestClient := cl_client_rest_client.NewCLClientRESTClient(beaconServiceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
+	if err := availability_waiter.WaitForBeaconClientAvailability(beaconRestClient, maxNumHealthcheckRetries, timeBetweenHealthcheckRetries); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lodestar beacon node to become available")
 	}
 
-	if err := waitForSync(restClient); err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lodestar beacon node to become synced with the eth1 node")
-	}
-
-	nodeIdentity, err := restClient.GetNodeIdentity()
+	nodeIdentity, err := beaconRestClient.GetNodeIdentity()
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred getting the new Lodestar beacon node's identity, which is necessary to retrieve its ENR")
 	}
@@ -117,7 +109,7 @@ func (launcher *LodestarClientLauncher) Launch(
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		httpPortNum,
-		restClient,
+		beaconRestClient,
 	)
 
 	return result, nil
@@ -219,7 +211,6 @@ func getValidatorContainerConfigSupplier(
 
 		rootDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
 
-
 		cmdArgs := []string{
 			"validator",
 			"--rootDir=" + rootDirpath,
@@ -241,36 +232,4 @@ func getValidatorContainerConfigSupplier(
 		return containerConfig, nil
 	}
 	return containerConfigSupplier
-}
-
-
-func waitForAvailability(restClient *cl_client_rest_client.CLClientRESTClient) error {
-	for i := 0; i < maxNumHealthcheckRetries; i++ {
-		_, err := restClient.GetHealth()
-		if err == nil {
-			// TODO check the healthstatus???
-			return nil
-		}
-		time.Sleep(timeBetweenHealthcheckRetries)
-	}
-	return stacktrace.NewError(
-		"Lodestar node didn't become available even after %v retries with %v between retries",
-		maxNumHealthcheckRetries,
-		timeBetweenHealthcheckRetries,
-	)
-}
-
-func waitForSync(restClient *cl_client_rest_client.CLClientRESTClient) error {
-	for i := 0; i < maxNumSyncCheckRetries; i++ {
-		syncingData, err := restClient.GetNodeSyncingData()
-		if err == nil && syncingData.IsSyncing {
-			return nil
-		}
-		time.Sleep(timeBetweenSyncCheckRetries)
-	}
-	return stacktrace.NewError(
-		"Lodestar beacon node didn't become syncing with eth1 node even after %v retries with %v between retries",
-		maxNumSyncCheckRetries,
-		timeBetweenSyncCheckRetries,
-	)
 }

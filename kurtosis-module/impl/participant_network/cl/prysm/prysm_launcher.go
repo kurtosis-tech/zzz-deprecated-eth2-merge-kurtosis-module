@@ -3,6 +3,7 @@ package prysm
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/availability_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
@@ -26,7 +27,7 @@ const (
 	tcpDiscoveryPortID        = "tcp-discovery"
 	udpDiscoveryPortID        = "udp-discovery"
 	rpcPortID                 = "rpc"
-	rpcGatewayPortID          = "rpc-gateway"
+	httpPortID                = "http"
 	beaconMonitoringPortID    = "beacon-monitoring"
 	validatorMonitoringPortID = "validator-monitoring"
 
@@ -34,7 +35,7 @@ const (
 	discoveryTCPPortNum        uint16 = 13000
 	discoveryUDPPortNum        uint16 = 12000
 	rpcPortNum                 uint16 = 4000
-	rpcGatewayPortNum          uint16 = 3500
+	httpPortNum                uint16 = 3500
 	beaconMonitoringPortNum    uint16 = 8080
 	validatorMonitoringPortNum uint16 = 8081
 
@@ -48,19 +49,15 @@ const (
 	maxNumHealthcheckRetries      = 20
 	timeBetweenHealthcheckRetries = 1 * time.Second
 
-	maxNumSyncCheckRetries      = 30
-	timeBetweenSyncCheckRetries = 1 * time.Second
-
 	beaconSuffixServiceId    = "beacon"
 	validatorSuffixServiceId = "validator"
-
 )
 
 var beaconNodeUsedPorts = map[string]*services.PortSpec{
-	tcpDiscoveryPortID: services.NewPortSpec(discoveryTCPPortNum, services.PortProtocol_TCP),
-	udpDiscoveryPortID: services.NewPortSpec(discoveryUDPPortNum, services.PortProtocol_UDP),
-	rpcPortID:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
-	rpcGatewayPortID:   services.NewPortSpec(rpcGatewayPortNum, services.PortProtocol_TCP),
+	tcpDiscoveryPortID:     services.NewPortSpec(discoveryTCPPortNum, services.PortProtocol_TCP),
+	udpDiscoveryPortID:     services.NewPortSpec(discoveryUDPPortNum, services.PortProtocol_UDP),
+	rpcPortID:              services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
+	httpPortID:             services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 	beaconMonitoringPortID: services.NewPortSpec(beaconMonitoringPortNum, services.PortProtocol_TCP),
 }
 
@@ -114,33 +111,27 @@ func (launcher *PrysmClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Prysm CL beacon client with service ID '%v'", serviceId)
 	}
 
-	rpcGatewayPort, found := beaconServiceCtx.GetPrivatePorts()[rpcGatewayPortID]
+	httpPort, found := beaconServiceCtx.GetPrivatePorts()[httpPortID]
 	if !found {
-		return nil, stacktrace.NewError("Expected new Prysm beacon service to have port with ID '%v', but none was found", rpcGatewayPortID)
+		return nil, stacktrace.NewError("Expected new Prysm beacon service to have port with ID '%v', but none was found", httpPortID)
 	}
 
-	restClient := cl_client_rest_client.NewCLClientRESTClient(beaconServiceCtx.GetPrivateIPAddress(), rpcGatewayPort.GetNumber())
-
-	if err := waitForAvailability(restClient); err != nil {
+	beaconRestClient := cl_client_rest_client.NewCLClientRESTClient(beaconServiceCtx.GetPrivateIPAddress(), httpPort.GetNumber())
+	if err := availability_waiter.WaitForBeaconClientAvailability(beaconRestClient, maxNumHealthcheckRetries, timeBetweenHealthcheckRetries); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Prysm beacon node to become available")
 	}
 
-	nodeIdentity, err := restClient.GetNodeIdentity()
+	nodeIdentity, err := beaconRestClient.GetNodeIdentity()
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred getting the new Prysm beacon node's identity, which is necessary to retrieve its ENR")
 	}
 
-	/*
-	if err := waitForSync(restClient); err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Prysm beacon node to become synced with the eth1 node")
-	}*/
-
 	beaconRPCEndpoint := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), rpcPortNum)
-	beaconRPCGatewayEndpoint := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), rpcGatewayPortNum)
+	beaconHTTPEndpoint := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), httpPortNum)
 	validatorContainerConfigSupplier := getValidatorContainerConfigSupplier(
 		validatorServiceId,
 		beaconRPCEndpoint,
-		beaconRPCGatewayEndpoint,
+		beaconHTTPEndpoint,
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		nodeKeystoreDirpaths.RawKeysDirpath,
 		nodeKeystoreDirpaths.PrysmDirpath,
@@ -155,8 +146,8 @@ func (launcher *PrysmClientLauncher) Launch(
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
-		rpcGatewayPortNum,
-		restClient,
+		httpPortNum,
+		beaconRestClient,
 	)
 
 	return result, nil
@@ -201,7 +192,7 @@ func getBeaconContainerConfigSupplier(
 
 		cmdArgs := []string{
 			"--accept-terms-of-use=true", //it's mandatory in order to run the node
-			//"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
+			"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
 			"--datadir=" + consensusDataDirpathOnServiceContainer,
 			"--chain-config-file=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--genesis-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
@@ -210,7 +201,7 @@ func getBeaconContainerConfigSupplier(
 			"--rpc-host=" + privateIpAddr,
 			fmt.Sprintf("--rpc-port=%v", rpcPortNum),
 			"--grpc-gateway-host=0.0.0.0",
-			fmt.Sprintf("--grpc-gateway-port=%v", rpcGatewayPortNum),
+			fmt.Sprintf("--grpc-gateway-port=%v", httpPortNum),
 			fmt.Sprintf("--p2p-tcp-port=%v", discoveryTCPPortNum),
 			fmt.Sprintf("--p2p-udp-port=%v", discoveryUDPPortNum),
 			"--monitoring-host=" + privateIpAddr,
@@ -218,7 +209,7 @@ func getBeaconContainerConfigSupplier(
 			"--verbosity=debug",
 		}
 		if bootnodeContext != nil {
-			cmdArgs = append(cmdArgs, "--bootstrap-node="+bootnodeContext.GetENR())
+			cmdArgs = append(cmdArgs, "--bootstrap-node=" + bootnodeContext.GetENR())
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
@@ -237,7 +228,7 @@ func getBeaconContainerConfigSupplier(
 func getValidatorContainerConfigSupplier(
 	serviceId services.ServiceID,
 	beaconRPCEndpoint string,
-	beaconRPCGatewayEndpoint string,
+	beaconHTTPEndpoint string,
 	genesisConfigYmlFilepathOnModuleContainer string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
@@ -284,8 +275,8 @@ func getValidatorContainerConfigSupplier(
 
 		cmdArgs := []string{
 			"--accept-terms-of-use=true", //it's mandatory in order to run the node
-			//"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
-			"--beacon-rpc-gateway-provider=" + beaconRPCGatewayEndpoint,
+			"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
+			"--beacon-rpc-gateway-provider=" + beaconHTTPEndpoint,
 			"--beacon-rpc-provider=" + beaconRPCEndpoint,
 			"--wallet-dir=" + validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
 			"--wallet-password-file=" + prysmPasswordTxtSharedPath.GetAbsPathOnServiceContainer(),
@@ -306,35 +297,4 @@ func getValidatorContainerConfigSupplier(
 		return containerConfig, nil
 	}
 	return containerConfigSupplier
-}
-
-func waitForAvailability(restClient *cl_client_rest_client.CLClientRESTClient) error {
-	for i := 0; i < maxNumHealthcheckRetries; i++ {
-		_, err := restClient.GetHealth()
-		if err == nil {
-			// TODO check the healthstatus???
-			return nil
-		}
-		time.Sleep(timeBetweenHealthcheckRetries)
-	}
-	return stacktrace.NewError(
-		"Prysm node didn't become available even after %v retries with %v between retries",
-		maxNumHealthcheckRetries,
-		timeBetweenHealthcheckRetries,
-	)
-}
-
-func waitForSync(restClient *cl_client_rest_client.CLClientRESTClient) error {
-	for i := 0; i < maxNumSyncCheckRetries; i++ {
-		syncingData, err := restClient.GetNodeSyncingData()
-		if err == nil && syncingData.IsSyncing {
-			return nil
-		}
-		time.Sleep(timeBetweenSyncCheckRetries)
-	}
-	return stacktrace.NewError(
-		"Prysm beacon node didn't become syncing with eth1 node even after %v retries with %v between retries",
-		maxNumSyncCheckRetries,
-		timeBetweenSyncCheckRetries,
-	)
 }

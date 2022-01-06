@@ -1,4 +1,10 @@
 # TBD
+### Features
+* Added Prysm CL (beacon, validator) Launcher
+
+### Changes
+* The `WaitForBeaconClientAvailability` method alos checks if the returned status is `READY`, it means the node is synced
+* Replaced their own implementation of the availability waiter method in Lodestar Launcher with the `WaitForBeaconClientAvailability` used for other launchers
 
 # 0.2.3
 ### Features
