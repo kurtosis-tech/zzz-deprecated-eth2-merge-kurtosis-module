@@ -2,6 +2,9 @@
 ### Features
 * Made EL & CL client log levels configurable as a module param, `logLevel`
 
+### Changes
+* Set the Eth1 block time to 1 second in the CL config
+
 # 0.2.3
 ### Features
 * Added the ability to specify arbitrary numbers of participants with EL/CL combos, and default to one Geth+Nimbus participant

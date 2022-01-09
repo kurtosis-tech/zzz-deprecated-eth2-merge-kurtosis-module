@@ -181,7 +181,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 		accountsToUnlockStr := strings.Join(accountAddressesToUnlock, ",")
 		launchNodeCmdArgs := []string{
 			"geth",
-			"--verbosity=%v", verbosityLevel,
+			"--verbosity=" + verbosityLevel,
 			"--unlock=" + accountsToUnlockStr,
 			"--password=" + gethAccountPasswordsFile,
 			"--mine",

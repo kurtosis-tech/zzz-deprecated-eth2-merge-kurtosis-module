@@ -37,8 +37,8 @@ SHARDING_FORK_EPOCH: 18446744073709551615
 # ---------------------------------------------------------------
 # 12 seconds
 SECONDS_PER_SLOT: {{ .SecondsPerSlot }}
-# 14 (estimate from Eth1 mainnet)
-SECONDS_PER_ETH1_BLOCK: 14
+# Best guess at how frequently a block is mined with the Geth nodes running locally
+SECONDS_PER_ETH1_BLOCK: 1
 # 2**8 (= 256) epochs ~27 hours
 MIN_VALIDATOR_WITHDRAWABILITY_DELAY: 256
 # 2**8 (= 256) epochs ~27 hours
