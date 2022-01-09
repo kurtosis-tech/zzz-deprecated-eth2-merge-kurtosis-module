@@ -1,11 +1,13 @@
 package prelaunch_data_generator
 
 import (
+	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
 	"os"
+	"strconv"
 	"strings"
 	"text/template"
 )
@@ -36,6 +38,7 @@ const (
 
 	elOutputDataRelDirpathInSharedDir = outputDataRelDirpathInSharedDir + "/" + elDataDirname
 	outputGethGenesisJsonRelFilepath    = elOutputDataRelDirpathInSharedDir + "/geth.json"
+	outputNethermindGenesisJsonRelFilepath    = elOutputDataRelDirpathInSharedDir + "/nethermind.json"
 
 	clOutputDataRelDirpathInSharedDir   = outputDataRelDirpathInSharedDir + "/" + clDataDirname
 	outputClGenesisConfigYmlRelFilepath = clOutputDataRelDirpathInSharedDir + "/config.yaml"
@@ -47,10 +50,14 @@ var entrypoingArgs = []string{
 	"99999",
 }
 
-type elGenesisConfigTemplateData struct {
+type gethGenesisConfigYamlTemplateData struct {
 	NetworkId string
 	UnixTimestamp int64
 	TotalTerminalDifficulty uint64
+}
+type nethermindGenesisJsonTemplateData struct {
+	NetworkIDAsHex string
+	// TODO add genesis timestamp here???
 }
 type clGenesisConfigTemplateData struct {
 	NetworkId                          string
@@ -67,6 +74,7 @@ type clGenesisConfigTemplateData struct {
 func generateGenesisData(
 	serviceCtx *services.ServiceContext,
 	gethGenesisConfigYmlTemplate *template.Template,
+	nethermindGenesisConfigJsonTemplate *template.Template,
 	clGenesisConfigYmlTemplate *template.Template,
 	clMnemonicsYmlTemplate *template.Template,
 	unixTimestamp int64,
@@ -80,10 +88,55 @@ func generateGenesisData(
 	numValidatorKeysToPreregister uint32,
 ) (
 	resultGethGenesisJsonFilepathOnModuleContainer string,
+	resultNethermindGenesisJsonFilepathOnModuleContainer string,
 	resultClGenesisPaths *CLGenesisPaths,
 	resultErr error,
 ) {
-	elTemplateData := elGenesisConfigTemplateData{
+	sharedDir := serviceCtx.GetSharedDirectory()
+
+	relDirpathsToCreate := []string{
+		configDataRelDirpathInSharedDir,
+		elConfigDataRelDirpathInSharedDir,
+		clConfigDataRelDirpathInSharedDir,
+	}
+	for _, relDirpathToCreate := range relDirpathsToCreate {
+		sharedPathToCreate := sharedDir.GetChildPath(relDirpathToCreate)
+		absDirpathToCreateOnModuleContainer := sharedPathToCreate.GetAbsPathOnThisContainer()
+		if err := os.Mkdir(absDirpathToCreateOnModuleContainer, os.ModePerm); err != nil {
+			return "", "", nil, stacktrace.Propagate(err, "An error occurred creating directory at relative path '%v' inside the shared directory", absDirpathToCreateOnModuleContainer)
+		}
+	}
+
+	networkIdAsHex, err := getNetworkIdHexSting(networkId)
+	if err != nil {
+		return "", "", nil, stacktrace.Propagate(
+			err,
+			"An error occurred rendering network ID '%v' as a hex string",
+			networkId,
+		 )
+	}
+	nethermindGenesisJsonTemplateDataToUse := nethermindGenesisJsonTemplateData{
+		NetworkIDAsHex: networkIdAsHex,
+	}
+	nethermindGenesisJsonSharedPath := sharedDir.GetChildPath(outputNethermindGenesisJsonRelFilepath)
+	nethermindGenesisJsonFilepathOnModuleContainer := nethermindGenesisJsonSharedPath.GetAbsPathOnThisContainer()
+	nethermindGenesisJsonFp, err := os.Open(nethermindGenesisJsonFilepathOnModuleContainer)
+	if err != nil {
+		return "", "", nil, stacktrace.Propagate(
+			err,
+			"An error occurred opening Nethermind genesis JSON file '%v' for writing",
+			nethermindGenesisJsonFilepathOnModuleContainer,
+		 )
+	}
+	if err := nethermindGenesisConfigJsonTemplate.Execute(nethermindGenesisJsonFp, nethermindGenesisJsonTemplateDataToUse); err != nil {
+		return "", "", nil, stacktrace.Propagate(
+			err,
+			"An error occurred filling the Nethermind genesis JSON template to file '%v'",
+			nethermindGenesisJsonFilepathOnModuleContainer,
+		)
+	}
+
+	elTemplateData := gethGenesisConfigYamlTemplateData{
 		NetworkId:                   networkId,
 		UnixTimestamp:               unixTimestamp,
 		TotalTerminalDifficulty:     totalTerminalDifficulty,
@@ -100,37 +153,22 @@ func generateGenesisData(
 		PreregisteredValidatorKeysMnemonic: preregisteredValidatorKeysMnemonic,
 	}
 
-	sharedDir := serviceCtx.GetSharedDirectory()
-
-	relDirpathsToCreate := []string{
-		configDataRelDirpathInSharedDir,
-		elConfigDataRelDirpathInSharedDir,
-		clConfigDataRelDirpathInSharedDir,
-	}
-	for _, relDirpathToCreate := range relDirpathsToCreate {
-		sharedPathToCreate := sharedDir.GetChildPath(relDirpathToCreate)
-		absDirpathToCreateOnModuleContainer := sharedPathToCreate.GetAbsPathOnThisContainer()
-		if err := os.Mkdir(absDirpathToCreateOnModuleContainer, os.ModePerm); err != nil {
-			return "", nil, stacktrace.Propagate(err, "An error occurred creating directory at relative path '%v' inside the shared directory", absDirpathToCreateOnModuleContainer)
-		}
-	}
-
 	// Make the Geth genesis config available to the generator
 	gethGenesisConfigYmlSharedPath := sharedDir.GetChildPath(elGenesisConfigYmlRelFilepathInSharedDir)
 	if err := service_launch_utils.FillTemplateToSharedPath(gethGenesisConfigYmlTemplate, elTemplateData, gethGenesisConfigYmlSharedPath); err != nil {
-		return "", nil, stacktrace.Propagate(err, "An error occurred filling the Geth genesis config template")
+		return "", "", nil, stacktrace.Propagate(err, "An error occurred filling the Geth genesis config template")
 	}
 
 	// Make the CL genesis config available to the generator
 	clGenesisConfigYmlSharedPath := sharedDir.GetChildPath(clGenesisConfigYmlRelFilepathInSharedDir)
 	if err := service_launch_utils.FillTemplateToSharedPath(clGenesisConfigYmlTemplate, clTemplateData, clGenesisConfigYmlSharedPath); err != nil {
-		return "", nil, stacktrace.Propagate(err, "An error occurred filling the CL genesis config template")
+		return "", "", nil, stacktrace.Propagate(err, "An error occurred filling the CL genesis config template")
 	}
 
 	// Make the CL mnemonics file available to the generator container
 	clMnemonicsYmlSharedPath := sharedDir.GetChildPath(clMnemonicsConfigYmlRelFilepathInSharedDir)
 	if err := service_launch_utils.FillTemplateToSharedPath(clMnemonicsYmlTemplate, clTemplateData, clMnemonicsYmlSharedPath); err != nil {
-		return "", nil, stacktrace.Propagate(err, "An error occurred filling the CL mnemonics config YML template")
+		return "", "", nil, stacktrace.Propagate(err, "An error occurred filling the CL mnemonics config YML template")
 	}
 
 	configSharedPath := sharedDir.GetChildPath(configDataRelDirpathInSharedDir)
@@ -144,10 +182,10 @@ func generateGenesisData(
 
 	exitCode, output, err := serviceCtx.ExecCommand([]string{"sh", "-c", cmdStr})
 	if err != nil {
-		return "", nil, stacktrace.Propagate(err, "An error occurred executing command '%v' to generate the genesis data inside the generator container", cmdStr)
+		return "", "", nil, stacktrace.Propagate(err, "An error occurred executing command '%v' to generate the genesis data inside the generator container", cmdStr)
 	}
 	if exitCode != generationCommandExpectedExitCode {
-		return "", nil, stacktrace.NewError(
+		return "", "", nil, stacktrace.NewError(
 			"Expected genesis-generating command '%v' to exit with code %v but got %v instead and the following logs:\n%v",
 			cmdStr,
 			generationCommandExpectedExitCode,
@@ -168,7 +206,7 @@ func generateGenesisData(
 		sharedDir.GetChildPath(outputClGenesisSszRelFilepath).GetAbsPathOnThisContainer(),
 	)
 
-	return gethGenesisJsonFilepathOnModuleContainer, clGenesisPaths, nil
+	return gethGenesisJsonFilepathOnModuleContainer, nethermindGenesisJsonFilepathOnModuleContainer, clGenesisPaths, nil
 }
 
 func getContainerConfig(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
@@ -179,4 +217,20 @@ func getContainerConfig(privateIpAddr string, sharedDir *services.SharedPath) (*
 	).Build()
 
 	return containerConfig, nil
+}
+
+func getNetworkIdHexSting(networkId string) (string, error) {
+	uintBase := 10
+	uintBits := 64
+	networkIdUint64, err := strconv.ParseUint(networkId, uintBase, uintBits)
+	if err != nil {
+		return "", stacktrace.Propagate(
+			err,
+			"An error occurred parsing network ID string '%v' to uint with base %v and %v bits",
+			networkId,
+			uintBase,
+			uintBits,
+		)
+	}
+	return fmt.Sprintf("0x%x", networkIdUint64), nil
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"sync"
 )
 
 const (
@@ -21,6 +20,108 @@ const (
 var elClientContextForBootElClients *el.ELClientContext = nil
 var clClientContextForBootClClients *cl.CLClientContext = nil
 
+type ParticipantSpec struct {
+	ELClientType ParticipantELClientType
+	CLClientType ParticipantCLClientType
+}
+
+func LaunchParticipantNetwork(
+	enclaveCtx *enclaves.EnclaveContext,
+	networkId string,
+	elClientLaunchers map[ParticipantELClientType]el.ELClientLauncher,
+	clClientLaunchers map[ParticipantCLClientType]cl.CLClientLauncher,
+	allParticipantSpecs []*ParticipantSpec,
+	preregisteredValidatorKeysForNodes []*prelaunch_data_generator.NodeTypeKeystoreDirpaths,
+	logLevel log_levels.ParticipantLogLevel,
+) (
+	[]*Participant,
+	error,
+) {
+	participants := []*Participant{}
+	for idx, participantSpec := range allParticipantSpecs {
+		elClientType := participantSpec.ELClientType
+		clClientType := participantSpec.CLClientType
+
+		elLauncher, found := elClientLaunchers[elClientType]
+		if !found {
+			return nil, stacktrace.NewError("No EL client launcher defined for EL client type '%v'", elClientType)
+		}
+		clLauncher, found := clClientLaunchers[clClientType]
+		if !found {
+			return nil, stacktrace.NewError("No CL client launcher defined for CL client type '%v'", clClientType)
+		}
+
+		elClientServiceId := services.ServiceID(fmt.Sprintf("%v%v", elClientServiceIdPrefix, idx))
+		clClientServiceId := services.ServiceID(fmt.Sprintf("%v%v", clClientServiceIdPrefix, idx))
+		newClNodeValidatorKeystores := preregisteredValidatorKeysForNodes[idx]
+
+		// Add EL client
+		var newElClientCtx *el.ELClientContext
+		var elClientLaunchErr error
+		if idx == bootParticipantIndex {
+			newElClientCtx, elClientLaunchErr = elLauncher.Launch(
+				enclaveCtx,
+				elClientServiceId,
+				logLevel,
+				networkId,
+				elClientContextForBootElClients,
+			)
+		} else {
+			bootParticipant := participants[bootParticipantIndex]
+			bootElClientCtx := bootParticipant.GetELClientContext()
+			newElClientCtx, elClientLaunchErr = elLauncher.Launch(
+				enclaveCtx,
+				elClientServiceId,
+				logLevel,
+				networkId,
+				bootElClientCtx,
+			)
+		}
+		if elClientLaunchErr != nil {
+			return nil, stacktrace.Propagate(elClientLaunchErr, "An error occurred launching EL client for participant %v", idx)
+		}
+
+		// Launch CL client
+		var newClClientCtx *cl.CLClientContext
+		var clClientLaunchErr error
+		if idx == bootParticipantIndex {
+			newClClientCtx, clClientLaunchErr = clLauncher.Launch(
+				enclaveCtx,
+				clClientServiceId,
+				logLevel,
+				clClientContextForBootClClients,
+				newElClientCtx,
+				newClNodeValidatorKeystores,
+			)
+		} else {
+			bootParticipant := participants[bootParticipantIndex]
+			bootClClientCtx := bootParticipant.GetCLClientContext()
+			newClClientCtx, clClientLaunchErr = clLauncher.Launch(
+				enclaveCtx,
+				clClientServiceId,
+				logLevel,
+				bootClClientCtx,
+				newElClientCtx,
+				newClNodeValidatorKeystores,
+			)
+		}
+		if clClientLaunchErr != nil {
+			return nil, stacktrace.Propagate(clClientLaunchErr, "An error occurred launching CL client for participant %v", idx)
+		}
+
+		participant := NewParticipant(
+			elClientType,
+			clClientType,
+			newElClientCtx,
+			newClClientCtx,
+		)
+		participants = append(participants, participant)
+	}
+	return participants, nil
+}
+
+
+/*
 // Represents a network of virtual "participants", where each participant runs:
 //  1) an EL client
 //  2) a Beacon client
@@ -144,3 +245,5 @@ func (network *ParticipantNetwork) AddParticipant(
 
 	return participant, nil
 }
+
+ */

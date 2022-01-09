@@ -69,12 +69,14 @@ const (
 
 	// Geth + CL genesis generation
 	genesisGenerationConfigDirpath = staticFilesDirpath + "/genesis-generation-config"
-	gethGenesisGenerationConfigYmlTemplateFilepath = genesisGenerationConfigDirpath + "/el/genesis-config.yaml.tmpl"
-	clGenesisGenerationConfigYmlTemplateFilepath = genesisGenerationConfigDirpath + "/cl/config.yaml.tmpl"
-	clGenesisGenerationMnemonicsYmlTemplateFilepath = genesisGenerationConfigDirpath + "/cl/mnemonics.yaml.tmpl"
 
-	// Nethermind
-	nethermindGenesisJsonTemplateFilepath = staticFilesDirpath + "/nethermind-genesis.json.tmpl"
+	elGenesisGenerationConfigDirpath = genesisGenerationConfigDirpath + "/el"
+	gethGenesisGenerationConfigYmlTemplateFilepath = elGenesisGenerationConfigDirpath + "/geth-genesis-config.yaml.tmpl"
+	nethermindGenesisGenerationJsonTemplateFilepath = elGenesisGenerationConfigDirpath + "/nethermind-genesis.json.tmpl"
+
+	clGenesisGenerationConfigDirpath = genesisGenerationConfigDirpath + "/cl"
+	clGenesisGenerationConfigYmlTemplateFilepath = clGenesisGenerationConfigDirpath + "/config.yaml.tmpl"
+	clGenesisGenerationMnemonicsYmlTemplateFilepath = clGenesisGenerationConfigDirpath + "/mnemonics.yaml.tmpl"
 
 	// Forkmon config
 	forkmonConfigTemplateFilepath = staticFilesDirpath + "/forkmon-config/config.toml.tmpl"
@@ -169,13 +171,14 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the CL mnemonics YAML template")
 	}
-	nethermindGenesisJsonTemplate, err := parseTemplate(nethermindGenesisJsonTemplateFilepath)
+	nethermindGenesisJsonTemplate, err := parseTemplate(nethermindGenesisGenerationJsonTemplateFilepath)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis json template")
 	}
 	prelaunchData, err := prelaunch_data_generator.GeneratePrelaunchData(
 		enclaveCtx,
 		gethGenesisConfigTemplate,
+		nethermindGenesisJsonTemplate,
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
 		preregisteredValidatorKeysMnemonic,
@@ -202,7 +205,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 			genesis_consts.PrefundedAccounts,
 		),
 		participant_network.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
-			nethermindGenesisJsonTemplate,
+			prelaunchData.NethermindGenesisJsonFilepathOnModuleContainer,
 			totalTerminalDifficulty,
 		),
 	}
@@ -218,55 +221,60 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		participant_network.ParticipantCLClientType_Lodestar: lodestar.NewLodestarCLClientLauncher(
 			clGenesisPaths.GetConfigYMLFilepath(),
 			clGenesisPaths.GetGenesisSSZFilepath(),
-	    ),
+		),
 		participant_network.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
 			clGenesisPaths.GetParentDirpath(),
-		 ),
+		),
 	}
 	logrus.Info("Successfully created EL & CL client launchers")
 
 	logrus.Infof("Adding %v participants logging at level '%v'...", numParticipants, paramsObj.ClientLogLevel)
-	keystoresGenerationResult := prelaunchData.KeystoresGenerationResult
-	network := participant_network.NewParticipantNetwork(
-		enclaveCtx,
-		networkId,
-		keystoresGenerationResult.PerNodeKeystoreDirpaths,
-		elClientLaunchers,
-		clClientLaunchers,
-	)
-
-	allElClientContexts := []*el.ELClientContext{}
-	allClClientContexts := []*cl.CLClientContext{}
-	for idx, participantParams := range paramsObj.Participants {
+	allParticipantSpecs := []*participant_network.ParticipantSpec{}
+	for _, participantParams := range paramsObj.Participants {
 		elClientTypeKeyword := participantParams.ELClientKeyword
 		clClientTypeKeyword := participantParams.CLClientKeyword
 
 		// Don't need to validate because we already did when deserializing
 		elClientType := elClientKeywords[elClientTypeKeyword]
 		clClientType := clClientKeywords[clClientTypeKeyword]
-		participant, err := network.AddParticipant(
-			elClientType,
-			clClientType,
-			paramsObj.ClientLogLevel,
-		)
-		if err != nil {
-			return "", stacktrace.Propagate(
-				err,
-				"An error occurred adding participant %v with EL type '%v' and CL type '%v'",
-				idx,
-				elClientTypeKeyword,
-				clClientTypeKeyword,
-			 )
+		
+		participantSpec := &participant_network.ParticipantSpec{
+			ELClientType: elClientType,
+			CLClientType: clClientType,
 		}
+		allParticipantSpecs = append(allParticipantSpecs, participantSpec)
+	}
+	participants, err := participant_network.LaunchParticipantNetwork(
+		enclaveCtx,
+		networkId,
+		elClientLaunchers,
+		clClientLaunchers,
+		allParticipantSpecs,
+		prelaunchData.KeystoresGenerationResult.PerNodeKeystoreDirpaths,
+		paramsObj.ClientLogLevel,
+	)
+	if err != nil {
+		return "", stacktrace.Propagate(
+			err,
+			"An error occurred launching a participant network of '%v' participants",
+			len(allParticipantSpecs),
+		 )
+	}
+	allElClientContexts := []*el.ELClientContext{}
+	allClClientContexts := []*cl.CLClientContext{}
+	for _, participant := range participants {
 		allElClientContexts = append(allElClientContexts, participant.GetELClientContext())
 		allClClientContexts = append(allClClientContexts, participant.GetCLClientContext())
 	}
 	logrus.Infof("Successfully added %v participants", numParticipants)
 
-
 	logrus.Info("Launching transaction spammer...")
-	// TODO Upgrade the transaction spammer so it can take in multiple EL client addresses
-	if err := transaction_spammer.LaunchTransanctionSpammer(enclaveCtx, genesis_consts.PrefundedAccounts, allElClientContexts[0]); err != nil {
+	if err := transaction_spammer.LaunchTransanctionSpammer(
+		enclaveCtx,
+		genesis_consts.PrefundedAccounts,
+		// TODO Upgrade the transaction spammer so it can take in multiple EL client addresses
+		allElClientContexts[0],
+	); err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the transaction spammer")
 	}
 	logrus.Info("Successfully launched transaction spammer")
