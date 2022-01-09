@@ -5,6 +5,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	cl_client_rest_client2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -60,6 +61,12 @@ var usedPorts = map[string]*services.PortSpec{
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 	metricsPortID:         services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
 }
+var nimbusLogLevels = map[log_levels.ParticipantLogLevel]string{
+	log_levels.ParticipantLogLevel_Error: "ERROR",
+	log_levels.ParticipantLogLevel_Warn:  "WARN",
+	log_levels.ParticipantLogLevel_Info:  "INFO",
+	log_levels.ParticipantLogLevel_Debug: "DEBUG",
+}
 
 type NimbusLauncher struct {
 	// The dirpath on the module container where the config data directory exists
@@ -70,10 +77,18 @@ func NewNimbusLauncher(configDataDirpathOnModuleContainer string) *NimbusLaunche
 	return &NimbusLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer}
 }
 
-func (launcher NimbusLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, bootnodeContext *cl.CLClientContext, elClientContext *el.ELClientContext, nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths) (resultClientCtx *cl.CLClientContext, resultErr error) {
+func (launcher NimbusLauncher) Launch(
+	enclaveCtx *enclaves.EnclaveContext,
+	serviceId services.ServiceID,
+	logLevel log_levels.ParticipantLogLevel,
+	bootnodeContext *cl.CLClientContext,
+	elClientContext *el.ELClientContext,
+	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
+) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		bootnodeContext,
 		elClientContext,
+		logLevel,
 		nodeKeystoreDirpaths.NimbusKeysDirpath,
 		nodeKeystoreDirpaths.RawSecretsDirpath,
 	)
@@ -116,10 +131,16 @@ func (launcher NimbusLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, servi
 func (launcher *NimbusLauncher) getContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
+	logLevel log_levels.ParticipantLogLevel,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+		nimbusLogLevel, found := nimbusLogLevels[logLevel]
+		if !found {
+			return nil, stacktrace.NewError("No Nimbus log level defined for client log level '%v'; this is a bug in the module", logLevel)
+		}
+
 		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(configDataDirpathRelToSharedDirRoot)
 
 		destConfigDataDirpathOnModule := configDataDirpathOnServiceSharedPath.GetAbsPathOnThisContainer()
@@ -173,6 +194,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"&&",
 			defaultImageEntrypoint,
 			"--non-interactive=true",
+			"--log-level=" + nimbusLogLevel,
 			"--network=" + configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer(),
 			"--data-dir=" + consensusDataDirpathInServiceContainer,
 			"--web3-url=" + elClientWsUrlStr,
@@ -186,7 +208,6 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--metrics",
 			"--metrics-address=0.0.0.0",
 			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
-			"--log-level=info", // TODO make configurable
 			// There's a bug where if we don't set this flag, the Nimbus nodes won't work:
 			// https://discord.com/channels/641364059387854899/674288681737256970/922890280120750170
 			// https://github.com/status-im/nimbus-eth2/issues/2451

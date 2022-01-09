@@ -38,7 +38,10 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
     ],
 
     // If set to true, waits until finalized_epoch > 0 and finalized_epoch = current_epoch - 3
-    "waitForFinalization": false        
+    "waitForFinalization": false,
+
+    // Allowed values are "error", "warn", "info", "debug"
+    "logLevel": "info"
 }
 ```
 

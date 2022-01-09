@@ -1,4 +1,6 @@
 # TBD
+### Features
+* Made EL & CL client log levels configurable as a module param, `logLevel`
 
 # 0.2.3
 ### Features

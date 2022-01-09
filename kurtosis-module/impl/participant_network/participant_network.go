@@ -3,6 +3,7 @@ import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -60,6 +61,7 @@ func NewParticipantNetwork(
 func (network *ParticipantNetwork) AddParticipant(
 	elClientType ParticipantELClientType,
 	clClientType ParticipantCLClientType,
+	logLevel log_levels.ParticipantLogLevel,
 ) (*Participant, error) {
 	network.mutex.Lock()
 	defer network.mutex.Unlock()
@@ -85,6 +87,7 @@ func (network *ParticipantNetwork) AddParticipant(
 		newElClientCtx, elClientLaunchErr = elLauncher.Launch(
 			network.enclaveCtx,
 			elClientServiceId,
+			logLevel,
 			network.networkId,
 			elClientContextForBootElClients,
 		)
@@ -94,6 +97,7 @@ func (network *ParticipantNetwork) AddParticipant(
 		newElClientCtx, elClientLaunchErr = elLauncher.Launch(
 			network.enclaveCtx,
 			elClientServiceId,
+			logLevel,
 			network.networkId,
 			bootElClientCtx,
 		)
@@ -109,6 +113,7 @@ func (network *ParticipantNetwork) AddParticipant(
 		newClClientCtx, clClientLaunchErr = clLauncher.Launch(
 			network.enclaveCtx,
 			clClientServiceId,
+			logLevel,
 			clClientContextForBootClClients,
 			newElClientCtx,
 			newClNodeValidatorKeystores,
@@ -119,6 +124,7 @@ func (network *ParticipantNetwork) AddParticipant(
 		newClClientCtx, clClientLaunchErr = clLauncher.Launch(
 			network.enclaveCtx,
 			clClientServiceId,
+			logLevel,
 			bootClClientCtx,
 			newElClientCtx,
 			newClNodeValidatorKeystores,

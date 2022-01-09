@@ -13,6 +13,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/nethermind"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/transaction_spammer"
@@ -39,7 +40,8 @@ const (
 	lighthouseClientKeyword = "lighthouse"
 	prysmClientKeyword = "prysm"
 
-	defaultWaitForFinalization = false
+	defaultWaitForFinalization                                = false
+	defaultClientLogLevel      log_levels.ParticipantLogLevel = log_levels.ParticipantLogLevel_Info
 	// --------------------------------- End Params Constants ---------------------------------------
 
 	// ----------------------------------- Genesis Config Constants -----------------------------------------
@@ -128,6 +130,9 @@ type ExecuteParams struct {
 	Participants []*ParticipantParams	`json:"participants"`
 
 	WaitForFinalization bool	`json:"waitForFinalization"`
+
+	// The log level that the started clients should log at
+	ClientLogLevel log_levels.ParticipantLogLevel `json:"logLevel"`
 }
 
 type ExecuteResponse struct {
@@ -220,7 +225,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 	logrus.Info("Successfully created EL & CL client launchers")
 
-	logrus.Infof("Adding %v participants...", numParticipants)
+	logrus.Infof("Adding %v participants logging at level '%v'...", numParticipants, paramsObj.ClientLogLevel)
 	keystoresGenerationResult := prelaunchData.KeystoresGenerationResult
 	network := participant_network.NewParticipantNetwork(
 		enclaveCtx,
@@ -242,6 +247,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		participant, err := network.AddParticipant(
 			elClientType,
 			clClientType,
+			paramsObj.ClientLogLevel,
 		)
 		if err != nil {
 			return "", stacktrace.Propagate(
@@ -255,7 +261,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		allElClientContexts = append(allElClientContexts, participant.GetELClientContext())
 		allClClientContexts = append(allClClientContexts, participant.GetCLClientContext())
 	}
-	logrus.Infof("Successfully added %v partitipcants", numParticipants)
+	logrus.Infof("Successfully added %v participants", numParticipants)
 
 
 	logrus.Info("Launching transaction spammer...")
@@ -302,11 +308,15 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 
 func deserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 	paramsObj := &ExecuteParams{
-		Participants: defaultParticipants,
+		Participants:        defaultParticipants,
 		WaitForFinalization: defaultWaitForFinalization,
+		ClientLogLevel:      defaultClientLogLevel,
 	}
 	if err := json.Unmarshal([]byte(paramsStr), paramsObj); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred deserializing the serialized params")
+	}
+	if _, found := log_levels.ValidParticipantLogLevels[paramsObj.ClientLogLevel]; !found {
+		return nil, stacktrace.NewError("Unrecognized client log level '%v'", paramsObj.ClientLogLevel)
 	}
 	if len(paramsObj.Participants) == 0 {
 		return nil, stacktrace.NewError("At least one participant is required")

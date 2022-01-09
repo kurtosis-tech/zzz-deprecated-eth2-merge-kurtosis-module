@@ -6,6 +6,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/availability_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
@@ -61,6 +62,12 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 }
+var tekuLogLevels = map[log_levels.ParticipantLogLevel]string{
+	log_levels.ParticipantLogLevel_Error: "ERROR",
+	log_levels.ParticipantLogLevel_Warn:  "WARN",
+	log_levels.ParticipantLogLevel_Info:  "INFO",
+	log_levels.ParticipantLogLevel_Debug: "DEBUG",
+}
 
 type TekuCLClientLauncher struct {
 	genesisConfigYmlFilepathOnModuleContainer string
@@ -71,10 +78,18 @@ func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, g
 	return &TekuCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer}
 }
 
-func (launcher *TekuCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, bootnodeContext *cl.CLClientContext, elClientContext *el.ELClientContext, nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths) (resultClientCtx *cl.CLClientContext, resultErr error) {
+func (launcher *TekuCLClientLauncher) Launch(
+	enclaveCtx *enclaves.EnclaveContext,
+	serviceId services.ServiceID,
+	logLevel log_levels.ParticipantLogLevel,
+	bootnodeContext *cl.CLClientContext,
+	elClientContext *el.ELClientContext,
+	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
+) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	containerConfigSupplier := getContainerConfigSupplier(
 		bootnodeContext,
 		elClientContext,
+		logLevel,
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		launcher.genesisSszFilepathOnModuleContainer,
 		nodeKeystoreDirpaths.TekuKeysDirpath,
@@ -119,12 +134,18 @@ func (launcher *TekuCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext
 func getContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
+	logLevel log_levels.ParticipantLogLevel,
 	genesisConfigYmlFilepathOnModuleContainer string,
 	genesisSszFilepathOnModuleContainer string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+		tekuLogLevel, found := tekuLogLevels[logLevel]
+		if !found {
+			return nil, stacktrace.NewError("No Teku log level defined for client log level '%v'; this is a bug in this module", logLevel)
+		}
+
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
 		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
 			return nil, stacktrace.Propagate(
@@ -178,6 +199,8 @@ func getContainerConfigSupplier(
 			destValidatorSecretsDirpathInServiceContainer,
 			"&&",
 			tekuBinaryFilepathInImage,
+			"--logging=" + tekuLogLevel,
+			"--log-destination=CONSOLE",
 			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--initial-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
 			"--data-path=" + consensusDataDirpathOnServiceContainer,
@@ -192,7 +215,6 @@ func getContainerConfigSupplier(
 			fmt.Sprintf("--rest-api-port=%v", httpPortNum),
 			"--rest-api-host-allowlist=*",
 			"--data-storage-non-canonical-blocks-enabled=true",
-			"--log-destination=CONSOLE",
 			fmt.Sprintf(
 				"--validator-keys=%v:%v",
 				destValidatorKeysDirpathInServiceContainer,
