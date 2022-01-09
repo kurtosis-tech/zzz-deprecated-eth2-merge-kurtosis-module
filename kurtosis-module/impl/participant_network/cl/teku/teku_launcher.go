@@ -72,26 +72,26 @@ var tekuLogLevels = map[log_levels.ParticipantLogLevel]string{
 type TekuCLClientLauncher struct {
 	genesisConfigYmlFilepathOnModuleContainer string
 	genesisSszFilepathOnModuleContainer string
+	expectedNumBeaconNodes uint32
 }
 
-func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string) *TekuCLClientLauncher {
-	return &TekuCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer}
+func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, expectedNumBeaconNodes uint32) *TekuCLClientLauncher {
+	return &TekuCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
 }
 
 func (launcher *TekuCLClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
+	// TODO move to launcher param
 	logLevel log_levels.ParticipantLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
-	containerConfigSupplier := getContainerConfigSupplier(
+	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		bootnodeContext,
 		elClientContext,
 		logLevel,
-		launcher.genesisConfigYmlFilepathOnModuleContainer,
-		launcher.genesisSszFilepathOnModuleContainer,
 		nodeKeystoreDirpaths.TekuKeysDirpath,
 		nodeKeystoreDirpaths.TekuSecretsDirpath,
 	)
@@ -131,12 +131,10 @@ func (launcher *TekuCLClientLauncher) Launch(
 // ====================================================================================================
 //                                   Private Helper Methods
 // ====================================================================================================
-func getContainerConfigSupplier(
+func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel log_levels.ParticipantLogLevel,
-	genesisConfigYmlFilepathOnModuleContainer string,
-	genesisSszFilepathOnModuleContainer string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
@@ -147,21 +145,21 @@ func getContainerConfigSupplier(
 		}
 
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
 			return nil, stacktrace.Propagate(
 				err,
 				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				genesisConfigYmlFilepathOnModuleContainer,
+				launcher.genesisConfigYmlFilepathOnModuleContainer,
 				genesisConfigYmlRelFilepathInSharedDir,
 			)
 		}
 
 		genesisSszSharedPath := sharedDir.GetChildPath(genesisSszRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
 			return nil, stacktrace.Propagate(
 				err,
 				"An error occurred copying the genesis SSZ from '%v' to shared dir relative path '%v'",
-				genesisSszFilepathOnModuleContainer,
+				launcher.genesisSszFilepathOnModuleContainer,
 				genesisSszRelFilepathInSharedDir,
 			)
 		}
@@ -206,6 +204,8 @@ func getContainerConfigSupplier(
 			"--data-path=" + consensusDataDirpathOnServiceContainer,
 			"--data-storage-mode=PRUNE",
 			"--p2p-enabled=true",
+			fmt.Sprintf("--p2p-peer-lower-bound=%v", launcher.expectedNumBeaconNodes - 1),
+			fmt.Sprintf("--p2p-peer-upper-bound=%v", launcher.expectedNumBeaconNodes - 1),
 			"--eth1-endpoints=" + elClientRpcUrlStr,
 			"--Xee-endpoint=" + elClientRpcUrlStr,
 			"--p2p-advertised-ip=" + privateIpAddr,

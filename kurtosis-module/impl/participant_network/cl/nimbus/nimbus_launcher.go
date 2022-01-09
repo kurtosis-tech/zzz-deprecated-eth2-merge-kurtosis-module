@@ -71,10 +71,12 @@ var nimbusLogLevels = map[log_levels.ParticipantLogLevel]string{
 type NimbusLauncher struct {
 	// The dirpath on the module container where the config data directory exists
 	configDataDirpathOnModuleContainer string
+
+	expectedNumBeaconNodes uint32
 }
 
-func NewNimbusLauncher(configDataDirpathOnModuleContainer string) *NimbusLauncher {
-	return &NimbusLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer}
+func NewNimbusLauncher(configDataDirpathOnModuleContainer string, expectedNumBeaconNodes uint32) *NimbusLauncher {
+	return &NimbusLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
 }
 
 func (launcher NimbusLauncher) Launch(
@@ -200,6 +202,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--web3-url=" + elClientWsUrlStr,
 			"--nat=extip:" + privateIpAddr,
 			"--enr-auto-update=false",
+			fmt.Sprintf("--max-peers=%v", launcher.expectedNumBeaconNodes - 1),
 			"--rest",
 			"--rest-address=0.0.0.0",
 			fmt.Sprintf("--rest-port=%v", httpPortNum),

@@ -154,7 +154,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred deserializing & validating the params")
 	}
-	numParticipants := len(paramsObj.Participants)
+	numParticipants := uint32(len(paramsObj.Participants))
 	logrus.Info("Successfully deserialized execute params")
 
 	logrus.Info("Generating prelaunch data...")
@@ -183,7 +183,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		clGenesisMnemonicsYmlTemplate,
 		preregisteredValidatorKeysMnemonic,
 		numValidatorsToPreregister,
-		uint32(numParticipants),
+		numParticipants,
 		genesisUnixTimestamp,
 		genesisDelay,
 		networkId,
@@ -214,16 +214,20 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		participant_network.ParticipantCLClientType_Teku: teku.NewTekuCLClientLauncher(
 			clGenesisPaths.GetConfigYMLFilepath(),
 			clGenesisPaths.GetGenesisSSZFilepath(),
+			numParticipants,
 		),
 		participant_network.ParticipantCLClientType_Nimbus: nimbus.NewNimbusLauncher(
 			clGenesisPaths.GetParentDirpath(),
+			numParticipants,
 		),
-		participant_network.ParticipantCLClientType_Lodestar: lodestar.NewLodestarCLClientLauncher(
+		participant_network.ParticipantCLClientType_Lodestar: lodestar.NewLodestarClientLauncher(
 			clGenesisPaths.GetConfigYMLFilepath(),
 			clGenesisPaths.GetGenesisSSZFilepath(),
+			numParticipants,
 		),
 		participant_network.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
 			clGenesisPaths.GetParentDirpath(),
+			numParticipants,
 		),
 	}
 	logrus.Info("Successfully created EL & CL client launchers")

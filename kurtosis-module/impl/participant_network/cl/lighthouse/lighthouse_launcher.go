@@ -64,10 +64,11 @@ var lighthouseLogLevels = map[log_levels.ParticipantLogLevel]string{
 type LighthouseCLClientLauncher struct {
 	// The dirpath on the module container where the CL genesis config data directory exists
 	configDataDirpathOnModuleContainer string
+	expectedNumBeaconNodes uint32
 }
 
-func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string) *LighthouseCLClientLauncher {
-	return &LighthouseCLClientLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer}
+func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string, expectedNumBeaconNodes uint32) *LighthouseCLClientLauncher {
+	return &LighthouseCLClientLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
 }
 
 func (launcher *LighthouseCLClientLauncher) Launch(
@@ -195,6 +196,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--disable-packet-filter",
 			"--execution-endpoints=" + elClientRpcUrlStr,
 			"--eth1-endpoints=" + elClientRpcUrlStr,
+			fmt.Sprintf("--target-peers=%v", launcher.expectedNumBeaconNodes - 1),
 		}
 		if bootClClientCtx != nil {
 			cmdArgs = append(cmdArgs, "--boot-nodes=" + bootClClientCtx.GetENR())

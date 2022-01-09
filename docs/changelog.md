@@ -5,6 +5,9 @@
 ### Changes
 * Set the Eth1 block time to 1 second in the CL config
 
+### Fixes
+* Set the target-peers flag on each Beacon node to be numParticipants - 1
+
 # 0.2.3
 ### Features
 * Added the ability to specify arbitrary numbers of participants with EL/CL combos, and default to one Geth+Nimbus participant
