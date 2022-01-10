@@ -18,7 +18,6 @@ func WaitForBeaconClientAvailability(restClient *cl_client_rest_client.CLClientR
 			if status == waitForAvailabilityExpectedStatus {
 				return nil
 			}
-			return nil
 		}
 		logrus.Debugf(
 			"CL client returned an error on GetHealth check; sleeping for %v: %v",
