@@ -9,6 +9,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/lighthouse"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/lodestar"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/nimbus"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/prysm"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/teku"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
@@ -73,6 +74,9 @@ const (
 
 	// Nethermind
 	nethermindGenesisJsonTemplateFilepath = staticFilesDirpath + "/nethermind-genesis.json.tmpl"
+
+	// Prysm
+	prysmPasswordTxtTemplateFilepath = staticFilesDirpath + "/prysm-password.txt.tmpl"
 
 	// Forkmon config
 	forkmonConfigTemplateFilepath = staticFilesDirpath + "/forkmon-config/config.toml.tmpl"
@@ -168,6 +172,10 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis json template")
 	}
+	prysmPassowordTxtTemplate, err := parseTemplate(prysmPasswordTxtTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing the Prysm password txt template")
+	}
 	prelaunchData, err := prelaunch_data_generator.GeneratePrelaunchData(
 		enclaveCtx,
 		gethGenesisConfigTemplate,
@@ -217,6 +225,12 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		participant_network.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
 			clGenesisPaths.GetParentDirpath(),
 		 ),
+		participant_network.ParticipantCLClientType_Prysm: prysm.NewPrysmCLCLientLauncher(
+			clGenesisPaths.GetConfigYMLFilepath(),
+			clGenesisPaths.GetGenesisSSZFilepath(),
+			prelaunchData.KeystoresGenerationResult.PrysmPassword,
+			prysmPassowordTxtTemplate,
+		),
 	}
 	logrus.Info("Successfully created EL & CL client launchers")
 
