@@ -107,34 +107,6 @@ func generateGenesisData(
 		}
 	}
 
-	networkIdAsHex, err := getNetworkIdHexSting(networkId)
-	if err != nil {
-		return "", "", nil, stacktrace.Propagate(
-			err,
-			"An error occurred rendering network ID '%v' as a hex string",
-			networkId,
-		 )
-	}
-	nethermindGenesisJsonTemplateDataToUse := nethermindGenesisJsonTemplateData{
-		NetworkIDAsHex: networkIdAsHex,
-	}
-	nethermindGenesisJsonSharedPath := sharedDir.GetChildPath(outputNethermindGenesisJsonRelFilepath)
-	nethermindGenesisJsonFilepathOnModuleContainer := nethermindGenesisJsonSharedPath.GetAbsPathOnThisContainer()
-	nethermindGenesisJsonFp, err := os.Open(nethermindGenesisJsonFilepathOnModuleContainer)
-	if err != nil {
-		return "", "", nil, stacktrace.Propagate(
-			err,
-			"An error occurred opening Nethermind genesis JSON file '%v' for writing",
-			nethermindGenesisJsonFilepathOnModuleContainer,
-		 )
-	}
-	if err := nethermindGenesisConfigJsonTemplate.Execute(nethermindGenesisJsonFp, nethermindGenesisJsonTemplateDataToUse); err != nil {
-		return "", "", nil, stacktrace.Propagate(
-			err,
-			"An error occurred filling the Nethermind genesis JSON template to file '%v'",
-			nethermindGenesisJsonFilepathOnModuleContainer,
-		)
-	}
 
 	elTemplateData := gethGenesisConfigYamlTemplateData{
 		NetworkId:                   networkId,
@@ -205,6 +177,35 @@ func generateGenesisData(
 		sharedDir.GetChildPath(outputClGenesisConfigYmlRelFilepath).GetAbsPathOnThisContainer(),
 		sharedDir.GetChildPath(outputClGenesisSszRelFilepath).GetAbsPathOnThisContainer(),
 	)
+
+	networkIdAsHex, err := getNetworkIdHexSting(networkId)
+	if err != nil {
+		return "", "", nil, stacktrace.Propagate(
+			err,
+			"An error occurred rendering network ID '%v' as a hex string",
+			networkId,
+		)
+	}
+	nethermindGenesisJsonTemplateDataToUse := nethermindGenesisJsonTemplateData{
+		NetworkIDAsHex: networkIdAsHex,
+	}
+	nethermindGenesisJsonSharedPath := sharedDir.GetChildPath(outputNethermindGenesisJsonRelFilepath)
+	nethermindGenesisJsonFilepathOnModuleContainer := nethermindGenesisJsonSharedPath.GetAbsPathOnThisContainer()
+	nethermindGenesisJsonFp, err := os.Create(nethermindGenesisJsonFilepathOnModuleContainer)
+	if err != nil {
+		return "", "", nil, stacktrace.Propagate(
+			err,
+			"An error occurred opening Nethermind genesis JSON file '%v' for writing",
+			nethermindGenesisJsonFilepathOnModuleContainer,
+		)
+	}
+	if err := nethermindGenesisConfigJsonTemplate.Execute(nethermindGenesisJsonFp, nethermindGenesisJsonTemplateDataToUse); err != nil {
+		return "", "", nil, stacktrace.Propagate(
+			err,
+			"An error occurred filling the Nethermind genesis JSON template to file '%v'",
+			nethermindGenesisJsonFilepathOnModuleContainer,
+		)
+	}
 
 	return gethGenesisJsonFilepathOnModuleContainer, nethermindGenesisJsonFilepathOnModuleContainer, clGenesisPaths, nil
 }

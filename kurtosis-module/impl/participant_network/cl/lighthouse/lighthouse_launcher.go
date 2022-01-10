@@ -182,10 +182,6 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			fmt.Sprintf("--enr-udp-port=%v", beaaconDiscoveryPortNum),
 			fmt.Sprintf("--enr-tcp-port=%v", beaaconDiscoveryPortNum),
 			// ^^^^^^^^^^^^^^^^^^^ REMOVE THESE WHEN CONNECTING TO EXTERNAL NET ^^^^^^^^^^^^^^^^^^^^^
-			// NOTE: This comes from:
-			//   https://github.com/sigp/lighthouse/blob/7c88f582d955537f7ffff9b2c879dcf5bf80ce13/scripts/local_testnet/beacon_node.sh
-			// and the option says it's "useful for testing in smaller networks" (unclear what happens in larger networks)
-			"--disable-packet-filter",
 			"--listen-address=0.0.0.0",
 			fmt.Sprintf("--port=%v", beaaconDiscoveryPortNum), // NOTE: Remove for connecting to external net!
 			"--http",
@@ -193,6 +189,9 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			fmt.Sprintf("--http-port=%v", beaconHttpPortNum),
 			"--merge",
 			"--http-allow-sync-stalled",
+			// NOTE: This comes from:
+			//   https://github.com/sigp/lighthouse/blob/7c88f582d955537f7ffff9b2c879dcf5bf80ce13/scripts/local_testnet/beacon_node.sh
+			// and the option says it's "useful for testing in smaller networks" (unclear what happens in larger networks)
 			"--disable-packet-filter",
 			"--execution-endpoints=" + elClientRpcUrlStr,
 			"--eth1-endpoints=" + elClientRpcUrlStr,
