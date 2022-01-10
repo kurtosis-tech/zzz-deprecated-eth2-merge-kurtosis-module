@@ -204,6 +204,8 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			"--data-path=" + consensusDataDirpathOnServiceContainer,
 			"--data-storage-mode=PRUNE",
 			"--p2p-enabled=true",
+			// Set per Pari's recommendation, to reduce noise in the logs
+			"--p2p-subscribe-all-subnets-enabled=true",
 			fmt.Sprintf("--p2p-peer-lower-bound=%v", launcher.expectedNumBeaconNodes - 1),
 			fmt.Sprintf("--p2p-peer-upper-bound=%v", launcher.expectedNumBeaconNodes - 1),
 			"--eth1-endpoints=" + elClientRpcUrlStr,

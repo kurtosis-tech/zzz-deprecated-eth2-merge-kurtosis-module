@@ -196,6 +196,8 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--execution-endpoints=" + elClientRpcUrlStr,
 			"--eth1-endpoints=" + elClientRpcUrlStr,
 			fmt.Sprintf("--target-peers=%v", launcher.expectedNumBeaconNodes - 1),
+			// Set per Paris' recommendation to reduce noise in the logs
+			"--subscribe-all-subnets",
 		}
 		if bootClClientCtx != nil {
 			cmdArgs = append(cmdArgs, "--boot-nodes=" + bootClClientCtx.GetENR())

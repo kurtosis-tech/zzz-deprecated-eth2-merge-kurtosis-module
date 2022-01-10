@@ -197,6 +197,8 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			"--enr.ip=" + privateIpAddr,
 			fmt.Sprintf("--enr.tcp=%v", discoveryPortNum),
 			fmt.Sprintf("--enr.udp=%v", discoveryPortNum),
+			// Set per Pari's recommendation to reduce noise in the logs
+			"--network.subscribeAllSubnets=true",
 		}
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--network.discv5.bootEnrs=" + bootnodeContext.GetENR())

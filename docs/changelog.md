@@ -7,6 +7,7 @@
 
 ### Fixes
 * Set the target-peers flag on each Beacon node to be numParticipants - 1
+* Set the `--subscribe-all-subnets` flag equivalents on all Beacon nodes
 
 # 0.2.3
 ### Features

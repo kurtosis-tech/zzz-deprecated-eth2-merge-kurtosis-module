@@ -215,6 +215,8 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			// https://discord.com/channels/641364059387854899/674288681737256970/922890280120750170
 			// https://github.com/status-im/nimbus-eth2/issues/2451
 			"--doppelganger-detection=false",
+			// Set per Pari's recommendation to reduce noise in the logs
+			"--subscribe-all-subnets=true",
 		}
 		if bootnodeContext == nil {
 			// Copied from https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
