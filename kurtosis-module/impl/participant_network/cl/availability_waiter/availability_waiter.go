@@ -7,12 +7,17 @@ import (
 	"time"
 )
 
+//READY state means that the Beacon node is synced
+//the eth beacon endpoint /eth/v1/node/health has returned 200 status code, see more here: https://ethereum.github.io/beacon-APIs/#/Node/getHealth
+const waitForAvailabilityExpectedStatus = "READY"
+
 func WaitForBeaconClientAvailability(restClient *cl_client_rest_client.CLClientRESTClient, numRetries uint32, timeBetweenRetries time.Duration) error {
 	for i := uint32(0); i < numRetries; i++ {
-		_, err := restClient.GetHealth()
+		status, err := restClient.GetHealth()
 		if err == nil {
-			// TODO check the healthstatus???
-			return nil
+			if status == waitForAvailabilityExpectedStatus {
+				return nil
+			}
 		}
 		logrus.Debugf(
 			"CL client returned an error on GetHealth check; sleeping for %v: %v",

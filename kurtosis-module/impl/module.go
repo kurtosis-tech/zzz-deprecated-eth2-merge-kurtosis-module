@@ -9,6 +9,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/lighthouse"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/lodestar"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/nimbus"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/prysm"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/teku"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
@@ -77,6 +78,9 @@ const (
 	clGenesisGenerationConfigDirpath = genesisGenerationConfigDirpath + "/cl"
 	clGenesisGenerationConfigYmlTemplateFilepath = clGenesisGenerationConfigDirpath + "/config.yaml.tmpl"
 	clGenesisGenerationMnemonicsYmlTemplateFilepath = clGenesisGenerationConfigDirpath + "/mnemonics.yaml.tmpl"
+
+	// Prysm
+	prysmPasswordTxtTemplateFilepath = staticFilesDirpath + "/prysm-password.txt.tmpl"
 
 	// Forkmon config
 	forkmonConfigTemplateFilepath = staticFilesDirpath + "/forkmon-config/config.toml.tmpl"
@@ -175,6 +179,10 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis json template")
 	}
+	prysmPasswordTxtTemplate, err := parseTemplate(prysmPasswordTxtTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing the Prysm password txt template")
+	}
 	prelaunchData, err := prelaunch_data_generator.GeneratePrelaunchData(
 		enclaveCtx,
 		gethGenesisConfigTemplate,
@@ -227,6 +235,13 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		),
 		participant_network.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
 			clGenesisPaths.GetParentDirpath(),
+			numParticipants,
+		 ),
+		participant_network.ParticipantCLClientType_Prysm: prysm.NewPrysmCLCLientLauncher(
+			clGenesisPaths.GetConfigYMLFilepath(),
+			clGenesisPaths.GetGenesisSSZFilepath(),
+			prelaunchData.KeystoresGenerationResult.PrysmPassword,
+			prysmPasswordTxtTemplate,
 			numParticipants,
 		),
 	}
