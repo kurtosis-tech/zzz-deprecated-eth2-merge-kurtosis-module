@@ -8,6 +8,8 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	"github.com/sirupsen/logrus"
+	"time"
 )
 
 const (
@@ -15,7 +17,12 @@ const (
 	elClientServiceIdPrefix = "el-client-"
 
 	bootParticipantIndex = 0
+
+	// The more nodes, the longer DAG generation takes so the longer we have to wait for a node to become available
+	elClientMineWaiterMaxNumRetriesPerNode = uint32(70)
+	elClientMineWaiterTimeBetweenRetries = 3 * time.Second
 )
+
 // To get clients to start as bootnodes, we pass in these values when starting them
 var elClientContextForBootElClients *el.ELClientContext = nil
 var clClientContextForBootClClients *cl.CLClientContext = nil
@@ -37,23 +44,20 @@ func LaunchParticipantNetwork(
 	[]*Participant,
 	error,
 ) {
-	participants := []*Participant{}
+	numParticipants := len(allParticipantSpecs)
+
+	// Per Pari's recommendation, we want to start all EL clients first and wait until they're all mining blocks before
+	//  we start the CL clients. This matches the real world, where Eth1 definitely exists before Eth2
+	logrus.Infof("Adding %v EL clients...", numParticipants)
+	allElClientContexts := []*el.ELClientContext{}
 	for idx, participantSpec := range allParticipantSpecs {
 		elClientType := participantSpec.ELClientType
-		clClientType := participantSpec.CLClientType
-
 		elLauncher, found := elClientLaunchers[elClientType]
 		if !found {
 			return nil, stacktrace.NewError("No EL client launcher defined for EL client type '%v'", elClientType)
 		}
-		clLauncher, found := clClientLaunchers[clClientType]
-		if !found {
-			return nil, stacktrace.NewError("No CL client launcher defined for CL client type '%v'", clClientType)
-		}
 
 		elClientServiceId := services.ServiceID(fmt.Sprintf("%v%v", elClientServiceIdPrefix, idx))
-		clClientServiceId := services.ServiceID(fmt.Sprintf("%v%v", clClientServiceIdPrefix, idx))
-		newClNodeValidatorKeystores := preregisteredValidatorKeysForNodes[idx]
 
 		// Add EL client
 		var newElClientCtx *el.ELClientContext
@@ -67,8 +71,7 @@ func LaunchParticipantNetwork(
 				elClientContextForBootElClients,
 			)
 		} else {
-			bootParticipant := participants[bootParticipantIndex]
-			bootElClientCtx := bootParticipant.GetELClientContext()
+			bootElClientCtx := allElClientContexts[bootParticipantIndex]
 			newElClientCtx, elClientLaunchErr = elLauncher.Launch(
 				enclaveCtx,
 				elClientServiceId,
@@ -80,6 +83,47 @@ func LaunchParticipantNetwork(
 		if elClientLaunchErr != nil {
 			return nil, stacktrace.Propagate(elClientLaunchErr, "An error occurred launching EL client for participant %v", idx)
 		}
+		allElClientContexts = append(allElClientContexts, newElClientCtx)
+		logrus.Infof("Added EL client %v of type '%v'", idx, elClientType)
+	}
+	logrus.Infof("Successfully added %v EL clients", numParticipants)
+
+	// Wait for all EL clients to start mining before we proceed with adding the CL clients
+	logrus.Infof("Waiting for all EL clients to start mining before adding CL clients...")
+	perNodeNumRetries := uint32(numParticipants) * elClientMineWaiterMaxNumRetriesPerNode
+	for idx, elClientCtx := range allElClientContexts {
+		miningWaiter := elClientCtx.GetMiningWaiter()
+		if err := miningWaiter.WaitForMining(
+			perNodeNumRetries,
+			elClientMineWaiterTimeBetweenRetries,
+		 ); err != nil {
+			return nil, stacktrace.Propagate(
+				err,
+				"EL client %v didn't start mining even after %v retries with %v between retries",
+				idx,
+				perNodeNumRetries,
+				elClientMineWaiterTimeBetweenRetries,
+			 )
+		}
+		logrus.Infof("EL client %v has begun mining", idx)
+	}
+	logrus.Infof("All EL clients have started mining")
+
+	logrus.Infof("Adding %v CL clients...", numParticipants)
+	allClClientContexts := []*cl.CLClientContext{}
+	for idx, participantSpec := range allParticipantSpecs {
+		clClientType := participantSpec.CLClientType
+
+		clLauncher, found := clClientLaunchers[clClientType]
+		if !found {
+			return nil, stacktrace.NewError("No CL client launcher defined for CL client type '%v'", clClientType)
+		}
+
+		clClientServiceId := services.ServiceID(fmt.Sprintf("%v%v", clClientServiceIdPrefix, idx))
+		newClNodeValidatorKeystores := preregisteredValidatorKeysForNodes[idx]
+
+		// Each CL node will be paired with exactly one EL node
+		elClientCtx := allElClientContexts[idx]
 
 		// Launch CL client
 		var newClClientCtx *cl.CLClientContext
@@ -90,18 +134,17 @@ func LaunchParticipantNetwork(
 				clClientServiceId,
 				logLevel,
 				clClientContextForBootClClients,
-				newElClientCtx,
+				elClientCtx,
 				newClNodeValidatorKeystores,
 			)
 		} else {
-			bootParticipant := participants[bootParticipantIndex]
-			bootClClientCtx := bootParticipant.GetCLClientContext()
+			bootClClientCtx := allClClientContexts[bootParticipantIndex]
 			newClClientCtx, clClientLaunchErr = clLauncher.Launch(
 				enclaveCtx,
 				clClientServiceId,
 				logLevel,
 				bootClClientCtx,
-				newElClientCtx,
+				elClientCtx,
 				newClNodeValidatorKeystores,
 			)
 		}
@@ -109,15 +152,29 @@ func LaunchParticipantNetwork(
 			return nil, stacktrace.Propagate(clClientLaunchErr, "An error occurred launching CL client for participant %v", idx)
 		}
 
+		allClClientContexts = append(allClClientContexts, newClClientCtx)
+		logrus.Infof("Added CL client %v of type '%v'", idx, clClientType)
+	}
+	logrus.Infof("Successfully added %v CL clients", numParticipants)
+
+	allParticipants := []*Participant{}
+	for idx, participantSpec := range allParticipantSpecs {
+		elClientType := participantSpec.ELClientType
+		clClientType := participantSpec.CLClientType
+
+		elClientCtx := allElClientContexts[idx]
+		clClientCtx := allClClientContexts[idx]
+
 		participant := NewParticipant(
 			elClientType,
 			clClientType,
-			newElClientCtx,
-			newClClientCtx,
-		)
-		participants = append(participants, participant)
+			elClientCtx,
+			clClientCtx,
+		 )
+		allParticipants = append(allParticipants, participant)
 	}
-	return participants, nil
+
+	return allParticipants, nil
 }
 
 

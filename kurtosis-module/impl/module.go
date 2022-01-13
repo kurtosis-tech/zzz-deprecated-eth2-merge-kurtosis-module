@@ -107,29 +107,16 @@ var mergeDevnet3BootnodeEnodes = []string{
 	"enode://46b2ecd18c24463413b7328e9a59c72d955874ad5ddb9cd9659d322bedd2758a6cefb8378e2309a028bd3cdf2beca0b18c3457f03e772f35d0cd06c37ce75eee@137.184.213.208:30303",
 }
  */
-// Defines the strings users can use to define the types of EL clients the participant network will contain
-var elClientKeywords = map[string]participant_network.ParticipantELClientType{
-	gethClientKeyword: participant_network.ParticipantELClientType_Geth,
-	nethermindClientKeyword: participant_network.ParticipantELClientType_Nethermind,
-}
-// Defines the strings users can use to define the types of CL clients the participant network will contain
-var clClientKeywords = map[string]participant_network.ParticipantCLClientType{
-	nimbusClientKeyword: participant_network.ParticipantCLClientType_Nimbus,
-	lighthouseClientKeyword: participant_network.ParticipantCLClientType_Lighthouse,
-	lodestarClientKeyword: participant_network.ParticipantCLClientType_Lodestar,
-	prysmClientKeyword: participant_network.ParticipantCLClientType_Prysm,
-	tekuClientKeyword: participant_network.ParticipantCLClientType_Teku,
-}
 var defaultParticipants = []*ParticipantParams{
 	{
-		ELClientKeyword: gethClientKeyword,
-		CLClientKeyword: nimbusClientKeyword,
+		ELClientType: gethClientKeyword,
+		CLClientType: nimbusClientKeyword,
 	},
 }
 
 type ParticipantParams struct {
-	ELClientKeyword string `json:"el"`
-	CLClientKeyword string `json:"cl"`
+	ELClientType participant_network.ParticipantELClientType `json:"el"`
+	CLClientType participant_network.ParticipantCLClientType `json:"cl"`
 }
 type ExecuteParams struct {
 	// Participants
@@ -250,13 +237,10 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Infof("Adding %v participants logging at level '%v'...", numParticipants, paramsObj.ClientLogLevel)
 	allParticipantSpecs := []*participant_network.ParticipantSpec{}
 	for _, participantParams := range paramsObj.Participants {
-		elClientTypeKeyword := participantParams.ELClientKeyword
-		clClientTypeKeyword := participantParams.CLClientKeyword
-
 		// Don't need to validate because we already did when deserializing
-		elClientType := elClientKeywords[elClientTypeKeyword]
-		clClientType := clClientKeywords[clClientTypeKeyword]
-		
+		elClientType := participantParams.ELClientType
+		clClientType := participantParams.CLClientType
+
 		participantSpec := &participant_network.ParticipantSpec{
 			ELClientType: elClientType,
 			CLClientType: clClientType,
@@ -349,18 +333,18 @@ func deserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 		return nil, stacktrace.NewError("At least one participant is required")
 	}
 	for idx, participant := range paramsObj.Participants {
-		if idx == 0 && participant.ELClientKeyword == nethermindClientKeyword {
+		if idx == 0 && participant.ELClientType == nethermindClientKeyword {
 			return nil, stacktrace.NewError("Cannot use a Nethermind client for the first participant because Nethermind clients don't mine on Eth1")
 		}
 
-		elClientKeyword := participant.ELClientKeyword
-		if _, found := elClientKeywords[elClientKeyword]; !found {
-			return nil, stacktrace.NewError("Participant %v declares unrecognized EL client type '%v'", idx, elClientKeyword)
+		elClientType := participant.ELClientType
+		if _, found := participant_network.ValidParticipantELClientTypes[elClientType]; !found {
+			return nil, stacktrace.NewError("Participant %v declares unrecognized EL client type '%v'", idx, elClientType)
 		}
 
-		clClientKeyword := participant.CLClientKeyword
-		if _, found := clClientKeywords[clClientKeyword]; !found {
-			return nil, stacktrace.NewError("Participant %v declares unrecognized CL client type '%v'", idx, clClientKeyword)
+		clClientType := participant.CLClientType
+		if _, found := participant_network.ValidParticipantCLClientTypes[clClientType]; !found {
+			return nil, stacktrace.NewError("Participant %v declares unrecognized CL client type '%v'", idx, clClientType)
 		}
 	}
 	return paramsObj, nil

@@ -86,6 +86,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
 	}
 
+	miningWaiter := &nethermindMiningWaiter{}
 	result := el.NewELClientContext(
 		// TODO TODO TODO TODO Get Nethermind ENR, so that CL clients can connect to it!!!
 		"", //Nethermind node info endpoint doesn't return ENR field https://docs.nethermind.io/nethermind/ethereum-client/json-rpc/admin
@@ -93,6 +94,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 		wsPortNum,
+		miningWaiter,
 	)
 
 	return result, nil

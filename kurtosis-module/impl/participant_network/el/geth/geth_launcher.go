@@ -110,12 +110,17 @@ func (launcher *GethELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
 	}
 
+	miningWaiter := newGethMiningWaiter(
+		serviceCtx.GetPrivateIPAddress(),
+		rpcPortNum,
+	)
 	result := el.NewELClientContext(
 		nodeInfo.ENR,
 		nodeInfo.Enode,
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 		wsPortNum,
+		miningWaiter,
 	)
 
 	return result, nil
