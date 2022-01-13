@@ -38,13 +38,13 @@ SHARDING_FORK_EPOCH: 18446744073709551615
 # 12 seconds
 SECONDS_PER_SLOT: {{ .SecondsPerSlot }}
 # Best guess at how frequently a block is mined with the Geth nodes running locally
-SECONDS_PER_ETH1_BLOCK: 1
+SECONDS_PER_ETH1_BLOCK: 10
 # 2**8 (= 256) epochs ~27 hours
 MIN_VALIDATOR_WITHDRAWABILITY_DELAY: 256
 # 2**8 (= 256) epochs ~27 hours
 SHARD_COMMITTEE_PERIOD: 256
 # 2**11 (= 2,048) Eth1 blocks ~8 hours
-ETH1_FOLLOW_DISTANCE: 12
+ETH1_FOLLOW_DISTANCE: 256
 
 
 # Validator cycle

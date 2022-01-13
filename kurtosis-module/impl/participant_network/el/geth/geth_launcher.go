@@ -201,7 +201,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--ws.api=engine,net,eth",
 			"--allow-insecure-unlock",
 			"--nat=extip:" + privateIpAddr,
-			"--verbosity=3",
+			"--verbosity=" + verbosityLevel,
 		}
 		if bootnodeContext != nil {
 			launchNodeCmdArgs = append(
