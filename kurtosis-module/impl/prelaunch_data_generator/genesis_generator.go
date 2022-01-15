@@ -82,7 +82,6 @@ func generateGenesisData(
 		}
 	}
 
-
 	elTemplateData := gethGenesisConfigYamlTemplateData{
 		NetworkId:                   networkId,
 		UnixTimestamp:               unixTimestamp,

@@ -11,7 +11,10 @@ import (
 )
 
 const (
-	generationConfigFilename = "config.yml"
+	chainspecAndGethGenesisGenerationConfigFilename = "config.yml"
+
+	chainspecJsonFilename = "chainspec.json"
+	gethGenesisJsonFilename = "geth.json"
 
 	successfulExecCmdExitCode = 0
 )
@@ -37,7 +40,7 @@ func generateChainspecAndGethGenesis(
 	resultGethGenesisFilepathOnModuleContainer string,
 	resultErr error,
 ){
-	generationConfigSharedFile := configSharedDir.GetChildPath(generationConfigFilename)
+	generationConfigSharedFile := configSharedDir.GetChildPath(chainspecAndGethGenesisGenerationConfigFilename)
 	templateData := &chainspecAndGethGenesisGenerationConfigTemplateData{
 		NetworkId:               networkId,
 		UnixTimestamp:           genesisUnixTimestamp,
