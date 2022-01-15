@@ -19,8 +19,9 @@ const (
 	bootParticipantIndex = 0
 
 	// The more nodes, the longer DAG generation takes so the longer we have to wait for a node to become available
-	elClientMineWaiterMaxNumRetriesPerNode = uint32(70)
-	elClientMineWaiterTimeBetweenRetries = 3 * time.Second
+	// TODO MAKE THIS CONFIGURABLE BASED ON ESTIMATED TIME-TO-DAG-GENERATION
+	elClientMineWaiterMaxNumRetriesPerNode = uint32(120)
+	elClientMineWaiterTimeBetweenRetries = 5 * time.Second
 )
 
 // To get clients to start as bootnodes, we pass in these values when starting them

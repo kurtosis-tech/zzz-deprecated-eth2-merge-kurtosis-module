@@ -33,14 +33,6 @@ const (
 	numValidatorsToPreregister = 100
 
 	// ----------------------------------- Params Constants -----------------------------------------
-	gethClientKeyword = "geth"
-	nethermindClientKeyword = "nethermind"
-	nimbusClientKeyword = "nimbus"
-	tekuClientKeyword = "teku"
-	lodestarClientKeyword = "lodestar"
-	lighthouseClientKeyword = "lighthouse"
-	prysmClientKeyword = "prysm"
-
 	defaultWaitForFinalization                                = false
 	defaultClientLogLevel      log_levels.ParticipantLogLevel = log_levels.ParticipantLogLevel_Info
 	// --------------------------------- End Params Constants ---------------------------------------
@@ -100,17 +92,11 @@ const (
 	// TODO FIGURE OUT WHY THIS HAPPENS AND GET RID OF IT
 	extraDelayBeforeSlotCountStartsIncreasing = 4 * time.Minute
 )
-/*
-var mergeDevnet3BootnodeEnodes = []string{
-	"enode://6b457d42e6301acfae11dc785b43346e195ad0974b394922b842adea5aeb4c55b02410607ba21e4a03ba53e7656091e2f990034ce3f8bad4d0cca1c6398bdbb8@137.184.55.117:30303",
-	"enode://588ef56694223ce3212d7c56e5b6f3e8ba46a9c29522fdc6fef15657f505a7314b9bd32f2d53c4564bc6b9259c3d5c79fc96257eff9cd489004c4d9cbb3c0707@137.184.203.157:30303",
-	"enode://46b2ecd18c24463413b7328e9a59c72d955874ad5ddb9cd9659d322bedd2758a6cefb8378e2309a028bd3cdf2beca0b18c3457f03e772f35d0cd06c37ce75eee@137.184.213.208:30303",
-}
- */
+
 var defaultParticipants = []*ParticipantParams{
 	{
-		ELClientType: gethClientKeyword,
-		CLClientType: nimbusClientKeyword,
+		ELClientType: participant_network.ParticipantELClientType_Geth,
+		CLClientType: participant_network.ParticipantCLClientType_Nimbus,
 	},
 }
 
@@ -332,7 +318,7 @@ func deserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 		return nil, stacktrace.NewError("At least one participant is required")
 	}
 	for idx, participant := range paramsObj.Participants {
-		if idx == 0 && participant.ELClientType == nethermindClientKeyword {
+		if idx == 0 && participant.ELClientType == participant_network.ParticipantELClientType_Nethermind {
 			return nil, stacktrace.NewError("Cannot use a Nethermind client for the first participant because Nethermind clients don't mine on Eth1")
 		}
 
