@@ -1,4 +1,4 @@
-package prelaunch_data_generator
+package cl
 
 import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"

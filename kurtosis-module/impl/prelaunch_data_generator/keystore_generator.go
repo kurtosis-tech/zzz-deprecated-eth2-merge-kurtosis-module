@@ -2,6 +2,7 @@ package prelaunch_data_generator
 
 import (
 	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"strings"
@@ -24,7 +25,7 @@ func generateKeystores(
 	numPreregisteredValidators uint32,	// The number of validators that were preregistered during the creation of the CL genesis
 	numNodes uint32,
 ) (
-	*GenerateKeystoresResult,
+	*cl.GenerateKeystoresResult,
 	error,
 ){
 	sharedDir := serviceCtx.GetSharedDirectory()
@@ -33,7 +34,7 @@ func generateKeystores(
 		return nil, stacktrace.Propagate(err, "An error occurred generating the validator key start & stop indices for the nodes")
 	}
 
-	allNodeKeystoreDirpaths := []*NodeTypeKeystoreDirpaths{}
+	allNodeKeystoreDirpaths := []*cl.NodeTypeKeystoreDirpaths{}
 	allSubcommandStrs := []string{}
 	for i := uint32(0); i < numNodes; i++ {
 		startIndex := startIndices[i]
@@ -53,7 +54,7 @@ func generateKeystores(
 		)
 		allSubcommandStrs = append(allSubcommandStrs, subcommandStr)
 
-		nodeKeystoreDirpaths := NewNodeTypeKeystoreDirpathsFromOutputSharedPath(nodeOutputSharedPath)
+		nodeKeystoreDirpaths := cl.NewNodeTypeKeystoreDirpathsFromOutputSharedPath(nodeOutputSharedPath)
 		allNodeKeystoreDirpaths = append(allNodeKeystoreDirpaths, nodeKeystoreDirpaths)
 	}
 
@@ -73,7 +74,7 @@ func generateKeystores(
 		)
 	}
 
-	result := NewGenerateKeystoresResult(
+	result := cl.NewGenerateKeystoresResult(
 		prysmPassword,
 		allNodeKeystoreDirpaths,
 	)

@@ -1,6 +1,7 @@
 package prelaunch_data_generator
 
 import (
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -18,7 +19,7 @@ type PrelaunchData struct {
 	GethELGenesisJsonFilepathOnModuleContainer string
 	NethermindGenesisJsonFilepathOnModuleContainer string
 	CLGenesisPaths *CLGenesisPaths
-	KeystoresGenerationResult *GenerateKeystoresResult
+	KeystoresGenerationResult *cl.GenerateKeystoresResult
 }
 
 func GeneratePrelaunchData(

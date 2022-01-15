@@ -59,17 +59,20 @@ type nethermindGenesisJsonTemplateData struct {
 	NetworkIDAsHex string
 	// TODO add genesis timestamp here???
 }
-type clGenesisConfigTemplateData struct {
-	NetworkId                          string
-	SecondsPerSlot                     uint32
-	UnixTimestamp                      int64
-	Delay 							   uint64
-	TotalTerminalDifficulty            uint64
-	AltairForkEpoch                    uint64
-	MergeForkEpoch                     uint64
-	NumValidatorKeysToPreregister uint32
-	PreregisteredValidatorKeysMnemonic string
+
+func generateGenesisData(
+	configDirectory,
+	genesisDataType,
+) {
+	/usr/local/bin/eth2-testnet-genesis phase0 \
+	--config "${cl_genesis_config_filepath}" \
+	--eth1-block "${CL_ETH1_BLOCK}" \
+	--mnemonics "${cl_mnemonics_config_filepath}" \
+	--timestamp "${genesis_timestamp}" \
+	--tranches-dir "${tranches_dirpath}" \
+	--state-output "${cl_genesis_filepath}"
 }
+
 
 func generateGenesisData(
 	serviceCtx *services.ServiceContext,
@@ -78,14 +81,8 @@ func generateGenesisData(
 	clGenesisConfigYmlTemplate *template.Template,
 	clMnemonicsYmlTemplate *template.Template,
 	unixTimestamp int64,
-	delay uint64,
 	networkId string,
-	secondsPerSlot uint32,
-	altairForkEpoch uint64,
-	mergeForkEpoch uint64,
 	totalTerminalDifficulty uint64,
-	preregisteredValidatorKeysMnemonic string,
-	numValidatorKeysToPreregister uint32,
 ) (
 	resultGethGenesisJsonFilepathOnModuleContainer string,
 	resultNethermindGenesisJsonFilepathOnModuleContainer string,
@@ -112,17 +109,6 @@ func generateGenesisData(
 		NetworkId:                   networkId,
 		UnixTimestamp:               unixTimestamp,
 		TotalTerminalDifficulty:     totalTerminalDifficulty,
-	}
-	clTemplateData := clGenesisConfigTemplateData{
-		NetworkId:                          networkId,
-		SecondsPerSlot:                     secondsPerSlot,
-		UnixTimestamp:                      unixTimestamp,
-		Delay:                              delay,
-		TotalTerminalDifficulty:            totalTerminalDifficulty,
-		AltairForkEpoch:                    altairForkEpoch,
-		MergeForkEpoch:                     mergeForkEpoch,
-		NumValidatorKeysToPreregister:      numValidatorKeysToPreregister,
-		PreregisteredValidatorKeysMnemonic: preregisteredValidatorKeysMnemonic,
 	}
 
 	// Make the Geth genesis config available to the generator

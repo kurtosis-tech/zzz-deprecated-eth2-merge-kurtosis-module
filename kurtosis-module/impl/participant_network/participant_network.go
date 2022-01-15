@@ -4,7 +4,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -39,7 +39,7 @@ func LaunchParticipantNetwork(
 	elClientLaunchers map[ParticipantELClientType]el.ELClientLauncher,
 	clClientLaunchers map[ParticipantCLClientType]cl.CLClientLauncher,
 	allParticipantSpecs []*ParticipantSpec,
-	preregisteredValidatorKeysForNodes []*prelaunch_data_generator.NodeTypeKeystoreDirpaths,
+	preregisteredValidatorKeysForNodes []*cl2.NodeTypeKeystoreDirpaths,
 	logLevel log_levels.ParticipantLogLevel,
 ) (
 	[]*Participant,
