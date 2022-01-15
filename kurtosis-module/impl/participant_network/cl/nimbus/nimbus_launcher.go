@@ -72,11 +72,12 @@ type NimbusLauncher struct {
 	// The dirpath on the module container where the config data directory exists
 	configDataDirpathOnModuleContainer string
 
-	expectedNumBeaconNodes uint32
+	// NOTE: This launcher does NOT take in the expected number of peers because doing so causes the Beacon node not to peer at all
+	// See: https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/26
 }
 
-func NewNimbusLauncher(configDataDirpathOnModuleContainer string, expectedNumBeaconNodes uint32) *NimbusLauncher {
-	return &NimbusLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
+func NewNimbusLauncher(configDataDirpathOnModuleContainer string) *NimbusLauncher {
+	return &NimbusLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer}
 }
 
 func (launcher NimbusLauncher) Launch(
@@ -178,6 +179,8 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 		// Sources for these flags:
 		//  1) https://github.com/status-im/nimbus-eth2/blob/stable/scripts/launch_local_testnet.sh
 		//  2) https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
+		// WARNING: Do NOT set the --max-peers flag here, as doing so to the exact number of nodes seems to mess things up!
+		// See: https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/26
 		cmdArgs := []string{
 			"mkdir",
 			consensusDataDirpathInServiceContainer,
@@ -202,7 +205,6 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--web3-url=" + elClientWsUrlStr,
 			"--nat=extip:" + privateIpAddr,
 			"--enr-auto-update=false",
-			fmt.Sprintf("--max-peers=%v", launcher.expectedNumBeaconNodes - 1),
 			"--rest",
 			"--rest-address=0.0.0.0",
 			fmt.Sprintf("--rest-port=%v", httpPortNum),

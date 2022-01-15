@@ -213,7 +213,6 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		),
 		participant_network.ParticipantCLClientType_Nimbus: nimbus.NewNimbusLauncher(
 			clGenesisPaths.GetParentDirpath(),
-			numParticipants,
 		),
 		participant_network.ParticipantCLClientType_Lodestar: lodestar.NewLodestarClientLauncher(
 			clGenesisPaths.GetConfigYMLFilepath(),
