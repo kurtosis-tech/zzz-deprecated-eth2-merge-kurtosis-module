@@ -5,7 +5,7 @@ type CLPrelaunchData struct {
 	keystoreGenerationResults *GenerateKeystoresResult
 }
 
-func NewCLPrelaunchData(genesisPaths *CLGenesisPaths, keystoreGenerationResults *GenerateKeystoresResult) *CLPrelaunchData {
+func newCLPrelaunchData(genesisPaths *CLGenesisPaths, keystoreGenerationResults *GenerateKeystoresResult) *CLPrelaunchData {
 	return &CLPrelaunchData{genesisPaths: genesisPaths, keystoreGenerationResults: keystoreGenerationResults}
 }
 

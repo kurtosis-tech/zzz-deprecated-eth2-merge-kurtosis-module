@@ -29,32 +29,39 @@ import (
 const (
 	networkId = "3151908"
 
-	// The number of validator keys that will be preregistered inside the CL genesis file when it's created
-	numValidatorsToPreregister = 100
-
 	// ----------------------------------- Params Constants -----------------------------------------
 	defaultWaitForFinalization                                = false
 	defaultClientLogLevel      log_levels.ParticipantLogLevel = log_levels.ParticipantLogLevel_Info
 	// --------------------------------- End Params Constants ---------------------------------------
 
-	// ----------------------------------- Genesis Config Constants -----------------------------------------
+	// ----------------------------------- Prelaunch Data Constants -----------------------------------------
+	// The number of validator keys that will be preregistered inside the CL genesis file when it's created
+	numValidatorsToPreregister = 100
+
 	// Seems to be hardcoded
 	slotsPerEpoch = uint32(32)
 
 	// If we drop this, things start to behave strangely, with slots that are of variable time lengths
 	secondsPerSlot = uint32(12)
 
+	// Altair must happen before merge fork must happen before terminal_total_difficulty is hit
+	// See also: https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F
 	altairForkEpoch = uint64(1)  // Set per Parithosh's recommendation
 	mergeForkEpoch = uint64(2)   // Set per Parithosh's recommendation
-	// TODO Should be set to roughly one hour (??) so that this is reached AFTER the CL gets the merge fork version (per Parithosh)
+
+	// Once the total difficulty of all mined blocks crosses this threshold, the merge will be initiated
+	// Must happen after the merge fork epoch on the Beacon chain
 	totalTerminalDifficulty  = uint64(60000000)
 
-	// This is the mnemonic that will be used to generate validator keys which will be preregistered in the CL genesis.ssz that we create
-	// This is the same mnemonic that should be used to generate the validator keys that we'll load into our CL nodes when we run them
+	// This menmonic will a) be used to create keystores for all the types of validators that we have and b) be used to generate a CL genesis.ssz that has the children
+	//  validator keys already preregistered as validators
+	// See also:
 	preregisteredValidatorKeysMnemonic = "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
 
-	// TODO What units are these?
+	// TODO Clarify what units these are
 	genesisDelay = 0
+
+	depositContractAddress = "0x4242424242424242424242424242424242424242"
 	// --------------------------------- End Genesis Config Constants ----------------------------------------
 
 	// ----------------------------------- Static File Constants -----------------------------------------

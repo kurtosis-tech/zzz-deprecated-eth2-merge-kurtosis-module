@@ -21,6 +21,7 @@ const (
 
 type chainspecAndGethGenesisGenerationConfigTemplateData struct {
 	NetworkId string
+	DepositContractAddress string
 	UnixTimestamp uint64
 	TotalTerminalDifficulty uint64
 }
@@ -32,6 +33,7 @@ func generateChainspecAndGethGenesis(
 	configSharedDir *services.SharedPath,
 	networkId string,
 	genesisUnixTimestamp uint64,
+	depositContractAddress string,
 	totalTerminalDifficulty uint64,
 	serviceCtx *services.ServiceContext,
 	outputSharedDir *services.SharedPath,
@@ -43,6 +45,7 @@ func generateChainspecAndGethGenesis(
 	generationConfigSharedFile := configSharedDir.GetChildPath(chainspecAndGethGenesisGenerationConfigFilename)
 	templateData := &chainspecAndGethGenesisGenerationConfigTemplateData{
 		NetworkId:               networkId,
+		DepositContractAddress:  depositContractAddress,
 		UnixTimestamp:           genesisUnixTimestamp,
 		TotalTerminalDifficulty: totalTerminalDifficulty,
 	}

@@ -26,6 +26,7 @@ func GenerateELPrelaunchData(
 	nethermindGenesisConfigJsonTemplate *template.Template,
 	genesisUnixTimestamp uint64,
 	networkId string,
+	depositContractAddress string,
 	totalTerminalDifficulty uint64,
 ) (
 	*ELPrelaunchData,
@@ -57,6 +58,7 @@ func GenerateELPrelaunchData(
 		configSharedDir,
 		networkId,
 		genesisUnixTimestamp,
+		depositContractAddress,
 		totalTerminalDifficulty,
 		serviceCtx,
 		outputSharedDir,
@@ -77,11 +79,12 @@ func GenerateELPrelaunchData(
 		return nil, stacktrace.Propagate(err, "An error occurred generating the Nethermind genesis file")
 	}
 	
-	result := &ELPrelaunchData{
-		parentDirpath:                 outputSharedDir.GetAbsPathOnThisContainer(),
-		chainspecJsonFilepath:         chainspecFilepathOnModuleContainer,
-		gethGenesisJsonFilepath:       gethGenesisFilepathOnModuleContaienr,
-		nethermindGenesisJsonFilepath: nethermindGenesisFilepathOnModuleContainer,
-	}
+	result := newELPrelaunchData(
+		outputSharedDir.GetAbsPathOnThisContainer(),
+		chainspecFilepathOnModuleContainer,
+		gethGenesisFilepathOnModuleContaienr,
+		nethermindGenesisFilepathOnModuleContainer,
+	)
+
 	return result, nil
 }

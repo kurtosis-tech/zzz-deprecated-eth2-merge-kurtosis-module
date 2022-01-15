@@ -32,7 +32,6 @@ const (
 	clGenesisGenerationBinaryFilepathOnContainer = "/usr/local/bin/eth2-testnet-genesis"
 	deployBlock = "0"
 	eth1Block = "0x0000000000000000000000000000000000000000000000000000000000000000"
-	depositContractAddress = "0x4242424242424242424242424242424242424242"
 	expectedClGenesisGenerationExitCode = 0
 )
 
@@ -40,8 +39,6 @@ type clGenesisConfigTemplateData struct {
 	NetworkId                          string
 	SecondsPerSlot                     uint32
 	UnixTimestamp                      uint64
-	// TODO get rid of this???
-	Delay 							   uint64
 	TotalTerminalDifficulty            uint64
 	AltairForkEpoch                    uint64
 	MergeForkEpoch                     uint64
@@ -55,8 +52,8 @@ func generateClGenesisData(
 	genesisGenerationMnemonicsYmlTemplate *template.Template,
 	serviceCtx *services.ServiceContext,
 	genesisUnixTimestamp uint64,
-	delay uint64,
 	networkId string,
+	depositContractAddress string,
 	totalTerminalDifficulty uint64,
 	secondsPerSlot uint32,
 	altairForkEpoch uint64,
@@ -92,7 +89,6 @@ func generateClGenesisData(
 		NetworkId:                          networkId,
 		SecondsPerSlot:                     secondsPerSlot,
 		UnixTimestamp:                      genesisUnixTimestamp,
-		Delay:                              delay,
 		TotalTerminalDifficulty:            totalTerminalDifficulty,
 		AltairForkEpoch:                    altairForkEpoch,
 		MergeForkEpoch:                     mergeForkEpoch,
@@ -114,6 +110,7 @@ func generateClGenesisData(
 		genesisGenerationConfigSharedFile,
 		genesisGenerationMnemonicsSharedFile,
 		genesisUnixTimestamp,
+		depositContractAddress,
 		serviceCtx,
 		outputSharedDir,
 	)
@@ -151,6 +148,7 @@ func runClGenesisGeneration(
 	genesisGenerationConfigSharedFile *services.SharedPath,
 	genesisGenerationMnemonicsSharedFile *services.SharedPath,
 	genesisTimestamp uint64,
+	depositContractAddress string,
 	serviceCtx *services.ServiceContext,
 	outputSharedDir *services.SharedPath,
 ) (

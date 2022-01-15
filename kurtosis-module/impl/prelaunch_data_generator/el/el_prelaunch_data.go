@@ -12,7 +12,7 @@ type ELPrelaunchData struct {
 	nethermindGenesisJsonFilepath string
 }
 
-func NewELPrelaunchData(parentDirpath string, chainspecJsonFilepath string, gethGenesisJsonFilepath string, nethermindGenesisJsonFilepath string) *ELPrelaunchData {
+func newELPrelaunchData(parentDirpath string, chainspecJsonFilepath string, gethGenesisJsonFilepath string, nethermindGenesisJsonFilepath string) *ELPrelaunchData {
 	return &ELPrelaunchData{parentDirpath: parentDirpath, chainspecJsonFilepath: chainspecJsonFilepath, gethGenesisJsonFilepath: gethGenesisJsonFilepath, nethermindGenesisJsonFilepath: nethermindGenesisJsonFilepath}
 }
 
