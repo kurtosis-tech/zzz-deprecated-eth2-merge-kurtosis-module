@@ -1,4 +1,4 @@
-package prelaunch_data_generator
+package el
 
 func generateElPrelaunchData() {
 }

@@ -11,7 +11,7 @@ type ELPrelaunchData struct {
 }
 
 type CLPrelaunchData struct {
-	CLGenesisPaths *CLGenesisPaths
+	CLGenesisPaths *cl.CLGenesisPaths
 	KeystoresGenerationResult *cl.GenerateKeystoresResult
 }
 

@@ -1,6 +1,7 @@
-package prelaunch_data_generator
+package cl
 import (
 	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"io"
@@ -12,10 +13,9 @@ import (
 )
 
 const (
-
 	// The prefix that the directory for containing information about this CL genesis generation run will have
 	//  inside the shared directory
-	generationInstanceSharedDirpathPrefix = "cl-genesis-"
+	clGenesisGenerationInstanceSharedDirpathPrefix = "cl-genesis-"
 
 	configDirname                      = "config"
 	genesisGenerationConfigYmlFilename          = "config.yml"
@@ -70,7 +70,7 @@ func generateClGenesisData(
 	sharedDir := serviceCtx.GetSharedDirectory()
 	generationInstanceSharedDir := sharedDir.GetChildPath(fmt.Sprintf(
 		"%v%v",
-		generationInstanceSharedDirpathPrefix,
+		clGenesisGenerationInstanceSharedDirpathPrefix,
 		time.Now().Unix(),
 	))
 	configSharedDir := generationInstanceSharedDir.GetChildPath(configDirname)
@@ -135,29 +135,16 @@ func createGenesisGenerationConfig(
 	resultErr error,
 ){
 	genesisGenerationConfigSharedFile := configSharedDir.GetChildPath(genesisGenerationConfigYmlFilename)
-	genesisGenerationConfigFilepathOnThisContainer := genesisGenerationConfigSharedFile.GetAbsPathOnThisContainer()
-	if err := fillTemplate(genesisGenerationConfigYmlTemplate, templateData, genesisGenerationConfigFilepathOnThisContainer); err != nil {
-		return nil, nil, stacktrace.Propagate(err, "An error occurred filling the CL genesis generation config YML template to '%v'", genesisGenerationConfigFilepathOnThisContainer)
+	if err := service_launch_utils.FillTemplateToSharedPath(genesisGenerationConfigYmlTemplate, templateData, genesisGenerationConfigSharedFile); err != nil {
+		return nil, nil, stacktrace.Propagate(err, "An error occurred filling the CL genesis generation config YML template")
 	}
 
 	genesisGenerationMnemonicsSharedFile := configSharedDir.GetChildPath(genesisGenerationMnemonicsYmlFilename)
-	genesisGenerationMnemonicsFilepathOnThisContainer := genesisGenerationMnemonicsSharedFile.GetAbsPathOnThisContainer()
-	if err := fillTemplate(genesisGenerationMnemonicsYmlTemplate, templateData, genesisGenerationMnemonicsFilepathOnThisContainer); err != nil {
-		return nil, nil, stacktrace.Propagate(err, "An error occurred filling the CL genesis generation mnemonics YML template to '%v'", genesisGenerationMnemonicsFilepathOnThisContainer)
+	if err := service_launch_utils.FillTemplateToSharedPath(genesisGenerationMnemonicsYmlTemplate, templateData, genesisGenerationMnemonicsSharedFile); err != nil {
+		return nil, nil, stacktrace.Propagate(err, "An error occurred filling the CL genesis generation mnemonics YML template")
 	}
 
 	return genesisGenerationConfigSharedFile, genesisGenerationMnemonicsSharedFile, nil
-}
-
-func fillTemplate(inputTmpl *template.Template, data *clGenesisConfigTemplateData, destFilepath string) error {
-	destFp, err := os.Create(destFilepath)
-	if err != nil {
-		return stacktrace.Propagate(err, "An error occurred opening filepath '%v' on the module container for writing the filled template data to", destFilepath)
-	}
-	if err := inputTmpl.Execute(destFp, data); err != nil {
-		return stacktrace.Propagate(err, "An error occurred filling the template to destination '%v'", destFilepath)
-	}
-	return nil
 }
 
 func runClGenesisGeneration(

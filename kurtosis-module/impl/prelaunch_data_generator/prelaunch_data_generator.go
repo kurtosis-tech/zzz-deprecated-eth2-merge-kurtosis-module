@@ -18,7 +18,7 @@ const (
 type PrelaunchData struct {
 	GethELGenesisJsonFilepathOnModuleContainer string
 	NethermindGenesisJsonFilepathOnModuleContainer string
-	CLGenesisPaths *CLGenesisPaths
+	CLGenesisPaths *cl.CLGenesisPaths
 	KeystoresGenerationResult *cl.GenerateKeystoresResult
 }
 
@@ -71,7 +71,7 @@ func GeneratePrelaunchData(
 	logrus.Info("Successfully generated genesis data")
 
 	logrus.Info("Generating validator keystores for nodes...")
-	generateKeystoresResult, err := generateKeystores(
+	generateKeystoresResult, err := cl.generateClValidatorKeystores(
 		serviceCtx,
 		validatorsMnemonic,
 		numValidatorKeysToPreregister,

@@ -1,4 +1,4 @@
-package prelaunch_data_generator
+package cl
 
 // Represents the paths to the CL genesis files *on the module container*
 type CLGenesisPaths struct {

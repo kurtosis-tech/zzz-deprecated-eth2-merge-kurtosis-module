@@ -1,4 +1,4 @@
-package prelaunch_data_generator
+package cl
 
 import (
 	"github.com/stretchr/testify/require"

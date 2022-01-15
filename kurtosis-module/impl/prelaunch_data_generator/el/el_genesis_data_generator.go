@@ -1,4 +1,4 @@
-package prelaunch_data_generator
+package el
 
 import (
 	"fmt"
@@ -11,89 +11,64 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 )
 
 const (
-	imageName                    = "kurtosistech/ethereum-genesis-generator:0.1.4"
+	// The prefix that the directory for containing information about this EL genesis generation run will have
+	//  inside the shared directory
+	elGenesisGenerationInstanceSharedDirpathPrefix = "el-genesis-"
 
-	// Path on the Docker image of the script that should be run
-	generateGenesisScriptFilepath = "/work/generate-genesis.sh"
+	configDirname                      = "config"
+	gethGenesisGenerationConfigFilename = "geth-genesis-generation-config.yml"
 
-	generationCommandExpectedExitCode = 0
+	outputDirname = "output"
+	chainspecJsonFilename = "chainspec.json"
+	gethGenesisJsonFilename = "geth.json"
+	nethermindGenesisJsonFilename = "nethermind.json"
 
-	elDataDirname = "el"
-	clDataDirname = "cl"
-
-	// ------------------------------ Config directory paths -------------------------------
-	configDataRelDirpathInSharedDir = "config"
-
-	elConfigDataRelDirpathInSharedDir = configDataRelDirpathInSharedDir + "/" + elDataDirname
-	elGenesisConfigYmlRelFilepathInSharedDir = elConfigDataRelDirpathInSharedDir + "/genesis-config.yaml"
-
-	clConfigDataRelDirpathInSharedDir = configDataRelDirpathInSharedDir + "/" + clDataDirname
-	clGenesisConfigYmlRelFilepathInSharedDir = clConfigDataRelDirpathInSharedDir + "/config.yaml"
-	clMnemonicsConfigYmlRelFilepathInSharedDir = clConfigDataRelDirpathInSharedDir + "/mnemonics.yaml"
-
-	// ------------------------------ Output directory paths -------------------------------
-	outputDataRelDirpathInSharedDir = "output"
-
-	elOutputDataRelDirpathInSharedDir = outputDataRelDirpathInSharedDir + "/" + elDataDirname
-	outputGethGenesisJsonRelFilepath    = elOutputDataRelDirpathInSharedDir + "/geth.json"
-	outputNethermindGenesisJsonRelFilepath    = elOutputDataRelDirpathInSharedDir + "/nethermind.json"
-
-	clOutputDataRelDirpathInSharedDir   = outputDataRelDirpathInSharedDir + "/" + clDataDirname
-	outputClGenesisConfigYmlRelFilepath = clOutputDataRelDirpathInSharedDir + "/config.yaml"
-	outputClGenesisSszRelFilepath       = clOutputDataRelDirpathInSharedDir + "/genesis.ssz"
+	// Generation constants
+	generateChainspecScriptFilepath = "/apps/el-gen/genesis_chainspec.py"
+	generateGethGenesisScriptFilepath = "/apps/el-gen/genesis_geth.py"
 )
-// We run the genesis generation as an exec command instead, so that we get immediate feedback if it fails
-var entrypoingArgs = []string{
-	"sleep",
-	"99999",
+
+type nethermindGenesisJsonTemplateData struct {
+	NetworkIDAsHex string
+	// TODO add genesis timestamp here???
 }
 
-
-func generateGenesisData(
+func generateElGenesisData(
 	serviceCtx *services.ServiceContext,
 	gethGenesisConfigYmlTemplate *template.Template,
 	nethermindGenesisConfigJsonTemplate *template.Template,
-	clGenesisConfigYmlTemplate *template.Template,
-	clMnemonicsYmlTemplate *template.Template,
-	unixTimestamp int64,
+	genesisUnixTimestamp int64,
 	networkId string,
 	totalTerminalDifficulty uint64,
 ) (
-	resultGethGenesisJsonFilepathOnModuleContainer string,
-	resultNethermindGenesisJsonFilepathOnModuleContainer string,
-	resultClGenesisPaths *cl.CLGenesisPaths,
-	resultErr error,
+	*ELGenesisPaths,
+	error,
 ) {
 	sharedDir := serviceCtx.GetSharedDirectory()
+	generationInstanceSharedDir := sharedDir.GetChildPath(fmt.Sprintf(
+		"%v%v",
+		elGenesisGenerationInstanceSharedDirpathPrefix,
+		time.Now().Unix(),
+	))
+	configSharedDir := generationInstanceSharedDir.GetChildPath(configDirname)
+	outputSharedDir := generationInstanceSharedDir.GetChildPath(outputDirname)
 
-	relDirpathsToCreate := []string{
-		configDataRelDirpathInSharedDir,
-		elConfigDataRelDirpathInSharedDir,
-		clConfigDataRelDirpathInSharedDir,
+	allSharedDirsToCreate := []*services.SharedPath{
+		generationInstanceSharedDir,
+		configSharedDir,
+		outputSharedDir,
 	}
-	for _, relDirpathToCreate := range relDirpathsToCreate {
-		sharedPathToCreate := sharedDir.GetChildPath(relDirpathToCreate)
-		absDirpathToCreateOnModuleContainer := sharedPathToCreate.GetAbsPathOnThisContainer()
-		if err := os.Mkdir(absDirpathToCreateOnModuleContainer, os.ModePerm); err != nil {
-			return "", "", nil, stacktrace.Propagate(err, "An error occurred creating directory at relative path '%v' inside the shared directory", absDirpathToCreateOnModuleContainer)
+	for _, sharedDirToCreate := range allSharedDirsToCreate {
+		toCreateDirpathOnModuleContainer := sharedDirToCreate.GetAbsPathOnThisContainer()
+		if err := os.Mkdir(toCreateDirpathOnModuleContainer, os.ModePerm); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred creating directory '%v'", toCreateDirpathOnModuleContainer)
 		}
 	}
 
-
-	elTemplateData := gethGenesisConfigYamlTemplateData{
-		NetworkId:                   networkId,
-		UnixTimestamp:               unixTimestamp,
-		TotalTerminalDifficulty:     totalTerminalDifficulty,
-	}
-
-	// Make the Geth genesis config available to the generator
-	gethGenesisConfigYmlSharedPath := sharedDir.GetChildPath(elGenesisConfigYmlRelFilepathInSharedDir)
-	if err := service_launch_utils.FillTemplateToSharedPath(gethGenesisConfigYmlTemplate, elTemplateData, gethGenesisConfigYmlSharedPath); err != nil {
-		return "", "", nil, stacktrace.Propagate(err, "An error occurred filling the Geth genesis config template")
-	}
 
 	// Make the CL genesis config available to the generator
 	clGenesisConfigYmlSharedPath := sharedDir.GetChildPath(clGenesisConfigYmlRelFilepathInSharedDir)
@@ -174,14 +149,23 @@ func generateGenesisData(
 	return gethGenesisJsonFilepathOnModuleContainer, nethermindGenesisJsonFilepathOnModuleContainer, clGenesisPaths, nil
 }
 
-func getContainerConfig(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-	containerConfig := services.NewContainerConfigBuilder(
-		imageName,
-	).WithEntrypointOverride(
-		entrypoingArgs,
-	).Build()
+func generateGethGenesis() {
 
-	return containerConfig, nil
+	elTemplateData := chainspecAndGethGenesisGenerationConfigTemplateData{
+		NetworkId:                   networkId,
+		UnixTimestamp:               unixTimestamp,
+		TotalTerminalDifficulty:     totalTerminalDifficulty,
+	}
+
+	// Make the Geth genesis config available to the generator
+	gethGenesisConfigYmlSharedPath := sharedDir.GetChildPath(elGenesisConfigYmlRelFilepathInSharedDir)
+	if err := service_launch_utils.FillTemplateToSharedPath(gethGenesisConfigYmlTemplate, elTemplateData, gethGenesisConfigYmlSharedPath); err != nil {
+		return "", "", nil, stacktrace.Propagate(err, "An error occurred filling the Geth genesis config template")
+	}
+}
+
+func generateNethermindGenesis() {
+
 }
 
 func getNetworkIdHexSting(networkId string) (string, error) {
