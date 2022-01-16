@@ -96,12 +96,17 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = dataGeneratorCtx.GenerateELGenesisData(gethGenesisConfigTemplate, nethermindGenesisConfigTemplate)
+	_, err = dataGeneratorCtx.GenerateELGenesisData(
+		gethGenesisConfigTemplate,
+		nethermindGenesisConfigTemplate,
+		uint64(time.Now().Unix()),
+	)
 	require.NoError(t, err)
 
 	_, err = dataGeneratorCtx.GenerateCLGenesisData(
 		genesisConfigTemplate,
 		genesisMnemonicsTemplate,
+		uint64(time.Now().Unix()),
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,
 		networkParams.MergeForkEpoch,
