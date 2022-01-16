@@ -197,6 +197,12 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
 			validatorSecretsDirpathOnServiceContainer,
 			"&&",
+			// If we don't do this chmod, Nimbus will spend a crazy amount of time manually correcting them
+			//  before it starts
+			"chmod",
+			"600",
+			validatorSecretsDirpathOnServiceContainer + "/*",
+			"&&",
 			defaultImageEntrypoint,
 			"--non-interactive=true",
 			"--log-level=" + nimbusLogLevel,

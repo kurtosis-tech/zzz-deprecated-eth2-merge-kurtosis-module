@@ -37,6 +37,8 @@ const (
 	// NOTE: This can't be 0x00000....000
 	// See: https://github.com/ethereum/go-ethereum/issues/19547
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
+
+	// TODO Scale this dynamically based on CPUs available and Geth nodes mining
 	numMiningThreads = 2
 
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root

@@ -16,7 +16,7 @@ func GetDefaultExecuteParams() *ExecuteParams {
 			AltairForkEpoch:                    1,
 			MergeForkEpoch:                     2,
 			TotalTerminalDifficulty:            60000000,
-			NumValidatorKeysPerNode:            32,
+			NumValidatorKeysPerNode:            64,
 			PreregisteredValidatorKeysMnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete",
 		},
 		WaitForFinalization: false,

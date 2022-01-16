@@ -5,9 +5,12 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"strings"
+	"time"
 )
 
 const (
+	outputDirnamePrefix = "cl-validator-keystores-"
+
 	// Prysm keystores are encrypted with a password
 	prysmPassword = "password"
 
@@ -28,6 +31,11 @@ func GenerateCLValidatorKeystores(
 	error,
 ){
 	sharedDir := serviceCtx.GetSharedDirectory()
+	outputSharedDir := sharedDir.GetChildPath(fmt.Sprintf(
+		"%v%v",
+		outputDirnamePrefix,
+		time.Now().Unix(),
+	))
 
 	allNodeKeystoreDirpaths := []*NodeTypeKeystoreDirpaths{}
 	allSubcommandStrs := []string{}
@@ -36,7 +44,7 @@ func GenerateCLValidatorKeystores(
 	stopIndex := numValidatorsPerNode
 	for i := uint32(0); i < numNodes; i++ {
 		nodeKeystoresDirname := fmt.Sprintf("node-%v-keystores", i)
-		nodeOutputSharedPath := sharedDir.GetChildPath(nodeKeystoresDirname)
+		nodeOutputSharedPath := outputSharedDir.GetChildPath(nodeKeystoresDirname)
 		subcommandStr := fmt.Sprintf(
 			"%v keystores --prysm-pass %v --out-loc %v --source-mnemonic \"%v\" --source-min %v --source-max %v",
 			keystoresGenerationToolName,

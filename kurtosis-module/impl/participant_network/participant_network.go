@@ -35,7 +35,7 @@ const (
 	// Each CL node takes about this time to start up and start processing blocks, so when we create the CL
 	//  genesis data we need to set the genesis timestamp in the future so that nodes don't miss important slots
 	// (e.g. Altair fork)
-	clNodeStartupTime = 1 * time.Minute
+	clNodeStartupTime = 70 * time.Second
 )
 
 // To get clients to start as bootnodes, we pass in these values when starting them
