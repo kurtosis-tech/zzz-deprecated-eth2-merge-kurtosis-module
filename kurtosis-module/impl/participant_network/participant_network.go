@@ -68,10 +68,22 @@ func LaunchParticipantNetwork(
 		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis json template")
 	}
 
-	// Per Pari's recommendation, we want to start all EL clients first and wait until they're all mining blocks before
+	// CL validator key generation is CPU-intensive, so we want to do the generation before any EL clients start mining
+	//  (even though we only start the CL clients after the EL network is fully up & mining)
+	logrus.Info("Generating validator keys....")
+	clValidatorData, err := prelaunchDataGeneratorCtx.GenerateCLValidatorData(
+		numParticipants,
+		networkParams.NumValidatorKeysPerNode,
+	)
+	if err != nil {
+		return nil, 0, stacktrace.Propagate(err, "An error occurred generating CL validator keys")
+	}
+	logrus.Info("Successfully generated validator keys")
+
+	// Per Pari's recommendation, we want to start all EL clients before any CL clients and wait until they're all mining blocks before
 	//  we start the CL clients. This matches the real world, where Eth1 definitely exists before Eth2
 	logrus.Info("Creating EL client launchers...")
-	elPrelaunchData, err := prelaunchDataGeneratorCtx.GenerateELGenesisData(
+	elGenesisData, err := prelaunchDataGeneratorCtx.GenerateELGenesisData(
 		chainspecAndGethGenesisGenerationConfigTemplate,
 		nethermindGenesisJsonTemplate,
 	)
@@ -80,12 +92,12 @@ func LaunchParticipantNetwork(
 	}
 	elClientLaunchers := map[module_io.ParticipantELClientType]el.ELClientLauncher{
 		module_io.ParticipantELClientType_Geth: geth.NewGethELClientLauncher(
-			elPrelaunchData.GetGethGenesisJsonFilepath(),
+			elGenesisData.GetGethGenesisJsonFilepath(),
 			genesis_consts.PrefundedAccounts,
 			networkParams.NetworkID,
 		),
 		module_io.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
-			elPrelaunchData.GetNethermindGenesisJsonFilepath(),
+			elGenesisData.GetNethermindGenesisJsonFilepath(),
 			networkParams.TotalTerminalDifficulty,
 		),
 	}
@@ -153,50 +165,47 @@ func LaunchParticipantNetwork(
 	// We create the CL genesis data after the EL network is ready so that the CL genesis timestamp will be close
 	//  to the time the CL nodes are started
 	logrus.Info("Creating CL client launchers...")
-	clPrelaunchData, err := prelaunchDataGeneratorCtx.GenerateCLGenesisData(
+	clGenesisData, err := prelaunchDataGeneratorCtx.GenerateCLGenesisData(
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,
 		networkParams.MergeForkEpoch,
-		networkParams.PreregisteredValidatorKeysMnemonic,
 		numParticipants,
 		networkParams.NumValidatorKeysPerNode,
 	)
 	if err != nil {
 		return nil, 0, stacktrace.Propagate(err, "An error occurred generating the CL client prelaunch data")
 	}
-	clGenesisPaths := clPrelaunchData.GetCLGenesisPaths()
-	clValidatorKeystoreGenerationResults := clPrelaunchData.GetCLKeystoreGenerationResults()
 	clClientLaunchers := map[module_io.ParticipantCLClientType]cl.CLClientLauncher{
 		module_io.ParticipantCLClientType_Teku: teku.NewTekuCLClientLauncher(
-			clGenesisPaths.GetConfigYMLFilepath(),
-			clGenesisPaths.GetGenesisSSZFilepath(),
+			clGenesisData.GetConfigYMLFilepath(),
+			clGenesisData.GetGenesisSSZFilepath(),
 			numParticipants,
 		),
 		module_io.ParticipantCLClientType_Nimbus: nimbus.NewNimbusLauncher(
-			clGenesisPaths.GetParentDirpath(),
+			clGenesisData.GetParentDirpath(),
 		),
 		module_io.ParticipantCLClientType_Lodestar: lodestar.NewLodestarClientLauncher(
-			clGenesisPaths.GetConfigYMLFilepath(),
-			clGenesisPaths.GetGenesisSSZFilepath(),
+			clGenesisData.GetConfigYMLFilepath(),
+			clGenesisData.GetGenesisSSZFilepath(),
 			numParticipants,
 		),
 		module_io.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
-			clGenesisPaths.GetParentDirpath(),
+			clGenesisData.GetParentDirpath(),
 			numParticipants,
 		),
 		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLCLientLauncher(
-			clGenesisPaths.GetConfigYMLFilepath(),
-			clGenesisPaths.GetGenesisSSZFilepath(),
-			clValidatorKeystoreGenerationResults.PrysmPassword,
+			clGenesisData.GetConfigYMLFilepath(),
+			clGenesisData.GetGenesisSSZFilepath(),
+			clValidatorData.PrysmPassword,
 			numParticipants,
 		),
 	}
 	logrus.Info("Successfully created CL client launchers")
 
 	logrus.Infof("Adding %v CL clients...", numParticipants)
-	preregisteredValidatorKeysForNodes := clValidatorKeystoreGenerationResults.PerNodeKeystoreDirpaths
+	preregisteredValidatorKeysForNodes := clValidatorData.PerNodeKeystoreDirpaths
 	allClClientContexts := []*cl.CLClientContext{}
 	for idx, participantSpec := range allParticipantSpecs {
 		clClientType := participantSpec.CLClientType
@@ -261,5 +270,5 @@ func LaunchParticipantNetwork(
 		allParticipants = append(allParticipants, participant)
 	}
 
-	return allParticipants, clPrelaunchData.GetGenesisUnixTimestamp(), nil
+	return allParticipants, clGenesisData.GetGenesisUnixTimestamp(), nil
 }

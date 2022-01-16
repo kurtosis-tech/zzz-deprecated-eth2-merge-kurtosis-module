@@ -1,7 +1,8 @@
 package prelaunch_data_generator
 
 import (
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -14,10 +15,11 @@ type PrelaunchDataGeneratorContext struct {
 	networkId string
 	depositContractAddress string
 	totalTerminalDifficulty uint64
+	preregisteredValidatorKeysMnemonic string
 }
 
-func newPrelaunchDataGeneratorContext(serviceCtx *services.ServiceContext, networkId string, depositContractAddress string, totalTerminalDifficulty uint64) *PrelaunchDataGeneratorContext {
-	return &PrelaunchDataGeneratorContext{serviceCtx: serviceCtx, networkId: networkId, depositContractAddress: depositContractAddress, totalTerminalDifficulty: totalTerminalDifficulty}
+func newPrelaunchDataGeneratorContext(serviceCtx *services.ServiceContext, networkId string, depositContractAddress string, totalTerminalDifficulty uint64, preregisteredValidatorKeysMnemonic string) *PrelaunchDataGeneratorContext {
+	return &PrelaunchDataGeneratorContext{serviceCtx: serviceCtx, networkId: networkId, depositContractAddress: depositContractAddress, totalTerminalDifficulty: totalTerminalDifficulty, preregisteredValidatorKeysMnemonic: preregisteredValidatorKeysMnemonic}
 }
 
 func (ctx *PrelaunchDataGeneratorContext) GenerateELGenesisData(
@@ -40,8 +42,20 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateELGenesisData(
 	return result, nil
 }
 
-func (ctx *PrelaunchDataGeneratorContext) GenerateCLValidatorData() {
-	
+func (ctx *PrelaunchDataGeneratorContext) GenerateCLValidatorData(
+	numValidatorNodes uint32,
+	numValidatorsPerNode uint32,
+) (*cl_validator_keystores.GenerateKeystoresResult, error) {
+	result, err := cl_validator_keystores.GenerateCLValidatorKeystores(
+		ctx.serviceCtx,
+		ctx.preregisteredValidatorKeysMnemonic,
+		numValidatorNodes,
+		numValidatorsPerNode,
+	)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred generating the CL client validator keystores")
+	}
+	return result, nil
 }
 
 func (ctx *PrelaunchDataGeneratorContext) GenerateCLGenesisData(
@@ -50,12 +64,15 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateCLGenesisData(
 	secondsPerSlot uint32,
 	altairForkEpoch uint64,
 	mergeForkEpoch uint64,
-	preregisteredValidatorKeysMnemonic string,
 	numValidatorNodes uint32,
 	numValidatorsPerNode uint32,
-) (*cl.CLPrelaunchData, error) {
+) (
+	*cl_genesis.CLGenesisData,
+	error,
+) {
 	genesisUnixTimestamp := uint64(time.Now().Unix())
-	result, err := cl.GenerateCLPrelaunchData(
+	numValidatorKeysToPreregister := numValidatorNodes * numValidatorsPerNode
+	result, err := cl_genesis.GenerateCLGenesisData(
 		genesisGenerationConfigYmlTemplate,
 		genesisGenerationMnemonicsYmlTemplate,
 		ctx.serviceCtx,
@@ -66,9 +83,8 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateCLGenesisData(
 		secondsPerSlot,
 		altairForkEpoch,
 		mergeForkEpoch,
-		preregisteredValidatorKeysMnemonic,
-		numValidatorNodes,
-		numValidatorsPerNode,
+		ctx.preregisteredValidatorKeysMnemonic,
+		numValidatorKeysToPreregister,
 	)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred generating the CL prelaunch data")

@@ -1,7 +1,8 @@
 package prelaunch_data_generator
 
 import (
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -22,8 +23,8 @@ var entrypointArgs = []string{
 type PrelaunchData struct {
 	GethELGenesisJsonFilepathOnModuleContainer string
 	NethermindGenesisJsonFilepathOnModuleContainer string
-	CLGenesisPaths *cl.CLGenesisPaths
-	KeystoresGenerationResult *cl.GenerateKeystoresResult
+	CLGenesisPaths *cl_genesis.CLGenesisData
+	KeystoresGenerationResult *cl_validator_keystores.GenerateKeystoresResult
 }
 
 func LaunchPrelaunchDataGenerator(
@@ -31,6 +32,7 @@ func LaunchPrelaunchDataGenerator(
 	networkId string,
 	depositContractAddress string,
 	totalTerminalDifficulty uint64,
+	preregisteredValidatorKeysMnemonic string,
 ) (
 	*PrelaunchDataGeneratorContext,
 	error,
@@ -45,6 +47,7 @@ func LaunchPrelaunchDataGenerator(
 		networkId,
 		depositContractAddress,
 		totalTerminalDifficulty,
+		preregisteredValidatorKeysMnemonic,
 	)
 	return result, nil
 }

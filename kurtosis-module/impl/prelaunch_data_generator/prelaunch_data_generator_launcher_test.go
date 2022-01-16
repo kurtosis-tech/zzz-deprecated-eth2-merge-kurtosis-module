@@ -18,7 +18,7 @@ import (
 const (
 	runKurtosisTestsEnvVar	= "RUN_KURTOSIS_TESTS"
 
-	enclaveIdPrefix = "test-prelaunch-data-generation-"
+	enclaveIdPrefix = "test-prelaunch-genesis-generation-"
 	isPartitioningEnabled = false
 
 	// Relative to the directory this file is inside
@@ -34,7 +34,7 @@ const (
 	clGenesisMnemonicsRelFilepath = clGenerationConfigRelDirpath + "/mnemonics.yaml.tmpl"
 )
 
-func TestELPrelaunchDataGeneration(t *testing.T) {
+func TestPrelaunchGenesisGeneration(t *testing.T) {
 	if len(os.Getenv(runKurtosisTestsEnvVar)) == 0 {
 		t.SkipNow()
 	}
@@ -92,6 +92,7 @@ func TestELPrelaunchDataGeneration(t *testing.T) {
 		networkParams.NetworkID,
 		networkParams.DepositContractAddress,
 		networkParams.TotalTerminalDifficulty,
+		networkParams.PreregisteredValidatorKeysMnemonic,
 	)
 	require.NoError(t, err)
 
@@ -104,7 +105,6 @@ func TestELPrelaunchDataGeneration(t *testing.T) {
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,
 		networkParams.MergeForkEpoch,
-		networkParams.PreregisteredValidatorKeysMnemonic,
 		uint32(len(participantParams)),
 		networkParams.NumValidatorKeysPerNode,
 	)

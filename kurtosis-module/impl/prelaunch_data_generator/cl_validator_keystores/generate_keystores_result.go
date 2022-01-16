@@ -1,4 +1,4 @@
-package cl
+package cl_validator_keystores
 
 import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"

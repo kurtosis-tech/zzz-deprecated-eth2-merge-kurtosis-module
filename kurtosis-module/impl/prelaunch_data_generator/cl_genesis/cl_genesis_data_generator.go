@@ -1,4 +1,4 @@
-package cl
+package cl_genesis
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
@@ -47,7 +47,7 @@ type clGenesisConfigTemplateData struct {
 	DepositContractAddress string
 }
 
-func generateClGenesisData(
+func GenerateCLGenesisData(
 	genesisGenerationConfigYmlTemplate *template.Template,
 	genesisGenerationMnemonicsYmlTemplate *template.Template,
 	serviceCtx *services.ServiceContext,
@@ -61,7 +61,7 @@ func generateClGenesisData(
 	preregisteredValidatorKeysMnemonic string,
 	numValidatorKeysToPreregister uint32,
 ) (
-	*CLGenesisPaths,
+	*CLGenesisData,
 	error,
 ) {
 	sharedDir := serviceCtx.GetSharedDirectory()
@@ -152,7 +152,7 @@ func runClGenesisGeneration(
 	serviceCtx *services.ServiceContext,
 	outputSharedDir *services.SharedPath,
 ) (
-	*CLGenesisPaths,
+	*CLGenesisData,
 	error,
 ){
 	// Copy the genesis config file to output directory
@@ -222,10 +222,11 @@ func runClGenesisGeneration(
 		 )
 	}
 
-	result := &CLGenesisPaths{
-		parentDirpath:      outputSharedDir.GetAbsPathOnThisContainer(),
-		configYmlFilepath:  genesisConfigSharedFile.GetAbsPathOnThisContainer(),
-		genesisSszFilepath: genesisStateSharedFile.GetAbsPathOnThisContainer(),
-	}
+	result := newCLGenesisData(
+		genesisTimestamp,
+		outputSharedDir.GetAbsPathOnThisContainer(),
+		genesisConfigSharedFile.GetAbsPathOnThisContainer(),
+		genesisStateSharedFile.GetAbsPathOnThisContainer(),
+	)
 	return result, nil
 }

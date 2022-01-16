@@ -1,4 +1,4 @@
-package cl
+package cl_validator_keystores
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ const (
 
 // Generates keystores for the given number of nodes from the given mnemonic, where each keystore contains approximately
 //  num_keys / num_nodes keys
-func generateClValidatorKeystores(
+func GenerateCLValidatorKeystores(
 	serviceCtx *services.ServiceContext,
 	mnemonic string,
 	numNodes uint32,

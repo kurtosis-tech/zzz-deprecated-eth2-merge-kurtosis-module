@@ -56,6 +56,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		networkParams.NetworkID,
 		networkParams.DepositContractAddress,
 		networkParams.TotalTerminalDifficulty,
+		networkParams.PreregisteredValidatorKeysMnemonic,
 	)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the prelaunch data-generating container")
