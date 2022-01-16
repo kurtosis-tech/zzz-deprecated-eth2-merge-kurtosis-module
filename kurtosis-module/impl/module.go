@@ -10,6 +10,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/transaction_spammer"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
@@ -63,58 +64,19 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 	logrus.Info("Successfully created prelaunch data generator")
 
-	/*
-	prelaunchData, err := prelaunch_data_generator.GeneratePrelaunchData(
-		enclaveCtx,
-		chainspecAndGethGenesisGenerationConfigTemplate,
-		nethermindGenesisJsonTemplate,
-		clGenesisConfigTemplate,
-		clGenesisMnemonicsYmlTemplate,
-		preregisteredValidatorKeysMnemonic,
-		numValidatorsToPreregister,
-		numParticipants,
-		genesisUnixTimestamp,
-		genesisDelay,
-		networkId,
-		secondsPerSlot,
-		altairForkEpoch,
-		mergeForkEpoch,
-		totalTerminalDifficulty,
-		preregisteredValidatorKeysMnemonic,
-	)
-
-	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred launching the Ethereum genesis generator Service")
-	}
-	*/
-
 	logrus.Infof("Adding %v participants logging at level '%v'...", numParticipants, paramsObj.ClientLogLevel)
-	allParticipantSpecs := []*participant_network.ParticipantSpec{}
-	for _, participantParams := range paramsObj.Participants {
-		// Don't need to validate because we already did when deserializing
-		elClientType := participantParams.ELClientType
-		clClientType := participantParams.CLClientType
-
-		participantSpec := &participant_network.ParticipantSpec{
-			ELClientType: elClientType,
-			CLClientType: clClientType,
-		}
-		allParticipantSpecs = append(allParticipantSpecs, participantSpec)
-	}
-	participants, err := participant_network.LaunchParticipantNetwork(
+	participants, clGenesisUnixTimestamp, err := participant_network.LaunchParticipantNetwork(
 		enclaveCtx,
-		networkId,
-		elClientLaunchers,
-		clClientLaunchers,
-		allParticipantSpecs,
-		prelaunchData.KeystoresGenerationResult.PerNodeKeystoreDirpaths,
+		prelaunchDataGeneratorCtx,
+		networkParams,
+		paramsObj.Participants,
 		paramsObj.ClientLogLevel,
 	)
 	if err != nil {
 		return "", stacktrace.Propagate(
 			err,
 			"An error occurred launching a participant network of '%v' participants",
-			len(allParticipantSpecs),
+			numParticipants,
 		 )
 	}
 	allElClientContexts := []*el.ELClientContext{}
@@ -137,16 +99,16 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Info("Successfully launched transaction spammer")
 
 	logrus.Info("Launching forkmon...")
-	forkmonConfigTemplate, err := parseTemplate(forkmonConfigTemplateFilepath)
+	forkmonConfigTemplate, err := static_files.ParseTemplate(static_files.ForkmonConfigTemplateFilepath)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred parsing forkmon config template file '%v'", forkmonConfigTemplateFilepath)
+		return "", stacktrace.Propagate(err, "An error occurred parsing forkmon config template file '%v'", static_files.ForkmonConfigTemplateFilepath)
 	}
 	forkmonPublicUrl, err := forkmon.LaunchForkmon(
 		enclaveCtx,
 		forkmonConfigTemplate,
 		allClClientContexts,
-		genesisUnixTimestamp,
-		secondsPerSlot,
+		clGenesisUnixTimestamp,
+		networkParams.SecondsPerSlot,
 	)
 	logrus.Info("Successfully launched forkmon")
 
@@ -154,7 +116,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		logrus.Info("Waiting for the first finalized epoch...")
 		firstClClientCtx := allClClientContexts[0]
 		firstClClientRestClient := firstClClientCtx.GetRESTClient()
-		if err := waitUntilFirstFinalizedEpoch(firstClClientRestClient); err != nil {
+		if err := waitUntilFirstFinalizedEpoch(firstClClientRestClient, networkParams.SecondsPerSlot, networkParams.SlotsPerEpoch); err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred waiting until the first finalized epoch occurred")
 		}
 		logrus.Info("First finalized epoch occurred successfully")
@@ -172,7 +134,11 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 }
 
 
-func waitUntilFirstFinalizedEpoch(restClient *cl_client_rest_client.CLClientRESTClient) error {
+func waitUntilFirstFinalizedEpoch(
+	restClient *cl_client_rest_client.CLClientRESTClient,
+	secondsPerSlot uint32,
+	slotsPerEpoch uint32,
+) error {
 	// If we wait long enough that we might be in this epoch, we've waited too long - finality should already have happened
 	waitedTooLongEpoch := firstHeadEpochWhereFinalizedEpochIsPossible + 1
 	timeoutSeconds := waitedTooLongEpoch * uint64(slotsPerEpoch) * uint64(secondsPerSlot)

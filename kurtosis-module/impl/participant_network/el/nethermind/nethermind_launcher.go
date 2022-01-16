@@ -72,7 +72,6 @@ func (launcher *NethermindELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	logLevel module_io.ParticipantLogLevel,
-	networkId string,
 	bootnodeContext *el.ELClientContext,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
 	containerConfigSupplier := launcher.getContainerConfigSupplier(bootnodeContext, logLevel)

@@ -1,14 +1,18 @@
 package cl
 
 type CLPrelaunchData struct {
+	genesisUnixTimestamp uint64
 	genesisPaths              *CLGenesisPaths
 	keystoreGenerationResults *GenerateKeystoresResult
 }
 
-func newCLPrelaunchData(genesisPaths *CLGenesisPaths, keystoreGenerationResults *GenerateKeystoresResult) *CLPrelaunchData {
-	return &CLPrelaunchData{genesisPaths: genesisPaths, keystoreGenerationResults: keystoreGenerationResults}
+func newCLPrelaunchData(genesisUnixTimestamp uint64, genesisPaths *CLGenesisPaths, keystoreGenerationResults *GenerateKeystoresResult) *CLPrelaunchData {
+	return &CLPrelaunchData{genesisUnixTimestamp: genesisUnixTimestamp, genesisPaths: genesisPaths, keystoreGenerationResults: keystoreGenerationResults}
 }
 
+func (data *CLPrelaunchData) GetGenesisUnixTimestamp() uint64 {
+	return data.genesisUnixTimestamp
+}
 func (data *CLPrelaunchData) GetCLGenesisPaths() *CLGenesisPaths {
 	return data.genesisPaths
 }

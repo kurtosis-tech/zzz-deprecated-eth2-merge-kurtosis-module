@@ -86,20 +86,20 @@ var verbosityLevels = map[module_io.ParticipantLogLevel]string{
 type GethELClientLauncher struct {
 	genesisJsonFilepathOnModuleContainer string
 	prefundedAccountInfo []*genesis_consts.PrefundedAccount
+	networkId string
 }
 
-func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount) *GethELClientLauncher {
-	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo}
+func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *GethELClientLauncher {
+	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo, networkId: networkId}
 }
 
 func (launcher *GethELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	logLevel module_io.ParticipantLogLevel,
-	networkId string,
 	bootnodeContext *el.ELClientContext,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(networkId, bootnodeContext, logLevel)
+	containerConfigSupplier := launcher.getContainerConfigSupplier(launcher.networkId, bootnodeContext, logLevel)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)

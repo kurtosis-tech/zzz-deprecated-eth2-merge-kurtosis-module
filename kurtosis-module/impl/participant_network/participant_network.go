@@ -37,39 +37,35 @@ const (
 var elClientContextForBootElClients *el.ELClientContext = nil
 var clClientContextForBootClClients *cl.CLClientContext = nil
 
-type ParticipantSpec struct {
-	ELClientType module_io.ParticipantELClientType
-	CLClientType module_io.ParticipantCLClientType
-}
-
 func LaunchParticipantNetwork(
 	enclaveCtx *enclaves.EnclaveContext,
 	prelaunchDataGeneratorCtx *prelaunch_data_generator.PrelaunchDataGeneratorContext,
 	networkParams *module_io.NetworkParams,
-	allParticipantSpecs []*ParticipantSpec,
+	allParticipantSpecs []*module_io.ParticipantParams,
 	logLevel module_io.ParticipantLogLevel,
 ) (
-	[]*Participant,
-	error,
+	resultParticipants []*Participant,
+	resultClGenesisUnixTimestamp uint64,
+	resultErr error,
 ) {
 	numParticipants := uint32(len(allParticipantSpecs))
 
 	// Parse all the templates we'll need first, so if an error is thrown it'll be thrown early
 	chainspecAndGethGenesisGenerationConfigTemplate, err := static_files.ParseTemplate(static_files.ChainspecAndGethGenesisGenerationConfigTemplateFilepath)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred parsing the Geth genesis generation config YAML template")
+		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the Geth genesis generation config YAML template")
 	}
 	clGenesisConfigTemplate, err := static_files.ParseTemplate(static_files.CLGenesisGenerationConfigTemplateFilepath)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred parsing the CL genesis generation config YAML template")
+		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the CL genesis generation config YAML template")
 	}
 	clGenesisMnemonicsYmlTemplate, err := static_files.ParseTemplate(static_files.CLGenesisGenerationMnemonicsTemplateFilepath)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred parsing the CL mnemonics YAML template")
+		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the CL mnemonics YAML template")
 	}
 	nethermindGenesisJsonTemplate, err := static_files.ParseTemplate(static_files.NethermindGenesisGenerationJsonTemplateFilepath)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis json template")
+		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis json template")
 	}
 
 	// Per Pari's recommendation, we want to start all EL clients first and wait until they're all mining blocks before
@@ -80,16 +76,17 @@ func LaunchParticipantNetwork(
 		nethermindGenesisJsonTemplate,
 	)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred generating EL client prelaunch data")
+		return nil, 0, stacktrace.Propagate(err, "An error occurred generating EL client prelaunch data")
 	}
 	elClientLaunchers := map[module_io.ParticipantELClientType]el.ELClientLauncher{
 		module_io.ParticipantELClientType_Geth: geth.NewGethELClientLauncher(
 			elPrelaunchData.GetGethGenesisJsonFilepath(),
 			genesis_consts.PrefundedAccounts,
+			networkParams.NetworkID,
 		),
 		module_io.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
 			elPrelaunchData.GetNethermindGenesisJsonFilepath(),
-			totalTerminalDifficulty,
+			networkParams.TotalTerminalDifficulty,
 		),
 	}
 	logrus.Info("Successfully created EL client launchers")
@@ -100,7 +97,7 @@ func LaunchParticipantNetwork(
 		elClientType := participantSpec.ELClientType
 		elLauncher, found := elClientLaunchers[elClientType]
 		if !found {
-			return nil, stacktrace.NewError("No EL client launcher defined for EL client type '%v'", elClientType)
+			return nil, 0, stacktrace.NewError("No EL client launcher defined for EL client type '%v'", elClientType)
 		}
 
 		elClientServiceId := services.ServiceID(fmt.Sprintf("%v%v", elClientServiceIdPrefix, idx))
@@ -113,7 +110,6 @@ func LaunchParticipantNetwork(
 				enclaveCtx,
 				elClientServiceId,
 				logLevel,
-				networkId,
 				elClientContextForBootElClients,
 			)
 		} else {
@@ -122,12 +118,11 @@ func LaunchParticipantNetwork(
 				enclaveCtx,
 				elClientServiceId,
 				logLevel,
-				networkId,
 				bootElClientCtx,
 			)
 		}
 		if elClientLaunchErr != nil {
-			return nil, stacktrace.Propagate(elClientLaunchErr, "An error occurred launching EL client for participant %v", idx)
+			return nil, 0, stacktrace.Propagate(elClientLaunchErr, "An error occurred launching EL client for participant %v", idx)
 		}
 		allElClientContexts = append(allElClientContexts, newElClientCtx)
 		logrus.Infof("Added EL client %v of type '%v'", idx, elClientType)
@@ -143,7 +138,7 @@ func LaunchParticipantNetwork(
 			perNodeNumRetries,
 			elClientMineWaiterTimeBetweenRetries,
 		 ); err != nil {
-			return nil, stacktrace.Propagate(
+			return nil, 0, stacktrace.Propagate(
 				err,
 				"EL client %v didn't start mining even after %v retries with %v between retries",
 				idx,
@@ -161,16 +156,15 @@ func LaunchParticipantNetwork(
 	clPrelaunchData, err := prelaunchDataGeneratorCtx.GenerateCLData(
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
-		secondsPerSlot,
-		altairForkEpoch,
-		mergeForkEpoch,
-		preregisteredValidatorKeysMnemonic,
-		numValidatorsToPreregister,
-		preregisteredValidatorKeysMnemonic,
+		networkParams.SecondsPerSlot,
+		networkParams.AltairForkEpoch,
+		networkParams.MergeForkEpoch,
+		networkParams.PreregisteredValidatorKeysMnemonic,
 		numParticipants,
+		networkParams.NumValidatorKeysPerNode,
 	)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred generating the CL client prelaunch data")
+		return nil, 0, stacktrace.Propagate(err, "An error occurred generating the CL client prelaunch data")
 	}
 	clGenesisPaths := clPrelaunchData.GetCLGenesisPaths()
 	clValidatorKeystoreGenerationResults := clPrelaunchData.GetCLKeystoreGenerationResults()
@@ -209,7 +203,7 @@ func LaunchParticipantNetwork(
 
 		clLauncher, found := clClientLaunchers[clClientType]
 		if !found {
-			return nil, stacktrace.NewError("No CL client launcher defined for CL client type '%v'", clClientType)
+			return nil, 0, stacktrace.NewError("No CL client launcher defined for CL client type '%v'", clClientType)
 		}
 
 		clClientServiceId := services.ServiceID(fmt.Sprintf("%v%v", clClientServiceIdPrefix, idx))
@@ -242,7 +236,7 @@ func LaunchParticipantNetwork(
 			)
 		}
 		if clClientLaunchErr != nil {
-			return nil, stacktrace.Propagate(clClientLaunchErr, "An error occurred launching CL client for participant %v", idx)
+			return nil, 0, stacktrace.Propagate(clClientLaunchErr, "An error occurred launching CL client for participant %v", idx)
 		}
 
 		allClClientContexts = append(allClClientContexts, newClClientCtx)
@@ -267,5 +261,5 @@ func LaunchParticipantNetwork(
 		allParticipants = append(allParticipants, participant)
 	}
 
-	return allParticipants, nil
+	return allParticipants, clPrelaunchData.GetGenesisUnixTimestamp(), nil
 }

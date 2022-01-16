@@ -47,9 +47,8 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateCLData(
 	altairForkEpoch uint64,
 	mergeForkEpoch uint64,
 	preregisteredValidatorKeysMnemonic string,
-	numValidatorKeysToPreregister uint32,
-	stakingContractSeedMnemonic string,
 	numValidatorNodes uint32,
+	numValidatorsPerNode uint32,
 ) (*cl.CLPrelaunchData, error) {
 	genesisUnixTimestamp := uint64(time.Now().Unix())
 	result, err := cl.GenerateCLPrelaunchData(
@@ -64,9 +63,8 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateCLData(
 		altairForkEpoch,
 		mergeForkEpoch,
 		preregisteredValidatorKeysMnemonic,
-		numValidatorKeysToPreregister,
-		stakingContractSeedMnemonic,
 		numValidatorNodes,
+		numValidatorsPerNode,
 	)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred generating the CL prelaunch data")

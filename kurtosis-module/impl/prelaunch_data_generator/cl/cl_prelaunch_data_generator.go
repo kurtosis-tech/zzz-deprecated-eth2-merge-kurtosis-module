@@ -18,13 +18,13 @@ func GenerateCLPrelaunchData(
 	altairForkEpoch uint64,
 	mergeForkEpoch uint64,
 	preregisteredValidatorKeysMnemonic string,
-	numValidatorKeysToPreregister uint32,
-	stakingContractSeedMnemonic string,
 	numValidatorNodes uint32,
+	numValidatorsPerNode uint32,
 ) (
 	*CLPrelaunchData,
 	error,
 ) {
+	totalNumValidatorKeys := numValidatorNodes * numValidatorsPerNode
 	genesisPaths, err := generateClGenesisData(
 		genesisGenerationConfigYmlTemplate,
 		genesisGenerationMnemonicsYmlTemplate,
@@ -37,7 +37,7 @@ func GenerateCLPrelaunchData(
 		altairForkEpoch,
 		mergeForkEpoch,
 		preregisteredValidatorKeysMnemonic,
-		numValidatorKeysToPreregister,
+		totalNumValidatorKeys,
 	)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred generating the CL genesis data")
@@ -45,14 +45,14 @@ func GenerateCLPrelaunchData(
 
 	keystoreGenerationResults, err := generateClValidatorKeystores(
 		serviceCtx,
-		stakingContractSeedMnemonic,
-		numValidatorKeysToPreregister,
+		preregisteredValidatorKeysMnemonic,
 		numValidatorNodes,
+		numValidatorsPerNode,
 	)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred generating the CL validator keystores")
 	}
 
-	result := newCLPrelaunchData(genesisPaths, keystoreGenerationResults)
+	result := newCLPrelaunchData(genesisUnixTimestamp, genesisPaths, keystoreGenerationResults)
 	return result, nil
 }
