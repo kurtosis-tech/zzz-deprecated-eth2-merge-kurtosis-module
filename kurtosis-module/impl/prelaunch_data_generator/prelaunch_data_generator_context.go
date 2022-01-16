@@ -7,7 +7,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"text/template"
-	"time"
 )
 
 type PrelaunchDataGeneratorContext struct {
@@ -25,8 +24,8 @@ func newPrelaunchDataGeneratorContext(serviceCtx *services.ServiceContext, netwo
 func (ctx *PrelaunchDataGeneratorContext) GenerateELGenesisData(
 	chainspecAndGethGenesisGenerationConfigTemplate *template.Template,
 	nethermindGenesisConfigJsonTemplate *template.Template,
+	genesisUnixTimestamp uint64,
 ) (*el_genesis.ELGenesisData, error) {
-	genesisUnixTimestamp := uint64(time.Now().Unix())
 	result, err := el_genesis.GenerateELGenesisData(
 		ctx.serviceCtx,
 		chainspecAndGethGenesisGenerationConfigTemplate,
@@ -61,6 +60,7 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateCLValidatorData(
 func (ctx *PrelaunchDataGeneratorContext) GenerateCLGenesisData(
 	genesisGenerationConfigYmlTemplate *template.Template,
 	genesisGenerationMnemonicsYmlTemplate *template.Template,
+	genesisUnixTimestamp uint64,
 	secondsPerSlot uint32,
 	altairForkEpoch uint64,
 	mergeForkEpoch uint64,
@@ -70,7 +70,6 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateCLGenesisData(
 	*cl_genesis.CLGenesisData,
 	error,
 ) {
-	genesisUnixTimestamp := uint64(time.Now().Unix())
 	numValidatorKeysToPreregister := numValidatorNodes * numValidatorsPerNode
 	result, err := cl_genesis.GenerateCLGenesisData(
 		genesisGenerationConfigYmlTemplate,

@@ -31,6 +31,11 @@ const (
 	// TODO MAKE THIS CONFIGURABLE BASED ON ESTIMATED TIME-TO-DAG-GENERATION
 	elClientMineWaiterMaxNumRetriesPerNode = uint32(120)
 	elClientMineWaiterTimeBetweenRetries = 5 * time.Second
+
+	// Each CL node takes about this time to start up and start processing blocks, so when we create the CL
+	//  genesis data we need to set the genesis timestamp in the future so that nodes don't miss important slots
+	// (e.g. Altair fork)
+	clNodeStartupTime = 1 * time.Minute
 )
 
 // To get clients to start as bootnodes, we pass in these values when starting them
@@ -82,14 +87,19 @@ func LaunchParticipantNetwork(
 
 	// Per Pari's recommendation, we want to start all EL clients before any CL clients and wait until they're all mining blocks before
 	//  we start the CL clients. This matches the real world, where Eth1 definitely exists before Eth2
-	logrus.Info("Creating EL client launchers...")
+	logrus.Info("Generating EL client genesis data...")
+	elGenesisTimestamp := uint64(time.Now().Unix())
 	elGenesisData, err := prelaunchDataGeneratorCtx.GenerateELGenesisData(
 		chainspecAndGethGenesisGenerationConfigTemplate,
 		nethermindGenesisJsonTemplate,
+		elGenesisTimestamp,
 	)
 	if err != nil {
-		return nil, 0, stacktrace.Propagate(err, "An error occurred generating EL client prelaunch data")
+		return nil, 0, stacktrace.Propagate(err, "An error occurred generating EL client genesis data")
 	}
+	logrus.Info("Successfully generated EL client genesis data")
+
+	logrus.Infof("Adding %v EL clients...", numParticipants)
 	elClientLaunchers := map[module_io.ParticipantELClientType]el.ELClientLauncher{
 		module_io.ParticipantELClientType_Geth: geth.NewGethELClientLauncher(
 			elGenesisData.GetGethGenesisJsonFilepath(),
@@ -101,9 +111,6 @@ func LaunchParticipantNetwork(
 			networkParams.TotalTerminalDifficulty,
 		),
 	}
-	logrus.Info("Successfully created EL client launchers")
-
-	logrus.Infof("Adding %v EL clients...", numParticipants)
 	allElClientContexts := []*el.ELClientContext{}
 	for idx, participantSpec := range allParticipantSpecs {
 		elClientType := participantSpec.ELClientType
@@ -164,10 +171,13 @@ func LaunchParticipantNetwork(
 
 	// We create the CL genesis data after the EL network is ready so that the CL genesis timestamp will be close
 	//  to the time the CL nodes are started
-	logrus.Info("Creating CL client launchers...")
+	logrus.Info("Generating CL client genesis data...")
+	// Set the genesis timestamp in the future so we don't start running slots until all the nodes are up
+	clGenesisTimestamp := uint64(time.Now().Unix()) + uint64(numParticipants) * uint64(clNodeStartupTime.Seconds())
 	clGenesisData, err := prelaunchDataGeneratorCtx.GenerateCLGenesisData(
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
+		clGenesisTimestamp,
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,
 		networkParams.MergeForkEpoch,
@@ -175,8 +185,11 @@ func LaunchParticipantNetwork(
 		networkParams.NumValidatorKeysPerNode,
 	)
 	if err != nil {
-		return nil, 0, stacktrace.Propagate(err, "An error occurred generating the CL client prelaunch data")
+		return nil, 0, stacktrace.Propagate(err, "An error occurred generating the CL client genesis data")
 	}
+	logrus.Info("Successfully generated CL client genesis data")
+
+	logrus.Infof("Adding %v CL clients...", numParticipants)
 	clClientLaunchers := map[module_io.ParticipantCLClientType]cl.CLClientLauncher{
 		module_io.ParticipantCLClientType_Teku: teku.NewTekuCLClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
@@ -202,9 +215,6 @@ func LaunchParticipantNetwork(
 			numParticipants,
 		),
 	}
-	logrus.Info("Successfully created CL client launchers")
-
-	logrus.Infof("Adding %v CL clients...", numParticipants)
 	preregisteredValidatorKeysForNodes := clValidatorData.PerNodeKeystoreDirpaths
 	allClClientContexts := []*cl.CLClientContext{}
 	for idx, participantSpec := range allParticipantSpecs {
@@ -270,5 +280,5 @@ func LaunchParticipantNetwork(
 		allParticipants = append(allParticipants, participant)
 	}
 
-	return allParticipants, clGenesisData.GetGenesisUnixTimestamp(), nil
+	return allParticipants, clGenesisTimestamp, nil
 }

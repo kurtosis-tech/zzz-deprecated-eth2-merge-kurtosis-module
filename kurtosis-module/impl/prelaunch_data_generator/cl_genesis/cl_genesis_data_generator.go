@@ -23,7 +23,7 @@ const (
 
 	outputDirname = "output"
 	tranchesDiranme = "tranches"
-	genesisConfigYmlFilename = "config.yml"
+	genesisConfigYmlFilename = "config.yaml" // WARNING: Do not change this! The CL clients are hardcoded to look for this filename
 	genesisStateFilename     = "genesis.ssz"
 	deployBlockFilename      = "deploy_block.txt"
 	depositContractFilename = "deposit_contract.txt"
@@ -223,7 +223,6 @@ func runClGenesisGeneration(
 	}
 
 	result := newCLGenesisData(
-		genesisTimestamp,
 		outputSharedDir.GetAbsPathOnThisContainer(),
 		genesisConfigSharedFile.GetAbsPathOnThisContainer(),
 		genesisStateSharedFile.GetAbsPathOnThisContainer(),
