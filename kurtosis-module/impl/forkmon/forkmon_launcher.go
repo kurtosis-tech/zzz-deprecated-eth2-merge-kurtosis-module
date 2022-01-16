@@ -33,6 +33,7 @@ type configTemplateData struct {
 	ListenPortNum uint16
 	CLClientInfo []*clClientInfo
 	SecondsPerSlot uint32
+	SlotsPerEpoch uint32
 	GenesisUnixTimestamp uint64
 }
 
@@ -42,6 +43,7 @@ func LaunchForkmon(
 	clClientContexts []*cl.CLClientContext,
 	genesisUnixTimestamp uint64,
 	secondsPerSlot uint32,
+	slotsPerEpoch uint32,
 ) (string, error) {
 	containerConfigSupplier, err := getContainerConfigSupplier(
 		configTemplate,
@@ -73,6 +75,7 @@ func getContainerConfigSupplier(
 	clClientContexts []*cl.CLClientContext,
 	genesisUnixTimestamp uint64,
 	secondsPerSlot uint32,
+	slotsPerEpoch uint32,
 ) (
 	func (privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error),
 	error,
@@ -89,6 +92,7 @@ func getContainerConfigSupplier(
 		ListenPortNum:        httpPortNumber,
 		CLClientInfo:         allClClientInfo,
 		SecondsPerSlot:       secondsPerSlot,
+		SlotsPerEpoch:        slotsPerEpoch,
 		GenesisUnixTimestamp: genesisUnixTimestamp,
 	}
 

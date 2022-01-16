@@ -15,6 +15,7 @@
 * Generate the CL genesis files AFTER the EL network is mining, so that the CL network doesn't skip any important epochs (e.g. Altair, or merge fork) which causes it to get in a stuck state
 * Removed unneeded hanging-around delay that existed in wait-for-finalization logic
 * Wait until all CL nodes are up before starting to process slots
+* Make forkmon respond to slots-per-epoch config changes
 
 # 0.2.3
 ### Features

@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	expectedSecondsPerSlot = 12
 	expectedSlotsPerEpoch = 32
 )
 
@@ -52,6 +53,9 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 	// Slot/epoch validation
 	if networkParams.SecondsPerSlot == 0 {
 		return nil, stacktrace.NewError("Each slot must be >= 1 second")
+	}
+	if networkParams.SecondsPerSlot != expectedSecondsPerSlot {
+		logrus.Warnf("The current seconds-per-slot value is set to '%v'; values that aren't '%v' may cause the network to behave strangely", networkParams.SecondsPerSlot, expectedSecondsPerSlot)
 	}
 	if networkParams.SlotsPerEpoch == 0 {
 		return nil, stacktrace.NewError("Each epoch must be composed of >= 1 slot")
