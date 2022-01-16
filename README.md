@@ -31,3 +31,6 @@ Kurtosis will create a new enclave to house the services of the Ethereum network
 [kurtosis-cli-installation]: https://docs.kurtosistech.com/installation.html
 [module-docs]: https://docs.kurtosistech.com/modules.html
 [using-the-cli]: https://docs.kurtosistech.com/using-the-cli.html
+
+### Development
+The unit tests in this module also require Kurtosis to be available.

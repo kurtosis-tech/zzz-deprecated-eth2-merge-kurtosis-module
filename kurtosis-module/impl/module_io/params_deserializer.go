@@ -12,7 +12,7 @@ const (
 )
 
 func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
-	paramsObj := getDefaultParams()
+	paramsObj := GetDefaultExecuteParams()
 	if err := json.Unmarshal([]byte(paramsStr), paramsObj); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred deserializing the serialized params")
 	}

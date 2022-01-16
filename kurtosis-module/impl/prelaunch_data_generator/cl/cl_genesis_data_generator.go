@@ -18,8 +18,8 @@ const (
 	clGenesisGenerationInstanceSharedDirpathPrefix = "cl-genesis-"
 
 	configDirname                      = "config"
-	genesisGenerationConfigYmlFilename          = "config.yml"
-	genesisGenerationMnemonicsYmlFilename = "mnemonics.yml"
+	genesisGenerationConfigYmlFilename          = "config.yaml"
+	genesisGenerationMnemonicsYmlFilename = "mnemonics.yaml"
 
 	outputDirname = "output"
 	tranchesDiranme = "tranches"

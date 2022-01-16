@@ -1,6 +1,6 @@
 package module_io
 
-func getDefaultParams() *ExecuteParams {
+func GetDefaultExecuteParams() *ExecuteParams {
 	return &ExecuteParams{
 		Participants: []*ParticipantParams{
 			{
