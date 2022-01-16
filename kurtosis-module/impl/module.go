@@ -30,8 +30,6 @@ const (
 	expectedNumEpochsBehindHeadForFinalizedEpoch = uint64(3)
 	firstHeadEpochWhereFinalizedEpochIsPossible = expectedNumEpochsBehindHeadForFinalizedEpoch + 1
 	timeBetweenFinalizedEpochChecks = 5 * time.Second
-	// TODO FIGURE OUT WHY THIS HAPPENS AND GET RID OF IT
-	extraDelayBeforeSlotCountStartsIncreasing = 4 * time.Minute
 )
 
 
@@ -114,6 +112,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 
 	if paramsObj.WaitForFinalization {
 		logrus.Info("Waiting for the first finalized epoch...")
+		// TODO Make sure that ALL Beacon clients have finalized, not just the first one!!!
 		firstClClientCtx := allClClientContexts[0]
 		firstClClientRestClient := firstClClientCtx.GetRESTClient()
 		if err := waitUntilFirstFinalizedEpoch(firstClClientRestClient, networkParams.SecondsPerSlot, networkParams.SlotsPerEpoch); err != nil {
@@ -142,7 +141,7 @@ func waitUntilFirstFinalizedEpoch(
 	// If we wait long enough that we might be in this epoch, we've waited too long - finality should already have happened
 	waitedTooLongEpoch := firstHeadEpochWhereFinalizedEpochIsPossible + 1
 	timeoutSeconds := waitedTooLongEpoch * uint64(slotsPerEpoch) * uint64(secondsPerSlot)
-	timeout := time.Duration(timeoutSeconds) * time.Second + extraDelayBeforeSlotCountStartsIncreasing
+	timeout := time.Duration(timeoutSeconds) * time.Second
 	deadline := time.Now().Add(timeout)
 
 	for time.Now().Before(deadline) {
