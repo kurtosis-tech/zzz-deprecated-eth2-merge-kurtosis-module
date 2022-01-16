@@ -1,4 +1,4 @@
-package el
+package el_genesis
 
 import (
 	"fmt"

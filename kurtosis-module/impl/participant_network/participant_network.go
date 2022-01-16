@@ -71,7 +71,7 @@ func LaunchParticipantNetwork(
 	// Per Pari's recommendation, we want to start all EL clients first and wait until they're all mining blocks before
 	//  we start the CL clients. This matches the real world, where Eth1 definitely exists before Eth2
 	logrus.Info("Creating EL client launchers...")
-	elPrelaunchData, err := prelaunchDataGeneratorCtx.GenerateELData(
+	elPrelaunchData, err := prelaunchDataGeneratorCtx.GenerateELGenesisData(
 		chainspecAndGethGenesisGenerationConfigTemplate,
 		nethermindGenesisJsonTemplate,
 	)
@@ -153,7 +153,7 @@ func LaunchParticipantNetwork(
 	// We create the CL genesis data after the EL network is ready so that the CL genesis timestamp will be close
 	//  to the time the CL nodes are started
 	logrus.Info("Creating CL client launchers...")
-	clPrelaunchData, err := prelaunchDataGeneratorCtx.GenerateCLData(
+	clPrelaunchData, err := prelaunchDataGeneratorCtx.GenerateCLGenesisData(
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
 		networkParams.SecondsPerSlot,

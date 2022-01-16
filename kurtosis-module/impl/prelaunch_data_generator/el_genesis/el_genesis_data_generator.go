@@ -1,4 +1,4 @@
-package el
+package el_genesis
 
 import (
 	"fmt"
@@ -20,7 +20,7 @@ const (
 )
 
 
-func GenerateELPrelaunchData(
+func GenerateELGenesisData(
 	serviceCtx *services.ServiceContext,
 	chainspecAndGethGenesisGenerationConfigTemplate *template.Template,
 	nethermindGenesisConfigJsonTemplate *template.Template,
@@ -29,7 +29,7 @@ func GenerateELPrelaunchData(
 	depositContractAddress string,
 	totalTerminalDifficulty uint64,
 ) (
-	*ELPrelaunchData,
+	*ELGenesisData,
 	error,
 ) {
 	sharedDir := serviceCtx.GetSharedDirectory()
@@ -79,7 +79,7 @@ func GenerateELPrelaunchData(
 		return nil, stacktrace.Propagate(err, "An error occurred generating the Nethermind genesis file")
 	}
 	
-	result := newELPrelaunchData(
+	result := newELGenesisData(
 		outputSharedDir.GetAbsPathOnThisContainer(),
 		chainspecFilepathOnModuleContainer,
 		gethGenesisFilepathOnModuleContaienr,

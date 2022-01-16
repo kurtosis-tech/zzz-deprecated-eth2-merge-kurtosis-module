@@ -1,4 +1,4 @@
-package el
+package el_genesis
 
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"

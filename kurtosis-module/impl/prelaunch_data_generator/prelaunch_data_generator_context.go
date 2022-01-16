@@ -2,7 +2,7 @@ package prelaunch_data_generator
 
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"text/template"
@@ -20,12 +20,12 @@ func newPrelaunchDataGeneratorContext(serviceCtx *services.ServiceContext, netwo
 	return &PrelaunchDataGeneratorContext{serviceCtx: serviceCtx, networkId: networkId, depositContractAddress: depositContractAddress, totalTerminalDifficulty: totalTerminalDifficulty}
 }
 
-func (ctx *PrelaunchDataGeneratorContext) GenerateELData(
+func (ctx *PrelaunchDataGeneratorContext) GenerateELGenesisData(
 	chainspecAndGethGenesisGenerationConfigTemplate *template.Template,
 	nethermindGenesisConfigJsonTemplate *template.Template,
-) (*el.ELPrelaunchData, error) {
+) (*el_genesis.ELGenesisData, error) {
 	genesisUnixTimestamp := uint64(time.Now().Unix())
-	result, err := el.GenerateELPrelaunchData(
+	result, err := el_genesis.GenerateELGenesisData(
 		ctx.serviceCtx,
 		chainspecAndGethGenesisGenerationConfigTemplate,
 		nethermindGenesisConfigJsonTemplate,
@@ -35,12 +35,16 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateELData(
 		ctx.totalTerminalDifficulty,
 	)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred generating the EL prelaunch data")
+		return nil, stacktrace.Propagate(err, "An error occurred generating the EL genesis data")
 	}
 	return result, nil
 }
 
-func (ctx *PrelaunchDataGeneratorContext) GenerateCLData(
+func (ctx *PrelaunchDataGeneratorContext) GenerateCLValidatorData() {
+	
+}
+
+func (ctx *PrelaunchDataGeneratorContext) GenerateCLGenesisData(
 	genesisGenerationConfigYmlTemplate *template.Template,
 	genesisGenerationMnemonicsYmlTemplate *template.Template,
 	secondsPerSlot uint32,
