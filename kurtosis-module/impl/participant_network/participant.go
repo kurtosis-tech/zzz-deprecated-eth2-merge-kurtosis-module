@@ -1,6 +1,7 @@
 package participant_network
 
 import (
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 )
@@ -10,21 +11,21 @@ import (
 // https://discord.com/channels/697535391594446898/697539289042649190/922266717667856424
 // We use this Participant class to represent a participant in the network who is running 1 of each type of client
 type Participant struct {
-	elClientType ParticipantELClientType
-	clClientType ParticipantCLClientType
+	elClientType module_io.ParticipantELClientType
+	clClientType module_io.ParticipantCLClientType
 
 	elClientContext *el.ELClientContext
 	clClientContext *cl.CLClientContext
 }
 
-func NewParticipant(elClientType ParticipantELClientType, clClientType ParticipantCLClientType, elClientContext *el.ELClientContext, clClientContext *cl.CLClientContext) *Participant {
+func NewParticipant(elClientType module_io.ParticipantELClientType, clClientType module_io.ParticipantCLClientType, elClientContext *el.ELClientContext, clClientContext *cl.CLClientContext) *Participant {
 	return &Participant{elClientType: elClientType, clClientType: clClientType, elClientContext: elClientContext, clClientContext: clClientContext}
 }
 
-func (participant *Participant) GetELClientType() ParticipantELClientType {
+func (participant *Participant) GetELClientType() module_io.ParticipantELClientType {
 	return participant.elClientType
 }
-func (participant *Participant) GetCLClientType() ParticipantCLClientType {
+func (participant *Participant) GetCLClientType() module_io.ParticipantCLClientType {
 	return participant.clClientType
 }
 func (participant *Participant) GetELClientContext() *el.ELClientContext {

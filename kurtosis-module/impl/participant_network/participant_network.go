@@ -1,10 +1,19 @@
 package participant_network
 import (
 	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/lighthouse"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/lodestar"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/nimbus"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/prysm"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/teku"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
-	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/nethermind"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -29,26 +38,62 @@ var elClientContextForBootElClients *el.ELClientContext = nil
 var clClientContextForBootClClients *cl.CLClientContext = nil
 
 type ParticipantSpec struct {
-	ELClientType ParticipantELClientType
-	CLClientType ParticipantCLClientType
+	ELClientType module_io.ParticipantELClientType
+	CLClientType module_io.ParticipantCLClientType
 }
 
 func LaunchParticipantNetwork(
 	enclaveCtx *enclaves.EnclaveContext,
-	networkId string,
-	elClientLaunchers map[ParticipantELClientType]el.ELClientLauncher,
-	clClientLaunchers map[ParticipantCLClientType]cl.CLClientLauncher,
+	prelaunchDataGeneratorCtx *prelaunch_data_generator.PrelaunchDataGeneratorContext,
+	networkParams *module_io.NetworkParams,
 	allParticipantSpecs []*ParticipantSpec,
-	preregisteredValidatorKeysForNodes []*cl2.NodeTypeKeystoreDirpaths,
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 ) (
 	[]*Participant,
 	error,
 ) {
-	numParticipants := len(allParticipantSpecs)
+	numParticipants := uint32(len(allParticipantSpecs))
+
+	// Parse all the templates we'll need first, so if an error is thrown it'll be thrown early
+	chainspecAndGethGenesisGenerationConfigTemplate, err := static_files.ParseTemplate(static_files.ChainspecAndGethGenesisGenerationConfigTemplateFilepath)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred parsing the Geth genesis generation config YAML template")
+	}
+	clGenesisConfigTemplate, err := static_files.ParseTemplate(static_files.CLGenesisGenerationConfigTemplateFilepath)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred parsing the CL genesis generation config YAML template")
+	}
+	clGenesisMnemonicsYmlTemplate, err := static_files.ParseTemplate(static_files.CLGenesisGenerationMnemonicsTemplateFilepath)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred parsing the CL mnemonics YAML template")
+	}
+	nethermindGenesisJsonTemplate, err := static_files.ParseTemplate(static_files.NethermindGenesisGenerationJsonTemplateFilepath)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis json template")
+	}
 
 	// Per Pari's recommendation, we want to start all EL clients first and wait until they're all mining blocks before
 	//  we start the CL clients. This matches the real world, where Eth1 definitely exists before Eth2
+	logrus.Info("Creating EL client launchers...")
+	elPrelaunchData, err := prelaunchDataGeneratorCtx.GenerateELData(
+		chainspecAndGethGenesisGenerationConfigTemplate,
+		nethermindGenesisJsonTemplate,
+	)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred generating EL client prelaunch data")
+	}
+	elClientLaunchers := map[module_io.ParticipantELClientType]el.ELClientLauncher{
+		module_io.ParticipantELClientType_Geth: geth.NewGethELClientLauncher(
+			elPrelaunchData.GetGethGenesisJsonFilepath(),
+			genesis_consts.PrefundedAccounts,
+		),
+		module_io.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
+			elPrelaunchData.GetNethermindGenesisJsonFilepath(),
+			totalTerminalDifficulty,
+		),
+	}
+	logrus.Info("Successfully created EL client launchers")
+
 	logrus.Infof("Adding %v EL clients...", numParticipants)
 	allElClientContexts := []*el.ELClientContext{}
 	for idx, participantSpec := range allParticipantSpecs {
@@ -110,7 +155,54 @@ func LaunchParticipantNetwork(
 	}
 	logrus.Infof("All EL clients have started mining")
 
+	// We create the CL genesis data after the EL network is ready so that the CL genesis timestamp will be close
+	//  to the time the CL nodes are started
+	logrus.Info("Creating CL client launchers...")
+	clPrelaunchData, err := prelaunchDataGeneratorCtx.GenerateCLData(
+		clGenesisConfigTemplate,
+		clGenesisMnemonicsYmlTemplate,
+		secondsPerSlot,
+		altairForkEpoch,
+		mergeForkEpoch,
+		preregisteredValidatorKeysMnemonic,
+		numValidatorsToPreregister,
+		preregisteredValidatorKeysMnemonic,
+		numParticipants,
+	)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred generating the CL client prelaunch data")
+	}
+	clGenesisPaths := clPrelaunchData.GetCLGenesisPaths()
+	clValidatorKeystoreGenerationResults := clPrelaunchData.GetCLKeystoreGenerationResults()
+	clClientLaunchers := map[module_io.ParticipantCLClientType]cl.CLClientLauncher{
+		module_io.ParticipantCLClientType_Teku: teku.NewTekuCLClientLauncher(
+			clGenesisPaths.GetConfigYMLFilepath(),
+			clGenesisPaths.GetGenesisSSZFilepath(),
+			numParticipants,
+		),
+		module_io.ParticipantCLClientType_Nimbus: nimbus.NewNimbusLauncher(
+			clGenesisPaths.GetParentDirpath(),
+		),
+		module_io.ParticipantCLClientType_Lodestar: lodestar.NewLodestarClientLauncher(
+			clGenesisPaths.GetConfigYMLFilepath(),
+			clGenesisPaths.GetGenesisSSZFilepath(),
+			numParticipants,
+		),
+		module_io.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
+			clGenesisPaths.GetParentDirpath(),
+			numParticipants,
+		),
+		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLCLientLauncher(
+			clGenesisPaths.GetConfigYMLFilepath(),
+			clGenesisPaths.GetGenesisSSZFilepath(),
+			clValidatorKeystoreGenerationResults.PrysmPassword,
+			numParticipants,
+		),
+	}
+	logrus.Info("Successfully created CL client launchers")
+
 	logrus.Infof("Adding %v CL clients...", numParticipants)
+	preregisteredValidatorKeysForNodes := clValidatorKeystoreGenerationResults.PerNodeKeystoreDirpaths
 	allClClientContexts := []*cl.CLClientContext{}
 	for idx, participantSpec := range allParticipantSpecs {
 		clClientType := participantSpec.CLClientType
@@ -177,131 +269,3 @@ func LaunchParticipantNetwork(
 
 	return allParticipants, nil
 }
-
-
-/*
-// Represents a network of virtual "participants", where each participant runs:
-//  1) an EL client
-//  2) a Beacon client
-//  3) a validator client
-type ParticipantNetwork struct {
-	enclaveCtx *enclaves.EnclaveContext
-
-	networkId string
-
-	preregisteredValidatorKeysForNodes []*prelaunch_data_generator.NodeTypeKeystoreDirpaths
-
-	participants []*Participant
-
-	elClientLaunchers map[ParticipantELClientType]el.ELClientLauncher
-	clClientLaunchers map[ParticipantCLClientType]cl.CLClientLauncher
-
-	mutex *sync.Mutex
-}
-
-func NewParticipantNetwork(
-	enclaveCtx *enclaves.EnclaveContext,
-	networkId string,
-	preregisteredValidatorKeysForNodes []*prelaunch_data_generator.NodeTypeKeystoreDirpaths,
-	elClientLaunchers map[ParticipantELClientType]el.ELClientLauncher,
-	clClientLaunchers map[ParticipantCLClientType]cl.CLClientLauncher,
-) *ParticipantNetwork {
-	return &ParticipantNetwork{
-		enclaveCtx: enclaveCtx,
-		networkId: networkId,
-		preregisteredValidatorKeysForNodes: preregisteredValidatorKeysForNodes,
-		participants: []*Participant{},
-		elClientLaunchers: elClientLaunchers,
-		clClientLaunchers: clClientLaunchers,
-		mutex: &sync.Mutex{},
-	}
-}
-
-func (network *ParticipantNetwork) AddParticipant(
-	elClientType ParticipantELClientType,
-	clClientType ParticipantCLClientType,
-	logLevel log_levels.ParticipantLogLevel,
-) (*Participant, error) {
-	network.mutex.Lock()
-	defer network.mutex.Unlock()
-
-	elLauncher, found := network.elClientLaunchers[elClientType]
-	if !found {
-		return nil, stacktrace.NewError("No EL client launcher defined for EL client type '%v'", elClientType)
-	}
-	clLauncher, found := network.clClientLaunchers[clClientType]
-	if !found {
-		return nil, stacktrace.NewError("No CL client launcher defined for CL client type '%v'", clClientType)
-	}
-
-	newParticipantIdx := len(network.participants)
-	elClientServiceId := services.ServiceID(fmt.Sprintf("%v%v", elClientServiceIdPrefix, newParticipantIdx))
-	clClientServiceId := services.ServiceID(fmt.Sprintf("%v%v", clClientServiceIdPrefix, newParticipantIdx))
-	newClNodeValidatorKeystores := network.preregisteredValidatorKeysForNodes[newParticipantIdx]
-
-	// Add EL client
-	var newElClientCtx *el.ELClientContext
-	var elClientLaunchErr error
-	if newParticipantIdx == bootParticipantIndex {
-		newElClientCtx, elClientLaunchErr = elLauncher.Launch(
-			network.enclaveCtx,
-			elClientServiceId,
-			logLevel,
-			network.networkId,
-			elClientContextForBootElClients,
-		)
-	} else {
-		bootParticipant := network.participants[bootParticipantIndex]
-		bootElClientCtx := bootParticipant.GetELClientContext()
-		newElClientCtx, elClientLaunchErr = elLauncher.Launch(
-			network.enclaveCtx,
-			elClientServiceId,
-			logLevel,
-			network.networkId,
-			bootElClientCtx,
-		)
-	}
-	if elClientLaunchErr != nil {
-		return nil, stacktrace.Propagate(elClientLaunchErr, "An error occurred launching EL client for participant %v", newParticipantIdx)
-	}
-
-	// Launch CL client
-	var newClClientCtx *cl.CLClientContext
-	var clClientLaunchErr error
-	if newParticipantIdx == bootParticipantIndex {
-		newClClientCtx, clClientLaunchErr = clLauncher.Launch(
-			network.enclaveCtx,
-			clClientServiceId,
-			logLevel,
-			clClientContextForBootClClients,
-			newElClientCtx,
-			newClNodeValidatorKeystores,
-		)
-	} else {
-		bootParticipant := network.participants[bootParticipantIndex]
-		bootClClientCtx := bootParticipant.GetCLClientContext()
-		newClClientCtx, clClientLaunchErr = clLauncher.Launch(
-			network.enclaveCtx,
-			clClientServiceId,
-			logLevel,
-			bootClClientCtx,
-			newElClientCtx,
-			newClNodeValidatorKeystores,
-		)
-	}
-	if clClientLaunchErr != nil {
-		return nil, stacktrace.Propagate(clClientLaunchErr, "An error occurred launching CL client for participant %v", newParticipantIdx)
-	}
-
-	participant := NewParticipant(
-		elClientType,
-		clClientType,
-		newElClientCtx,
-		newClClientCtx,
-	)
-	network.participants = append(network.participants, participant)
-
-	return participant, nil
-}
-
- */
