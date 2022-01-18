@@ -54,6 +54,8 @@ const (
 
 	beaconSuffixServiceId    = "beacon"
 	validatorSuffixServiceId = "validator"
+
+	minPeers = 1
 )
 
 var beaconNodeUsedPorts = map[string]*services.PortSpec{
@@ -79,20 +81,17 @@ type PrysmClientLauncher struct {
 	genesisSszFilepathOnModuleContainer       string
 	prysmPassword                             string
 	prysmPasswordTxtTemplate                  *template.Template
-	expectedNumBeaconNodes                    uint32
 }
 
 func NewPrysmCLCLientLauncher(
 	genesisConfigYmlFilepathOnModuleContainer string,
 	genesisSszFilepathOnModuleContainer string,
 	prysmPassword string,
-	expectedNumBeaconNodes uint32,
 ) *PrysmClientLauncher {
 	return &PrysmClientLauncher{
 		genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer,
 		genesisSszFilepathOnModuleContainer:       genesisSszFilepathOnModuleContainer,
 		prysmPassword:                             prysmPassword,
-		expectedNumBeaconNodes:                    expectedNumBeaconNodes,
 	}
 }
 
@@ -218,8 +217,7 @@ func (launcher *PrysmClientLauncher) getBeaconContainerConfigSupplier(
 			fmt.Sprintf("--grpc-gateway-port=%v", httpPortNum),
 			fmt.Sprintf("--p2p-tcp-port=%v", discoveryTCPPortNum),
 			fmt.Sprintf("--p2p-udp-port=%v", discoveryUDPPortNum),
-			fmt.Sprintf("--min-sync-peers=%v", launcher.expectedNumBeaconNodes - 1),
-			fmt.Sprintf("--p2p-max-peers=%v", launcher.expectedNumBeaconNodes - 1),
+			fmt.Sprintf("--min-sync-peers=%v", minPeers),
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", beaconMonitoringPortNum),
 			"--verbosity=" + prysmLogLevel,

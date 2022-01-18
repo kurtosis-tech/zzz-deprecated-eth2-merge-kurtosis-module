@@ -55,6 +55,8 @@ const (
 	// Teku nodes take ~35s to bring their HTTP server up
 	maxNumHealthcheckRetries = 60
 	timeBetweenHealthcheckRetries = 1 * time.Second
+
+	minPeers = 1
 )
 var usedPorts = map[string]*services.PortSpec{
 	// TODO Add metrics port
@@ -206,8 +208,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			"--p2p-enabled=true",
 			// Set per Pari's recommendation, to reduce noise in the logs
 			"--p2p-subscribe-all-subnets-enabled=true",
-			fmt.Sprintf("--p2p-peer-lower-bound=%v", launcher.expectedNumBeaconNodes - 1),
-			fmt.Sprintf("--p2p-peer-upper-bound=%v", launcher.expectedNumBeaconNodes - 1),
+			fmt.Sprintf("--p2p-peer-lower-bound=%v", minPeers),
 			"--eth1-endpoints=" + elClientRpcUrlStr,
 			"--Xee-endpoint=" + elClientRpcUrlStr,
 			"--p2p-advertised-ip=" + privateIpAddr,

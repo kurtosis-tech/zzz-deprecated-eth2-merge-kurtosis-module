@@ -64,11 +64,10 @@ var lighthouseLogLevels = map[module_io.ParticipantLogLevel]string{
 type LighthouseCLClientLauncher struct {
 	// The dirpath on the module container where the CL genesis config data directory exists
 	configDataDirpathOnModuleContainer string
-	expectedNumBeaconNodes uint32
 }
 
-func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string, expectedNumBeaconNodes uint32) *LighthouseCLClientLauncher {
-	return &LighthouseCLClientLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
+func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string) *LighthouseCLClientLauncher {
+	return &LighthouseCLClientLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer}
 }
 
 func (launcher *LighthouseCLClientLauncher) Launch(
@@ -196,7 +195,6 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--disable-packet-filter",
 			"--execution-endpoints=" + elClientRpcUrlStr,
 			"--eth1-endpoints=" + elClientRpcUrlStr,
-			fmt.Sprintf("--target-peers=%v", launcher.expectedNumBeaconNodes - 1),
 			// Set per Paris' recommendation to reduce noise in the logs
 			"--subscribe-all-subnets",
 		}

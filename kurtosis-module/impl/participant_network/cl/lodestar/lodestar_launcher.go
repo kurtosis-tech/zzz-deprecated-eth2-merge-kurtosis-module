@@ -58,11 +58,10 @@ var lodestarLogLevels = map[module_io.ParticipantLogLevel]string{
 type LodestarClientLauncher struct {
 	genesisConfigYmlFilepathOnModuleContainer string
 	genesisSszFilepathOnModuleContainer       string
-	expectedNumBeaconNodes uint32
 }
 
-func NewLodestarClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, expectedNumBeaconNodes uint32) *LodestarClientLauncher {
-	return &LodestarClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
+func NewLodestarClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string) *LodestarClientLauncher {
+	return &LodestarClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer}
 }
 
 func (launcher *LodestarClientLauncher) Launch(
@@ -180,8 +179,6 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			"--eth1.disableEth1DepositDataTracker=true",
 			"--eth1.providerUrls=" + elClientRpcUrlStr,
 			"--execution.urls=" + elClientRpcUrlStr,
-			fmt.Sprintf("--network.targetPeers=%v", launcher.expectedNumBeaconNodes - 1),
-			fmt.Sprintf("--network.maxPeers=%v", launcher.expectedNumBeaconNodes - 1),
 			"--api.rest.enabled=true",
 			"--api.rest.host=0.0.0.0",
 			"--api.rest.api=*",

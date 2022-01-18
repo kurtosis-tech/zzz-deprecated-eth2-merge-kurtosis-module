@@ -10,7 +10,6 @@
 * Set the Eth1 block time to 1 second in the CL config
 
 ### Fixes
-* Set the target-peers flag on each Beacon node to be numParticipants - 1
 * Set the `--subscribe-all-subnets` flag equivalents on all Beacon nodes
 * Generate the CL genesis files AFTER the EL network is mining, so that the CL network doesn't skip any important epochs (e.g. Altair, or merge fork) which causes it to get in a stuck state
 * Removed unneeded hanging-around delay that existed in wait-for-finalization logic
