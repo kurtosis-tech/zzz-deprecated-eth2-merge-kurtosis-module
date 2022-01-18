@@ -2,11 +2,11 @@ package nimbus
 
 import (
 	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	cl_client_rest_client2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -61,11 +61,11 @@ var usedPorts = map[string]*services.PortSpec{
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 	metricsPortID:         services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
 }
-var nimbusLogLevels = map[log_levels.ParticipantLogLevel]string{
-	log_levels.ParticipantLogLevel_Error: "ERROR",
-	log_levels.ParticipantLogLevel_Warn:  "WARN",
-	log_levels.ParticipantLogLevel_Info:  "INFO",
-	log_levels.ParticipantLogLevel_Debug: "DEBUG",
+var nimbusLogLevels = map[module_io.ParticipantLogLevel]string{
+	module_io.ParticipantLogLevel_Error: "ERROR",
+	module_io.ParticipantLogLevel_Warn:  "WARN",
+	module_io.ParticipantLogLevel_Info:  "INFO",
+	module_io.ParticipantLogLevel_Debug: "DEBUG",
 }
 
 type NimbusLauncher struct {
@@ -83,10 +83,10 @@ func NewNimbusLauncher(configDataDirpathOnModuleContainer string) *NimbusLaunche
 func (launcher NimbusLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
+	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		bootnodeContext,
@@ -134,7 +134,7 @@ func (launcher NimbusLauncher) Launch(
 func (launcher *NimbusLauncher) getContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
@@ -196,6 +196,12 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"-R",
 			validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
 			validatorSecretsDirpathOnServiceContainer,
+			"&&",
+			// If we don't do this chmod, Nimbus will spend a crazy amount of time manually correcting them
+			//  before it starts
+			"chmod",
+			"600",
+			validatorSecretsDirpathOnServiceContainer + "/*",
 			"&&",
 			defaultImageEntrypoint,
 			"--non-interactive=true",

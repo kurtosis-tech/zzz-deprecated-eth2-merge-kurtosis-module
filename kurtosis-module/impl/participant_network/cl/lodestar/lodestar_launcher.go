@@ -2,12 +2,12 @@ package lodestar
 
 import (
 	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/availability_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -17,7 +17,9 @@ import (
 )
 
 const (
-	imageName = "chainsafe/lodestar:next"
+	// TODO DEBUGGING
+	// imageName = "chainsafe/lodestar:next"
+	imageName = "g11tech/lodestar:355ef6"
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 
@@ -33,7 +35,7 @@ const (
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
 
-	maxNumHealthcheckRetries      = 20
+	maxNumHealthcheckRetries      = 30
 	timeBetweenHealthcheckRetries = 1 * time.Second
 
 	beaconSuffixServiceId    = "beacon"
@@ -46,30 +48,29 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 }
-var lodestarLogLevels = map[log_levels.ParticipantLogLevel]string{
-	log_levels.ParticipantLogLevel_Error: "error",
-	log_levels.ParticipantLogLevel_Warn:  "warn",
-	log_levels.ParticipantLogLevel_Info:  "info",
-	log_levels.ParticipantLogLevel_Debug: "debug",
+var lodestarLogLevels = map[module_io.ParticipantLogLevel]string{
+	module_io.ParticipantLogLevel_Error: "error",
+	module_io.ParticipantLogLevel_Warn:  "warn",
+	module_io.ParticipantLogLevel_Info:  "info",
+	module_io.ParticipantLogLevel_Debug: "debug",
 }
 
 type LodestarClientLauncher struct {
 	genesisConfigYmlFilepathOnModuleContainer string
 	genesisSszFilepathOnModuleContainer       string
-	expectedNumBeaconNodes uint32
 }
 
-func NewLodestarClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, expectedNumBeaconNodes uint32) *LodestarClientLauncher {
-	return &LodestarClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
+func NewLodestarClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string) *LodestarClientLauncher {
+	return &LodestarClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer}
 }
 
 func (launcher *LodestarClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
+	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	beaconServiceId := serviceId + "-" + beaconSuffixServiceId
 	validatorServiceId := serviceId + "-" + validatorSuffixServiceId
@@ -130,7 +131,7 @@ func (launcher *LodestarClientLauncher) Launch(
 func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		lodestarLogLevel, found := lodestarLogLevels[logLevel]
@@ -178,8 +179,6 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			"--eth1.disableEth1DepositDataTracker=true",
 			"--eth1.providerUrls=" + elClientRpcUrlStr,
 			"--execution.urls=" + elClientRpcUrlStr,
-			fmt.Sprintf("--network.targetPeers=%v", launcher.expectedNumBeaconNodes - 1),
-			fmt.Sprintf("--network.maxPeers=%v", launcher.expectedNumBeaconNodes - 1),
 			"--api.rest.enabled=true",
 			"--api.rest.host=0.0.0.0",
 			"--api.rest.api=*",
@@ -209,7 +208,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 
 func getValidatorContainerConfigSupplier(
 	serviceId services.ServiceID,
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 	beaconEndpoint string,
 	genesisConfigYmlFilepathOnModuleContainer string,
 	validatorKeysDirpathOnModuleContainer string,

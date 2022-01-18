@@ -2,17 +2,19 @@ package prysm
 
 import (
 	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/availability_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	recursive_copy "github.com/otiai10/copy"
+	"io/ioutil"
+	"os"
 	"path"
 	"text/template"
 	"time"
@@ -52,6 +54,8 @@ const (
 
 	beaconSuffixServiceId    = "beacon"
 	validatorSuffixServiceId = "validator"
+
+	minPeers = 1
 )
 
 var beaconNodeUsedPorts = map[string]*services.PortSpec{
@@ -65,15 +69,11 @@ var beaconNodeUsedPorts = map[string]*services.PortSpec{
 var validatorNodeUsedPorts = map[string]*services.PortSpec{
 	validatorMonitoringPortID: services.NewPortSpec(validatorMonitoringPortNum, services.PortProtocol_TCP),
 }
-var prysmLogLevels = map[log_levels.ParticipantLogLevel]string{
-	log_levels.ParticipantLogLevel_Error: "error",
-	log_levels.ParticipantLogLevel_Warn:  "warn",
-	log_levels.ParticipantLogLevel_Info:  "info",
-	log_levels.ParticipantLogLevel_Debug: "debug",
-}
-
-type prysmPasswordTemplateData struct {
-	Password string
+var prysmLogLevels = map[module_io.ParticipantLogLevel]string{
+	module_io.ParticipantLogLevel_Error: "error",
+	module_io.ParticipantLogLevel_Warn:  "warn",
+	module_io.ParticipantLogLevel_Info:  "info",
+	module_io.ParticipantLogLevel_Debug: "debug",
 }
 
 type PrysmClientLauncher struct {
@@ -81,32 +81,27 @@ type PrysmClientLauncher struct {
 	genesisSszFilepathOnModuleContainer       string
 	prysmPassword                             string
 	prysmPasswordTxtTemplate                  *template.Template
-	expectedNumBeaconNodes                    uint32
 }
 
 func NewPrysmCLCLientLauncher(
 	genesisConfigYmlFilepathOnModuleContainer string,
 	genesisSszFilepathOnModuleContainer string,
 	prysmPassword string,
-	prysmPasswordTxtTemplate *template.Template,
-	expectedNumBeaconNodes uint32,
 ) *PrysmClientLauncher {
 	return &PrysmClientLauncher{
 		genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer,
 		genesisSszFilepathOnModuleContainer:       genesisSszFilepathOnModuleContainer,
 		prysmPassword:                             prysmPassword,
-		prysmPasswordTxtTemplate:                  prysmPasswordTxtTemplate,
-		expectedNumBeaconNodes:                    expectedNumBeaconNodes,
 	}
 }
 
 func (launcher *PrysmClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
+	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	beaconServiceId := serviceId + "-" + beaconSuffixServiceId
 	validatorServiceId := serviceId + "-" + validatorSuffixServiceId
@@ -149,7 +144,6 @@ func (launcher *PrysmClientLauncher) Launch(
 		nodeKeystoreDirpaths.RawKeysDirpath,
 		nodeKeystoreDirpaths.PrysmDirpath,
 		launcher.prysmPassword,
-		launcher.prysmPasswordTxtTemplate,
 	)
 	_, err = enclaveCtx.AddService(validatorServiceId, validatorContainerConfigSupplier)
 	if err != nil {
@@ -173,7 +167,7 @@ func (launcher *PrysmClientLauncher) Launch(
 func (launcher *PrysmClientLauncher) getBeaconContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 	genesisConfigYmlFilepathOnModuleContainer string,
 	genesisSszFilepathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
@@ -223,8 +217,7 @@ func (launcher *PrysmClientLauncher) getBeaconContainerConfigSupplier(
 			fmt.Sprintf("--grpc-gateway-port=%v", httpPortNum),
 			fmt.Sprintf("--p2p-tcp-port=%v", discoveryTCPPortNum),
 			fmt.Sprintf("--p2p-udp-port=%v", discoveryUDPPortNum),
-			fmt.Sprintf("--min-sync-peers=%v", launcher.expectedNumBeaconNodes - 1),
-			fmt.Sprintf("--p2p-max-peers=%v", launcher.expectedNumBeaconNodes - 1),
+			fmt.Sprintf("--min-sync-peers=%v", minPeers),
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", beaconMonitoringPortNum),
 			"--verbosity=" + prysmLogLevel,
@@ -250,14 +243,13 @@ func (launcher *PrysmClientLauncher) getBeaconContainerConfigSupplier(
 
 func getValidatorContainerConfigSupplier(
 	serviceId services.ServiceID,
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 	beaconRPCEndpoint string,
 	beaconHTTPEndpoint string,
 	genesisConfigYmlFilepathOnModuleContainer string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
 	prysmPassword string,
-	prysmPasswordTxtTemplate *template.Template,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		prysmLogLevel, found := prysmLogLevels[logLevel]
@@ -291,13 +283,10 @@ func getValidatorContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
 		}
 
-		prysmPasswordTemplData := &prysmPasswordTemplateData{
-			Password: prysmPassword,
-		}
-
 		prysmPasswordTxtSharedPath := sharedDir.GetChildPath(prysmPasswordTxtRelFilepathInSharedDir)
-		if err := service_launch_utils.FillTemplateToSharedPath(prysmPasswordTxtTemplate, prysmPasswordTemplData, prysmPasswordTxtSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred filling the Prysm password txt template")
+		prysmPasswordTxtFilepathOnModuleContainer := prysmPasswordTxtSharedPath.GetAbsPathOnThisContainer()
+		if err := ioutil.WriteFile(prysmPasswordTxtFilepathOnModuleContainer,[]byte(prysmPassword), os.ModePerm); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred writing the Prysm keystore password to file '%v'", prysmPasswordTxtFilepathOnModuleContainer)
 		}
 
 		rootDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))

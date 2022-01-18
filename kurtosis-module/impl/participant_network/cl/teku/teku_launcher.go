@@ -2,12 +2,12 @@ package teku
 
 import (
 	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/availability_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -55,6 +55,8 @@ const (
 	// Teku nodes take ~35s to bring their HTTP server up
 	maxNumHealthcheckRetries = 60
 	timeBetweenHealthcheckRetries = 1 * time.Second
+
+	minPeers = 1
 )
 var usedPorts = map[string]*services.PortSpec{
 	// TODO Add metrics port
@@ -62,11 +64,11 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 }
-var tekuLogLevels = map[log_levels.ParticipantLogLevel]string{
-	log_levels.ParticipantLogLevel_Error: "ERROR",
-	log_levels.ParticipantLogLevel_Warn:  "WARN",
-	log_levels.ParticipantLogLevel_Info:  "INFO",
-	log_levels.ParticipantLogLevel_Debug: "DEBUG",
+var tekuLogLevels = map[module_io.ParticipantLogLevel]string{
+	module_io.ParticipantLogLevel_Error: "ERROR",
+	module_io.ParticipantLogLevel_Warn:  "WARN",
+	module_io.ParticipantLogLevel_Info:  "INFO",
+	module_io.ParticipantLogLevel_Debug: "DEBUG",
 }
 
 type TekuCLClientLauncher struct {
@@ -83,10 +85,10 @@ func (launcher *TekuCLClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	// TODO move to launcher param
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
+	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		bootnodeContext,
@@ -134,7 +136,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
@@ -206,8 +208,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			"--p2p-enabled=true",
 			// Set per Pari's recommendation, to reduce noise in the logs
 			"--p2p-subscribe-all-subnets-enabled=true",
-			fmt.Sprintf("--p2p-peer-lower-bound=%v", launcher.expectedNumBeaconNodes - 1),
-			fmt.Sprintf("--p2p-peer-upper-bound=%v", launcher.expectedNumBeaconNodes - 1),
+			fmt.Sprintf("--p2p-peer-lower-bound=%v", minPeers),
 			"--eth1-endpoints=" + elClientRpcUrlStr,
 			"--Xee-endpoint=" + elClientRpcUrlStr,
 			"--p2p-advertised-ip=" + privateIpAddr,

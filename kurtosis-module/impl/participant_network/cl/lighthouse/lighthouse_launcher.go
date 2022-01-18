@@ -2,12 +2,12 @@ package lighthouse
 
 import (
 	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/availability_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -54,30 +54,29 @@ var beaconUsedPorts = map[string]*services.PortSpec{
 var validatorUsedPorts = map[string]*services.PortSpec{
 	validatorHttpPortID: services.NewPortSpec(validatorHttpPortNum, services.PortProtocol_TCP),
 }
-var lighthouseLogLevels = map[log_levels.ParticipantLogLevel]string{
-	log_levels.ParticipantLogLevel_Error: "error",
-	log_levels.ParticipantLogLevel_Warn:  "warn",
-	log_levels.ParticipantLogLevel_Info:  "info",
-	log_levels.ParticipantLogLevel_Debug: "debug",
+var lighthouseLogLevels = map[module_io.ParticipantLogLevel]string{
+	module_io.ParticipantLogLevel_Error: "error",
+	module_io.ParticipantLogLevel_Warn:  "warn",
+	module_io.ParticipantLogLevel_Info:  "info",
+	module_io.ParticipantLogLevel_Debug: "debug",
 }
 
 type LighthouseCLClientLauncher struct {
 	// The dirpath on the module container where the CL genesis config data directory exists
 	configDataDirpathOnModuleContainer string
-	expectedNumBeaconNodes uint32
 }
 
-func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string, expectedNumBeaconNodes uint32) *LighthouseCLClientLauncher {
-	return &LighthouseCLClientLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
+func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string) *LighthouseCLClientLauncher {
+	return &LighthouseCLClientLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer}
 }
 
 func (launcher *LighthouseCLClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
+	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	beaconNodeServiceId := services.ServiceID(fmt.Sprintf("%v-beacon", serviceId))
 	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-validator", serviceId))
@@ -94,6 +93,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 		return nil, stacktrace.NewError("Expected new Lighthouse Beacon service to have port with ID '%v', but none was found", beaconHttpPortID)
 	}
 
+	// TODO This will return a 503 when genesis isn't yet ready!!! Need to fix this somehow
 	beaconRestClient := cl_client_rest_client.NewCLClientRESTClient(beaconServiceCtx.GetPrivateIPAddress(), beaconHttpPort.GetNumber())
 	if err := availability_waiter.WaitForBeaconClientAvailability(beaconRestClient, maxNumHealthcheckRetries, timeBetweenHealthcheckRetries); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the new Lighthouse Beacon node to become available")
@@ -134,7 +134,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 	bootClClientCtx *cl.CLClientContext,
 	elClientCtx *el.ELClientContext,
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		lighthouseLogLevel, found := lighthouseLogLevels[logLevel]
@@ -195,7 +195,6 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--disable-packet-filter",
 			"--execution-endpoints=" + elClientRpcUrlStr,
 			"--eth1-endpoints=" + elClientRpcUrlStr,
-			fmt.Sprintf("--target-peers=%v", launcher.expectedNumBeaconNodes - 1),
 			// Set per Paris' recommendation to reduce noise in the logs
 			"--subscribe-all-subnets",
 		}
@@ -215,7 +214,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 }
 
 func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 	beaconClientHttpUrl string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,

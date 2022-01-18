@@ -1,13 +1,16 @@
-package prelaunch_data_generator
+package cl_validator_keystores
 
 import (
 	"fmt"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"strings"
+	"time"
 )
 
 const (
+	outputDirnamePrefix = "cl-validator-keystores-"
+
 	// Prysm keystores are encrypted with a password
 	prysmPassword = "password"
 
@@ -18,30 +21,30 @@ const (
 
 // Generates keystores for the given number of nodes from the given mnemonic, where each keystore contains approximately
 //  num_keys / num_nodes keys
-func generateKeystores(
+func GenerateCLValidatorKeystores(
 	serviceCtx *services.ServiceContext,
 	mnemonic string,
-	numPreregisteredValidators uint32,	// The number of validators that were preregistered during the creation of the CL genesis
 	numNodes uint32,
+	numValidatorsPerNode uint32,
 ) (
 	*GenerateKeystoresResult,
 	error,
 ){
 	sharedDir := serviceCtx.GetSharedDirectory()
-	startIndices, stopIndices, err := generateKeyStartAndStopIndices(numPreregisteredValidators, numNodes)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred generating the validator key start & stop indices for the nodes")
-	}
+	outputSharedDir := sharedDir.GetChildPath(fmt.Sprintf(
+		"%v%v",
+		outputDirnamePrefix,
+		time.Now().Unix(),
+	))
 
 	allNodeKeystoreDirpaths := []*NodeTypeKeystoreDirpaths{}
 	allSubcommandStrs := []string{}
+
+	startIndex := uint32(0)
+	stopIndex := numValidatorsPerNode
 	for i := uint32(0); i < numNodes; i++ {
-		startIndex := startIndices[i]
-		stopIndex := stopIndices[i]
-
 		nodeKeystoresDirname := fmt.Sprintf("node-%v-keystores", i)
-		nodeOutputSharedPath := sharedDir.GetChildPath(nodeKeystoresDirname)
-
+		nodeOutputSharedPath := outputSharedDir.GetChildPath(nodeKeystoresDirname)
 		subcommandStr := fmt.Sprintf(
 			"%v keystores --prysm-pass %v --out-loc %v --source-mnemonic \"%v\" --source-min %v --source-max %v",
 			keystoresGenerationToolName,
@@ -55,6 +58,9 @@ func generateKeystores(
 
 		nodeKeystoreDirpaths := NewNodeTypeKeystoreDirpathsFromOutputSharedPath(nodeOutputSharedPath)
 		allNodeKeystoreDirpaths = append(allNodeKeystoreDirpaths, nodeKeystoreDirpaths)
+
+		startIndex = stopIndex
+		stopIndex = stopIndex + numValidatorsPerNode
 	}
 
 	commandStr := strings.Join(allSubcommandStrs, " && ")
@@ -79,42 +85,4 @@ func generateKeystores(
 	)
 
 	return result, nil
-}
-
-func generateKeyStartAndStopIndices(
-	numPreregisteredValidators uint32,
-	numNodes uint32,
-) (
-	resultInclusiveKeyStartIndices []uint32,
-	resultExclusiveKeyStopIndices []uint32,
-	resultErr error,
-){
-	if (numNodes > numPreregisteredValidators) {
-		return nil, nil, stacktrace.NewError(
-			"Number of preregistered validators '%v' must be >= number of CL nodes '%v'",
-			numPreregisteredValidators,
-			numNodes,
-		)
-	}
-	validatorsPerNode := numPreregisteredValidators / numNodes
-
-	// If mod(num_validators / num_nodes) != 0, we have to give one of the nodes extra keys
-	leftover := numPreregisteredValidators % numNodes
-
-	inclusiveKeyStartIndices := []uint32{}
-	exclusiveKeyStopIndices := []uint32{}
-
-	lastEndIndex := uint32(0)
-	for i := uint32(0); i < numNodes; i++ {
-		rangeSize := validatorsPerNode
-		if i == 0 {
-			rangeSize = rangeSize + leftover
-		}
-		rangeStart := lastEndIndex
-		rangeEnd := lastEndIndex + rangeSize
-		inclusiveKeyStartIndices = append(inclusiveKeyStartIndices, rangeStart)
-		exclusiveKeyStopIndices = append(exclusiveKeyStopIndices, rangeEnd)
-		lastEndIndex = rangeEnd
-	}
-	return inclusiveKeyStartIndices, exclusiveKeyStopIndices, nil
 }

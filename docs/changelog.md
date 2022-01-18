@@ -2,6 +2,7 @@
 ### Features
 * Added Prysm CL (beacon, validator) Launcher
 * Made EL & CL client log levels configurable as a module param, `logLevel`
+* Added self-documenting code for module params
 
 ### Changes
 * The `WaitForBeaconClientAvailability` method also checks if the returned status is READY, which means the node is synced
@@ -9,8 +10,14 @@
 * Set the Eth1 block time to 1 second in the CL config
 
 ### Fixes
-* Set the target-peers flag on each Beacon node to be numParticipants - 1
 * Set the `--subscribe-all-subnets` flag equivalents on all Beacon nodes
+* Generate the CL genesis files AFTER the EL network is mining, so that the CL network doesn't skip any important epochs (e.g. Altair, or merge fork) which causes it to get in a stuck state
+* Removed unneeded hanging-around delay that existed in wait-for-finalization logic
+* Wait until all CL nodes are up before starting to process slots
+* Make forkmon respond to slots-per-epoch config changes
+* Bump Lodestar wait-for-availability time up to 30s
+* Don't launch Forkmon until CL genesis has been hit, due to a bug where if it receives a non-200 healthcheck status for a node then it won't ever revisit the node
+* Updated the Geth image to `parithoshj/geth:merge-f72c361` (from around 2022-01-18)
 
 # 0.2.3
 ### Features

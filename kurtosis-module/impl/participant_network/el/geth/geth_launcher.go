@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	// TODO CHANGE THIS
-	imageName = "kurtosistech/go-ethereum:d99ac5a7d"
+	// An image from around 2022-01-18
+	imageName = "parithoshj/geth:merge-f72c361"
 
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
@@ -37,7 +37,9 @@ const (
 	// NOTE: This can't be 0x00000....000
 	// See: https://github.com/ethereum/go-ethereum/issues/19547
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
-	numMiningThreads = 2
+
+	// TODO Scale this dynamically based on CPUs available and Geth nodes mining
+	numMiningThreads = 1
 
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
 	sharedGenesisJsonRelFilepath = "genesis.json"
@@ -76,30 +78,30 @@ var prefundedAccountPrivateKeys = []string{
 	"df9bb6de5d3dc59595bcaa676397d837ff49441d211878c024eabda2cd067c9f", // m/44'/60'/0'/0/4
 	"7da08f856b5956d40a72968f93396f6acff17193f013e8053f6fbb6c08c194d6", // m/44'/60'/0'/0/5
 }
-var verbosityLevels = map[log_levels.ParticipantLogLevel]string{
-	log_levels.ParticipantLogLevel_Error: "1",
-	log_levels.ParticipantLogLevel_Warn:  "2",
-	log_levels.ParticipantLogLevel_Info:  "3",
-	log_levels.ParticipantLogLevel_Debug: "4",
+var verbosityLevels = map[module_io.ParticipantLogLevel]string{
+	module_io.ParticipantLogLevel_Error: "1",
+	module_io.ParticipantLogLevel_Warn:  "2",
+	module_io.ParticipantLogLevel_Info:  "3",
+	module_io.ParticipantLogLevel_Debug: "4",
 }
 
 type GethELClientLauncher struct {
 	genesisJsonFilepathOnModuleContainer string
 	prefundedAccountInfo []*genesis_consts.PrefundedAccount
+	networkId string
 }
 
-func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount) *GethELClientLauncher {
-	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo}
+func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *GethELClientLauncher {
+	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo, networkId: networkId}
 }
 
 func (launcher *GethELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
-	logLevel log_levels.ParticipantLogLevel,
-	networkId string,
+	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *el.ELClientContext,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(networkId, bootnodeContext, logLevel)
+	containerConfigSupplier := launcher.getContainerConfigSupplier(launcher.networkId, bootnodeContext, logLevel)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
@@ -133,7 +135,7 @@ func (launcher *GethELClientLauncher) Launch(
 func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	networkId string,
 	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
-	logLevel log_levels.ParticipantLogLevel,
+	logLevel module_io.ParticipantLogLevel,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		verbosityLevel, found := verbosityLevels[logLevel]

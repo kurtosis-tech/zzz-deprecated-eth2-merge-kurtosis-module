@@ -21,29 +21,7 @@ This is a [Kurtosis module][module-docs] that will:
     kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module --execute-params '{}'
     ```
 
-To configure the module behaviour, provide a non-empty JSON object to the `--execute-params` flag. The configuration schema is as follows (note that the `//` comments are NOT valid JSON; you will need to remove them if you copy the block below):
-
-```json
-{
-    // Each participant = 1 execution layer node (ETH1) + 1 consensus layer node (ETH2)
-    // Participants are added in the order specified here
-    "participants": [
-        {
-            // Execution layer client type; valid values are "geth" and "nethermind"
-            "el": "geth",
-
-            // Consensus layer client type; valid values are "lighthouse", "lodestar", "nimbus", "prsym", and "teku"
-            "cl": "nimbus"
-        }
-    ],
-
-    // If set to true, waits until finalized_epoch > 0 and finalized_epoch = current_epoch - 3
-    "waitForFinalization": false,
-
-    // Allowed values are "error", "warn", "info", "debug"
-    "logLevel": "info"
-}
-```
+To configure the module behaviour, provide a non-empty JSON object to the `--execute-params` flag. The JSON schema that can be passed in is defined HERETODOOOOO, and the default values that will be used if you omit fields are defined HERETODOOOOOO.
 
 ### Management
 Kurtosis will create a new enclave to house the services of the Ethereum network. [This page][using-the-cli] contains documentation for managing the created enclave & viewing detailed information about it.
@@ -53,3 +31,6 @@ Kurtosis will create a new enclave to house the services of the Ethereum network
 [kurtosis-cli-installation]: https://docs.kurtosistech.com/installation.html
 [module-docs]: https://docs.kurtosistech.com/modules.html
 [using-the-cli]: https://docs.kurtosistech.com/using-the-cli.html
+
+### Development
+The unit tests in this module also require Kurtosis to be available.
