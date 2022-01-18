@@ -1,10 +1,16 @@
 # TBD
 ### Features
 * Added Prysm CL (beacon, validator) Launcher
+* Made EL & CL client log levels configurable as a module param, `logLevel`
 
 ### Changes
 * The `WaitForBeaconClientAvailability` method also checks if the returned status is READY, which means the node is synced
 * Replaced the custom implementation of the availability waiter method in Lodestar Launcher with the `WaitForBeaconClientAvailability` used for other launchers
+* Set the Eth1 block time to 1 second in the CL config
+
+### Fixes
+* Set the target-peers flag on each Beacon node to be numParticipants - 1
+* Set the `--subscribe-all-subnets` flag equivalents on all Beacon nodes
 
 # 0.2.3
 ### Features

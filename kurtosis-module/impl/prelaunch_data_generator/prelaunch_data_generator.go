@@ -16,13 +16,15 @@ const (
 
 type PrelaunchData struct {
 	GethELGenesisJsonFilepathOnModuleContainer string
+	NethermindGenesisJsonFilepathOnModuleContainer string
 	CLGenesisPaths *CLGenesisPaths
 	KeystoresGenerationResult *GenerateKeystoresResult
 }
 
 func GeneratePrelaunchData(
 	enclaveCtx *enclaves.EnclaveContext,
-	elGenesisConfigYmlTemplate *template.Template,
+	gethGenesisConfigYmlTemplate *template.Template,
+	nethermindGenesisConfigJsonTemplate *template.Template,
 	clGenesisConfigYmlTemplate *template.Template,
 	clGenesisMnemonicsYmlTemplate *template.Template,
 	validatorsMnemonic string,
@@ -46,9 +48,10 @@ func GeneratePrelaunchData(
 	}
 
 	logrus.Info("Generating genesis data...")
-	gethGenesisJsonFilepath, clGenesisPaths, err := generateGenesisData(
+	gethGenesisJsonFilepath, nethermindGenesisJsonFilepath, clGenesisPaths, err := generateGenesisData(
 		serviceCtx,
-		elGenesisConfigYmlTemplate,
+		gethGenesisConfigYmlTemplate,
+		nethermindGenesisConfigJsonTemplate,
 		clGenesisConfigYmlTemplate,
 		clGenesisMnemonicsYmlTemplate,
 		genesisUnixTimestamp,
@@ -92,7 +95,8 @@ func GeneratePrelaunchData(
 	}
 	
 	result := &PrelaunchData{
-		GethELGenesisJsonFilepathOnModuleContainer: gethGenesisJsonFilepath,
+		GethELGenesisJsonFilepathOnModuleContainer:     gethGenesisJsonFilepath,
+		NethermindGenesisJsonFilepathOnModuleContainer: nethermindGenesisJsonFilepath,
 		CLGenesisPaths:            clGenesisPaths,
 		KeystoresGenerationResult: generateKeystoresResult,
 	}

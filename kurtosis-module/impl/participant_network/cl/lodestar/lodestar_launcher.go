@@ -6,6 +6,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/availability_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
@@ -45,19 +46,27 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 }
+var lodestarLogLevels = map[log_levels.ParticipantLogLevel]string{
+	log_levels.ParticipantLogLevel_Error: "error",
+	log_levels.ParticipantLogLevel_Warn:  "warn",
+	log_levels.ParticipantLogLevel_Info:  "info",
+	log_levels.ParticipantLogLevel_Debug: "debug",
+}
 
 type LodestarClientLauncher struct {
 	genesisConfigYmlFilepathOnModuleContainer string
 	genesisSszFilepathOnModuleContainer       string
+	expectedNumBeaconNodes uint32
 }
 
-func NewLodestarCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string) *LodestarClientLauncher {
-	return &LodestarClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer}
+func NewLodestarClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, expectedNumBeaconNodes uint32) *LodestarClientLauncher {
+	return &LodestarClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
 }
 
 func (launcher *LodestarClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
+	logLevel log_levels.ParticipantLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths,
@@ -65,11 +74,10 @@ func (launcher *LodestarClientLauncher) Launch(
 	beaconServiceId := serviceId + "-" + beaconSuffixServiceId
 	validatorServiceId := serviceId + "-" + validatorSuffixServiceId
 
-	beaconContainerConfigSupplier := getBeaconContainerConfigSupplier(
+	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(
 		bootnodeContext,
 		elClientContext,
-		launcher.genesisConfigYmlFilepathOnModuleContainer,
-		launcher.genesisSszFilepathOnModuleContainer,
+		logLevel,
 	)
 	beaconServiceCtx, err := enclaveCtx.AddService(beaconServiceId, beaconContainerConfigSupplier)
 	if err != nil {
@@ -95,6 +103,7 @@ func (launcher *LodestarClientLauncher) Launch(
 
 	validatorContainerConfigSupplier := getValidatorContainerConfigSupplier(
 		validatorServiceId,
+		logLevel,
 		beaconHttpUrl,
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		nodeKeystoreDirpaths.RawKeysDirpath,
@@ -118,29 +127,33 @@ func (launcher *LodestarClientLauncher) Launch(
 // ====================================================================================================
 //                                   Private Helper Methods
 // ====================================================================================================
-func getBeaconContainerConfigSupplier(
-		bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
-		elClientContext *el.ELClientContext,
-		genesisConfigYmlFilepathOnModuleContainer string,
-		genesisSszFilepathOnModuleContainer string,
-		) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
+func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
+	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
+	elClientContext *el.ELClientContext,
+	logLevel log_levels.ParticipantLogLevel,
+) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+		lodestarLogLevel, found := lodestarLogLevels[logLevel]
+		if !found {
+			return nil, stacktrace.NewError("No Lodestar log level defined for client log level '%v'; this is a bug in the module", logLevel)
+		}
+
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
 			return nil, stacktrace.Propagate(
 				err,
 				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				genesisConfigYmlFilepathOnModuleContainer,
+				launcher.genesisConfigYmlFilepathOnModuleContainer,
 				genesisConfigYmlRelFilepathInSharedDir,
 			)
 		}
 
 		genesisSszSharedPath := sharedDir.GetChildPath(genesisSszRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
 			return nil, stacktrace.Propagate(
 				err,
 				"An error occurred copying the genesis SSZ from '%v' to shared dir relative path '%v'",
-				genesisSszFilepathOnModuleContainer,
+				launcher.genesisSszFilepathOnModuleContainer,
 				genesisSszRelFilepathInSharedDir,
 			)
 		}
@@ -153,6 +166,7 @@ func getBeaconContainerConfigSupplier(
 
 		cmdArgs := []string{
 			"beacon",
+			"--logLevel=" + lodestarLogLevel,
 			fmt.Sprintf("--port=%v", discoveryPortNum),
 			fmt.Sprintf("--discoveryPort=%v", discoveryPortNum),
 			"--rootDir=" + consensusDataDirpathOnServiceContainer,
@@ -164,6 +178,8 @@ func getBeaconContainerConfigSupplier(
 			"--eth1.disableEth1DepositDataTracker=true",
 			"--eth1.providerUrls=" + elClientRpcUrlStr,
 			"--execution.urls=" + elClientRpcUrlStr,
+			fmt.Sprintf("--network.targetPeers=%v", launcher.expectedNumBeaconNodes - 1),
+			fmt.Sprintf("--network.maxPeers=%v", launcher.expectedNumBeaconNodes - 1),
 			"--api.rest.enabled=true",
 			"--api.rest.host=0.0.0.0",
 			"--api.rest.api=*",
@@ -171,8 +187,8 @@ func getBeaconContainerConfigSupplier(
 			"--enr.ip=" + privateIpAddr,
 			fmt.Sprintf("--enr.tcp=%v", discoveryPortNum),
 			fmt.Sprintf("--enr.udp=%v", discoveryPortNum),
-			"--logLevel=debug",
-
+			// Set per Pari's recommendation to reduce noise in the logs
+			"--network.subscribeAllSubnets=true",
 		}
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--network.discv5.bootEnrs=" + bootnodeContext.GetENR())
@@ -193,12 +209,18 @@ func getBeaconContainerConfigSupplier(
 
 func getValidatorContainerConfigSupplier(
 	serviceId services.ServiceID,
+	logLevel log_levels.ParticipantLogLevel,
 	beaconEndpoint string,
 	genesisConfigYmlFilepathOnModuleContainer string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+		lodestarLogLevel, found := lodestarLogLevels[logLevel]
+		if !found {
+			return nil, stacktrace.NewError("No Lodestar log level defined for client log level '%v'; this is a bug in the module", logLevel)
+		}
+
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
 		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
 			return nil, stacktrace.Propagate(
@@ -213,12 +235,12 @@ func getValidatorContainerConfigSupplier(
 
 		cmdArgs := []string{
 			"validator",
+			"--logLevel=" + lodestarLogLevel,
 			"--rootDir=" + rootDirpath,
 			"--paramsFile=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--server=" + beaconEndpoint,
 			"--keystoresDir=" + validatorKeysDirpathOnModuleContainer,
 			"--secretsDir=" + validatorSecretsDirpathOnModuleContainer,
-			"--logLevel=debug",
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(

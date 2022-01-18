@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
@@ -75,6 +76,12 @@ var prefundedAccountPrivateKeys = []string{
 	"df9bb6de5d3dc59595bcaa676397d837ff49441d211878c024eabda2cd067c9f", // m/44'/60'/0'/0/4
 	"7da08f856b5956d40a72968f93396f6acff17193f013e8053f6fbb6c08c194d6", // m/44'/60'/0'/0/5
 }
+var verbosityLevels = map[log_levels.ParticipantLogLevel]string{
+	log_levels.ParticipantLogLevel_Error: "1",
+	log_levels.ParticipantLogLevel_Warn:  "2",
+	log_levels.ParticipantLogLevel_Info:  "3",
+	log_levels.ParticipantLogLevel_Debug: "4",
+}
 
 type GethELClientLauncher struct {
 	genesisJsonFilepathOnModuleContainer string
@@ -85,8 +92,14 @@ func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefun
 	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo}
 }
 
-func (launcher *GethELClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, networkId string, bootnodeContext *el.ELClientContext) (resultClientCtx *el.ELClientContext, resultErr error) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(networkId, bootnodeContext)
+func (launcher *GethELClientLauncher) Launch(
+	enclaveCtx *enclaves.EnclaveContext,
+	serviceId services.ServiceID,
+	logLevel log_levels.ParticipantLogLevel,
+	networkId string,
+	bootnodeContext *el.ELClientContext,
+) (resultClientCtx *el.ELClientContext, resultErr error) {
+	containerConfigSupplier := launcher.getContainerConfigSupplier(networkId, bootnodeContext, logLevel)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
@@ -97,12 +110,17 @@ func (launcher *GethELClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext
 		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
 	}
 
+	miningWaiter := newGethMiningWaiter(
+		serviceCtx.GetPrivateIPAddress(),
+		rpcPortNum,
+	)
 	result := el.NewELClientContext(
 		nodeInfo.ENR,
 		nodeInfo.Enode,
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 		wsPortNum,
+		miningWaiter,
 	)
 
 	return result, nil
@@ -115,8 +133,14 @@ func (launcher *GethELClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext
 func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	networkId string,
 	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
+	logLevel log_levels.ParticipantLogLevel,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+		verbosityLevel, found := verbosityLevels[logLevel]
+		if !found {
+			return nil, stacktrace.NewError("No Geth verbosity level was defined for client log level '%v'; this is a bug in this module itself", logLevel)
+		}
+
 		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModuleContainer, genesisJsonSharedPath); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedGenesisJsonRelFilepath)
@@ -162,6 +186,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 		accountsToUnlockStr := strings.Join(accountAddressesToUnlock, ",")
 		launchNodeCmdArgs := []string{
 			"geth",
+			"--verbosity=" + verbosityLevel,
 			"--unlock=" + accountsToUnlockStr,
 			"--password=" + gethAccountPasswordsFile,
 			"--mine",
@@ -181,7 +206,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--ws.api=engine,net,eth",
 			"--allow-insecure-unlock",
 			"--nat=extip:" + privateIpAddr,
-			"--verbosity=3",
+			"--verbosity=" + verbosityLevel,
 		}
 		if bootnodeContext != nil {
 			launchNodeCmdArgs = append(

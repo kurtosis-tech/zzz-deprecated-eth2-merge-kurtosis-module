@@ -37,14 +37,14 @@ SHARDING_FORK_EPOCH: 18446744073709551615
 # ---------------------------------------------------------------
 # 12 seconds
 SECONDS_PER_SLOT: {{ .SecondsPerSlot }}
-# 14 (estimate from Eth1 mainnet)
-SECONDS_PER_ETH1_BLOCK: 14
 # 2**8 (= 256) epochs ~27 hours
 MIN_VALIDATOR_WITHDRAWABILITY_DELAY: 256
 # 2**8 (= 256) epochs ~27 hours
 SHARD_COMMITTEE_PERIOD: 256
-# 2**11 (= 2,048) Eth1 blocks ~8 hours
-ETH1_FOLLOW_DISTANCE: 12
+# It's very important that SECONDS_PER_ETH1_BLOCK * ETH1_FOLLOW_DISTANCE is a good amount of time, else
+#  jitter will cause the Beacon nodes to think they're far behind the Eth1 nodes and give up syncing
+SECONDS_PER_ETH1_BLOCK: 10
+ETH1_FOLLOW_DISTANCE: 256
 
 
 # Validator cycle

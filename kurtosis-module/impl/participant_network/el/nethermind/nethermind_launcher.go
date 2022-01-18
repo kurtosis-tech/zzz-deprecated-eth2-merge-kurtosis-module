@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/log_levels"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -12,8 +13,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
-	"strconv"
-	"text/template"
 	"time"
 )
 
@@ -53,30 +52,30 @@ var usedPorts = map[string]*services.PortSpec{
 	tcpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
-
-type nethermindTemplateData struct {
-	NetworkID string
+var nethermindLogLevels = map[log_levels.ParticipantLogLevel]string{
+	log_levels.ParticipantLogLevel_Error: "ERROR",
+	log_levels.ParticipantLogLevel_Warn:  "WARN",
+	log_levels.ParticipantLogLevel_Info:  "INFO",
+	log_levels.ParticipantLogLevel_Debug: "DEBUG",
 }
 
 type NethermindELClientLauncher struct {
-	nethermindGenesisJsonTemplate *template.Template
-	totalTerminalDifficulty       uint64
+	genesisJsonFilepathOnModule string
+	totalTerminalDifficulty     uint64
 }
 
-func NewNethermindELClientLauncher(nethermingGenesisJsonTemplate *template.Template, totalTerminalDifficulty uint64) *NethermindELClientLauncher {
-	return &NethermindELClientLauncher{
-		nethermindGenesisJsonTemplate: nethermingGenesisJsonTemplate,
-		totalTerminalDifficulty:       totalTerminalDifficulty,
-	}
+func NewNethermindELClientLauncher(genesisJsonFilepathOnModule string, totalTerminalDifficulty uint64) *NethermindELClientLauncher {
+	return &NethermindELClientLauncher{genesisJsonFilepathOnModule: genesisJsonFilepathOnModule, totalTerminalDifficulty: totalTerminalDifficulty}
 }
 
 func (launcher *NethermindELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
+	logLevel log_levels.ParticipantLogLevel,
 	networkId string,
 	bootnodeContext *el.ELClientContext,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(networkId, bootnodeContext)
+	containerConfigSupplier := launcher.getContainerConfigSupplier(bootnodeContext, logLevel)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
@@ -87,6 +86,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
 	}
 
+	miningWaiter := &nethermindMiningWaiter{}
 	result := el.NewELClientContext(
 		// TODO TODO TODO TODO Get Nethermind ENR, so that CL clients can connect to it!!!
 		"", //Nethermind node info endpoint doesn't return ENR field https://docs.nethermind.io/nethermind/ethereum-client/json-rpc/admin
@@ -94,6 +94,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 		wsPortNum,
+		miningWaiter,
 	)
 
 	return result, nil
@@ -103,31 +104,29 @@ func (launcher *NethermindELClientLauncher) Launch(
 //                                       Private Helper Methods
 // ====================================================================================================
 func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
-	networkId string,
 	bootnodeCtx *el.ELClientContext,
+	logLevel log_levels.ParticipantLogLevel,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		nethermindGenesisJsonOnModuleContainerSharedPath := sharedDir.GetChildPath(sharedNethermindGenesisJsonRelFilepath)
-
-		networkIdHexStr, err := getNetworkIdHexSting(networkId)
-		if err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred getting network ID in Hex")
+		nethermindLogLevel, found := nethermindLogLevels[logLevel]
+		if !found {
+			return nil, stacktrace.NewError("No Nethermind log level defined for client log level '%v'; this is a bug in the module", logLevel)
 		}
 
-		nethermindTmplData := nethermindTemplateData{
-			NetworkID: networkIdHexStr,
-		}
-
-		if err := service_launch_utils.FillTemplateToSharedPath(launcher.nethermindGenesisJsonTemplate, nethermindTmplData, nethermindGenesisJsonOnModuleContainerSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred filling the Nethermind genesis json template")
+		nethermindGenesisJsonSharedPath := sharedDir.GetChildPath(sharedNethermindGenesisJsonRelFilepath)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModule, nethermindGenesisJsonSharedPath); err != nil {
+			return nil, stacktrace.Propagate(
+				err,
+				"An error occurred copying the Nethermind genesis JSON file from '%v' into the Nethermind node being started",
+				launcher.genesisJsonFilepathOnModule,
+			 )
 		}
 
 		commandArgs := []string{
-			"--config",
-			"kintsugi",
+			"--config=kintsugi",
+			"--log=" + nethermindLogLevel,
 			"--datadir=" + executionDataDirpathOnClientContainer,
-			"--Init.ChainSpecPath=" + nethermindGenesisJsonOnModuleContainerSharedPath.GetAbsPathOnServiceContainer(),
+			"--Init.ChainSpecPath=" + nethermindGenesisJsonSharedPath.GetAbsPathOnServiceContainer(),
 			"--Init.WebSocketsEnabled=true",
 			"--Init.DiagnosticMode=None",
 			"--JsonRpc.Enabled=true",
@@ -211,20 +210,4 @@ func sendRpcCall(privateIpAddr string, requestBody string, targetStruct interfac
 		return stacktrace.Propagate(err, "Error JSON-parsing Nethermind node RPC response string '%v' into a struct", bodyString)
 	}
 	return nil
-}
-
-func getNetworkIdHexSting(networkId string) (string, error) {
-	uintBase := 10
-	uintBits := 64
-	networkIdUint64, err := strconv.ParseUint(networkId, uintBase, uintBits)
-	if err != nil {
-		return "", stacktrace.Propagate(
-			err,
-			"An error occurred parsing network ID string '%v' to uint with base %v and %v bits",
-			networkId,
-			uintBase,
-			uintBits,
-		)
-	}
-	return fmt.Sprintf("0x%x", networkIdUint64), nil
 }
