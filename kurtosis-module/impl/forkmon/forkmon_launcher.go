@@ -50,6 +50,7 @@ func LaunchForkmon(
 		clClientContexts,
 		genesisUnixTimestamp,
 		secondsPerSlot,
+		slotsPerEpoch,
 	)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred getting the container config supplier")

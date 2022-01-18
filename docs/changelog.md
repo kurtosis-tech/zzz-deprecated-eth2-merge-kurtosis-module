@@ -16,6 +16,9 @@
 * Removed unneeded hanging-around delay that existed in wait-for-finalization logic
 * Wait until all CL nodes are up before starting to process slots
 * Make forkmon respond to slots-per-epoch config changes
+* Bump Lodestar wait-for-availability time up to 30s
+* Don't launch Forkmon until CL genesis has been hit, due to a bug where if it receives a non-200 healthcheck status for a node then it won't ever revisit the node
+* Updated the Geth image to `parithoshj/geth:merge-f72c361` (from around 2022-01-18)
 
 # 0.2.3
 ### Features

@@ -17,7 +17,9 @@ import (
 )
 
 const (
-	imageName = "chainsafe/lodestar:next"
+	// TODO DEBUGGING
+	// imageName = "chainsafe/lodestar:next"
+	imageName = "g11tech/lodestar:355ef6"
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 
@@ -33,7 +35,7 @@ const (
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
 
-	maxNumHealthcheckRetries      = 20
+	maxNumHealthcheckRetries      = 30
 	timeBetweenHealthcheckRetries = 1 * time.Second
 
 	beaconSuffixServiceId    = "beacon"

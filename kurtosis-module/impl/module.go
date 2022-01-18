@@ -26,9 +26,11 @@ const (
 	// mergeDevnet3NetworkId = "1337602"
 	// mergeDevnet3ClClientBootnodeEnr = "enr:-Iq4QKuNB_wHmWon7hv5HntHiSsyE1a6cUTK1aT7xDSU_hNTLW3R4mowUboCsqYoh1kN9v3ZoSu_WuvW9Aw0tQ0Dxv6GAXxQ7Nv5gmlkgnY0gmlwhLKAlv6Jc2VjcDI1NmsxoQK6S-Cii_KmfFdUJL2TANL3ksaKUnNXvTCv1tLwXs0QgIN1ZHCCIyk"
 
-	// In normal operation, the finalized epoch will be this many epochs behind head
-	expectedNumEpochsBehindHeadForFinalizedEpoch = uint64(3)
-	firstHeadEpochWhereFinalizedEpochIsPossible = expectedNumEpochsBehindHeadForFinalizedEpoch + 1
+	// On mainnet, finalization will be head - 2
+	// However, according to Pari, on these small testnets with genesis very close there's more churn so 4 epochs is possible
+	firstHeadEpochWhereFinalizedEpochIsPossible = uint64(4)
+	// The number of extra epochs beyond the first-epoch-where-finalization-is-possible that we'll wait for the network to finalize
+	finalizedEpochTolerance = uint64(0)
 	timeBetweenFinalizedEpochChecks = 5 * time.Second
 )
 
@@ -97,6 +99,19 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 	logrus.Info("Successfully launched transaction spammer")
 
+	logrus.Info("Waiting until CL genesis occurred...")
+	// We need to wait until the CL genesis has been reached to launch Forkmon because it has a bug (as of 2022-01-18) where
+	//  if a CL ndoe's getHealth endpoint returns a non-200 error code, Forkmon will mark the node as failed and will never revisit it
+	// This is fine with nodes who report 200 before genesis, but certain nodes (e.g. Lighthouse) will report a 503 before genesis
+	// Therefore, the simple fix is wait until CL genesis to start Forkmon
+	secondsRemainingUntilClGenesis := clGenesisUnixTimestamp - uint64(time.Now().Unix())
+	if secondsRemainingUntilClGenesis < 0 {
+		secondsRemainingUntilClGenesis = 0
+	}
+	durationUntilClGenesis := time.Duration(int64(secondsRemainingUntilClGenesis)) * time.Second
+	time.Sleep(durationUntilClGenesis)
+	logrus.Info("CL genesis has occurred")
+
 	logrus.Info("Launching forkmon...")
 	forkmonConfigTemplate, err := static_files.ParseTemplate(static_files.ForkmonConfigTemplateFilepath)
 	if err != nil {
@@ -108,6 +123,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		allClClientContexts,
 		clGenesisUnixTimestamp,
 		networkParams.SecondsPerSlot,
+		networkParams.SlotsPerEpoch,
 	)
 	logrus.Info("Successfully launched forkmon")
 
@@ -139,8 +155,8 @@ func waitUntilFirstFinalizedEpoch(
 	secondsPerSlot uint32,
 	slotsPerEpoch uint32,
 ) error {
-	// If we wait long enough that we might be in this epoch, we've waited too long - finality should already have happened
-	waitedTooLongEpoch := firstHeadEpochWhereFinalizedEpochIsPossible + 1
+	// If we wait long enough that we've just entered this epoch, we've waited too long - finality should already have happened
+	waitedTooLongEpoch := firstHeadEpochWhereFinalizedEpochIsPossible + 1 + finalizedEpochTolerance
 	timeoutSeconds := waitedTooLongEpoch * uint64(slotsPerEpoch) * uint64(secondsPerSlot)
 	timeout := time.Duration(timeoutSeconds) * time.Second
 	deadline := time.Now().Add(timeout)
@@ -155,7 +171,7 @@ func waitUntilFirstFinalizedEpoch(
 		if err != nil {
 			return stacktrace.Propagate(err, "An error occurred getting the finalized epoch using the REST client, which should never happen")
 		}
-		if finalizedEpoch > 0 && finalizedEpoch + expectedNumEpochsBehindHeadForFinalizedEpoch == currentEpoch {
+		if finalizedEpoch > 0 {
 			return nil
 		}
 		logrus.Debugf(
@@ -166,5 +182,5 @@ func waitUntilFirstFinalizedEpoch(
 		 )
 		time.Sleep(timeBetweenFinalizedEpochChecks)
 	}
-	return stacktrace.NewError("Waited for %v for the finalized epoch to be %v epochs behind the current epoch, but it didn't happen", timeout, expectedNumEpochsBehindHeadForFinalizedEpoch)
+	return stacktrace.NewError("Waited for %v for a finalized epoch to occur, but it didn't happen", timeout)
 }

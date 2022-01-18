@@ -1,4 +1,5 @@
 # Extends the mainnet preset
+# This *could* be 'minimal', but it's not recommended to use because not every client supports 'minimal'
 PRESET_BASE: 'mainnet'
 CONFIG_NAME: testnet # needs to exist because of Prysm. Otherwise it conflicts with mainnet genesis
 
@@ -10,7 +11,6 @@ MIN_GENESIS_TIME: {{ .UnixTimestamp }}
 GENESIS_FORK_VERSION: 0x13001020
 GENESIS_DELAY: 0
 
-
 # Forking
 # ---------------------------------------------------------------
 # Some forks are disabled for now:
@@ -21,8 +21,11 @@ GENESIS_DELAY: 0
 ALTAIR_FORK_VERSION: 0x01001020
 ALTAIR_FORK_EPOCH: {{ .AltairForkEpoch }}
 # Merge
-MERGE_FORK_VERSION: 0x02001020
-MERGE_FORK_EPOCH: {{ .MergeForkEpoch }}
+# TODO TODO TDOO DEBUGGING PER LODESTAR TEAM RECS
+# MERGE_FORK_VERSION: 0x02001020
+# MERGE_FORK_EPOCH: {{ .MergeForkEpoch }}
+BELLATRIX_FORK_VERSION: 0x02001020
+BELLATRIX_FORK_EPOCH: {{ .MergeForkEpoch }}
 TERMINAL_TOTAL_DIFFICULTY: {{ .TotalTerminalDifficulty }}
 # 0x0000...000 indicates that we use TERMINAL_TOTAL_DIFFICULTY instead of a block has to trigger the merge
 # See also: https://eips.ethereum.org/EIPS/eip-3675

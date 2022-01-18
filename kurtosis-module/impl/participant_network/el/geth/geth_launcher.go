@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	// TODO CHANGE THIS
-	imageName = "kurtosistech/go-ethereum:d99ac5a7d"
+	// An image from around 2022-01-18
+	imageName = "parithoshj/geth:merge-f72c361"
 
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
@@ -39,7 +39,7 @@ const (
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
 
 	// TODO Scale this dynamically based on CPUs available and Geth nodes mining
-	numMiningThreads = 2
+	numMiningThreads = 1
 
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
 	sharedGenesisJsonRelFilepath = "genesis.json"

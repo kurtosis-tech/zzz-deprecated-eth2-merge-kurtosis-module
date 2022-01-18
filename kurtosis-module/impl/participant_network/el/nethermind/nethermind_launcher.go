@@ -131,6 +131,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			"--JsonRpc.Enabled=true",
 			"--JsonRpc.EnabledModules=net,eth,consensus,engine,admin",
 			"--JsonRpc.Host=0.0.0.0",
+			// TODO Set Eth isMining?
 			fmt.Sprintf("--JsonRpc.Port=%v", rpcPortNum),
 			fmt.Sprintf("--JsonRpc.WebSocketsPort=%v", wsPortNum),
 			fmt.Sprintf("--Network.ExternalIp=%v", privateIpAddr),
