@@ -33,12 +33,30 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 
 		elClientType := participant.ELClientType
 		if _, found := validParticipantELClientTypes[elClientType]; !found {
-			return nil, stacktrace.NewError("Participant %v declares unrecognized EL client type '%v'", idx, elClientType)
+			validClientTypes := []string{}
+			for clientType := range validParticipantELClientTypes {
+				validClientTypes = append(validClientTypes, string(clientType))
+			}
+			return nil, stacktrace.NewError(
+				"Participant %v declares unrecognized EL client type '%v'; valid values are: %v",
+				idx,
+				elClientType,
+				strings.Join(validClientTypes, ", "),
+			 )
 		}
 
 		clClientType := participant.CLClientType
 		if _, found := validParticipantCLClientTypes[clClientType]; !found {
-			return nil, stacktrace.NewError("Participant %v declares unrecognized CL client type '%v'", idx, clClientType)
+			validClientTypes := []string{}
+			for clientType := range validParticipantCLClientTypes {
+				validClientTypes = append(validClientTypes, string(clientType))
+			}
+			return nil, stacktrace.NewError(
+				"Participant %v declares unrecognized CL client type '%v'; valid values are: %v",
+				idx,
+				clClientType,
+				strings.Join(validClientTypes, ", "),
+			 )
 		}
 	}
 
