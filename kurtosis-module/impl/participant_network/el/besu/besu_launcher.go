@@ -1,4 +1,4 @@
-package geth
+package besu
 
 import (
 	"bytes"
@@ -21,13 +21,16 @@ import (
 )
 
 const (
+	// TODO Needs to be updated to be the right image for Besu
 	// An image from around 2022-01-18
 	imageName = "parithoshj/geth:merge-f72c361"
 
+	// TODO Correct port nums
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
 
+	// TODO Correct port IDs
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
@@ -38,7 +41,7 @@ const (
 	// See: https://github.com/ethereum/go-ethereum/issues/19547
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
 
-	// TODO Scale this dynamically based on CPUs available and Geth nodes mining
+	// TODO Scale this dynamically based on CPUs available and Besu nodes mining
 	numMiningThreads = 1
 
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
@@ -55,21 +58,19 @@ const (
 
 	getNodeInfoRpcRequestBody = `{"jsonrpc":"2.0","method": "admin_nodeInfo","params":[],"id":1}`
 
-	expectedSecondsForGethInit = 5
+	expectedSecondsForBesuInit = 5
 	expectedSecondsPerKeyImport = 8
 	expectedSecondsAfterNodeStartUntilHttpServerIsAvailable = 10
 	getNodeInfoTimeBetweenRetries = 1 * time.Second
 
-	gethAccountPassword      = "password"          // Password that the Geth accounts will be locked with
+	gethAccountPassword      = "password"          // Password that the Besu accounts will be locked with
 	gethAccountPasswordsFile = "/tmp/password.txt" // Importing an account to
 )
 var usedPorts = map[string]*services.PortSpec{
-	rpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
-	wsPortId:           services.NewPortSpec(wsPortNum, services.PortProtocol_TCP),
-	tcpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
-	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
+	// TODO used ports
 }
 var entrypointArgs = []string{"sh", "-c"}
+// TODO These are copied from Geth; need to be updated for Besu
 var verbosityLevels = map[module_io.ParticipantLogLevel]string{
 	module_io.ParticipantLogLevel_Error: "1",
 	module_io.ParticipantLogLevel_Warn:  "2",
@@ -77,17 +78,17 @@ var verbosityLevels = map[module_io.ParticipantLogLevel]string{
 	module_io.ParticipantLogLevel_Debug: "4",
 }
 
-type GethELClientLauncher struct {
+type BesuELClientLauncher struct {
 	genesisJsonFilepathOnModuleContainer string
 	prefundedAccountInfo []*genesis_consts.PrefundedAccount
 	networkId string
 }
 
-func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *GethELClientLauncher {
-	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo, networkId: networkId}
+func NewBesuELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *BesuELClientLauncher {
+	return &BesuELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo, networkId: networkId}
 }
 
-func (launcher *GethELClientLauncher) Launch(
+func (launcher *BesuELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	logLevel module_io.ParticipantLogLevel,
@@ -96,7 +97,7 @@ func (launcher *GethELClientLauncher) Launch(
 	containerConfigSupplier := launcher.getContainerConfigSupplier(launcher.networkId, bootnodeContext, logLevel)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
+		return nil, stacktrace.Propagate(err, "An error occurred launching the Besu EL client with service ID '%v'", serviceId)
 	}
 
 	nodeInfo, err := launcher.getNodeInfoWithRetry(serviceCtx.GetPrivateIPAddress())
@@ -104,7 +105,7 @@ func (launcher *GethELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
 	}
 
-	miningWaiter := newGethMiningWaiter(
+	miningWaiter := newBesuMiningWaiter(
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 	)
@@ -124,7 +125,7 @@ func (launcher *GethELClientLauncher) Launch(
 // ====================================================================================================
 //                                       Private Helper Methods
 // ====================================================================================================
-func (launcher *GethELClientLauncher) getContainerConfigSupplier(
+func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 	networkId string,
 	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
 	logLevel module_io.ParticipantLogLevel,
@@ -132,7 +133,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		verbosityLevel, found := verbosityLevels[logLevel]
 		if !found {
-			return nil, stacktrace.NewError("No Geth verbosity level was defined for client log level '%v'; this is a bug in this module itself", logLevel)
+			return nil, stacktrace.NewError("No Besu verbosity level was defined for client log level '%v'; this is a bug in this module itself", logLevel)
 		}
 
 		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
@@ -142,12 +143,12 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 
 		gethKeysDirSharedPath := sharedDir.GetChildPath(gethKeysRelDirpathInSharedDir)
 		if err := os.Mkdir(gethKeysDirSharedPath.GetAbsPathOnThisContainer(), os.ModePerm); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred creating the Geth keys directory in the shared dir")
+			return nil, stacktrace.Propagate(err, "An error occurred creating the Besu keys directory in the shared dir")
 		}
 
 		accountAddressesToUnlock := []string{}
 		for _, prefundedAccount := range launcher.prefundedAccountInfo {
-			keyFilepathOnModuleContainer := prefundedAccount.GethKeyFilepath
+			keyFilepathOnModuleContainer := prefundedAccount.BesuKeyFilepath
 			keyFilename := path.Base(keyFilepathOnModuleContainer)
 			keyRelFilepathInSharedDir := path.Join(gethKeysRelDirpathInSharedDir, keyFilename)
 			keyFileSharedPath := sharedDir.GetChildPath(keyRelFilepathInSharedDir)
@@ -179,28 +180,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 
 		accountsToUnlockStr := strings.Join(accountAddressesToUnlock, ",")
 		launchNodeCmdArgs := []string{
-			"geth",
-			"--verbosity=" + verbosityLevel,
-			"--unlock=" + accountsToUnlockStr,
-			"--password=" + gethAccountPasswordsFile,
-			"--mine",
-			"--miner.etherbase=" + miningRewardsAccount,
-			fmt.Sprintf("--miner.threads=%v", numMiningThreads),
-			"--datadir="  + executionDataDirpathOnClientContainer,
-			"--networkid=" + networkId,
-			"--catalyst",
-			"--http",
-			"--http.addr=0.0.0.0",
-			// WARNING: The admin info endpoint is enabled so that we can easily get ENR/enode, which means
-			//  that users should NOT store private information in these Kurtosis nodes!
-			"--http.api=admin,engine,net,eth",
-			"--ws",
-			"--ws.addr=0.0.0.0",
-			fmt.Sprintf("--ws.port=%v", wsPortNum),
-			"--ws.api=engine,net,eth",
-			"--allow-insecure-unlock",
-			"--nat=extip:" + privateIpAddr,
-			"--verbosity=" + verbosityLevel,
+			// TODO Fill these in
 		}
 		if bootnodeContext != nil {
 			launchNodeCmdArgs = append(
@@ -233,8 +213,8 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	return result
 }
 
-func (launcher *GethELClientLauncher) getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
-	maxNumRetries := expectedSecondsForGethInit + len(launcher.prefundedAccountInfo) * expectedSecondsPerKeyImport + expectedSecondsAfterNodeStartUntilHttpServerIsAvailable
+func (launcher *BesuELClientLauncher) getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
+	maxNumRetries := expectedSecondsForBesuInit + len(launcher.prefundedAccountInfo) * expectedSecondsPerKeyImport + expectedSecondsAfterNodeStartUntilHttpServerIsAvailable
 
 	getNodeInfoResponse := new(GetNodeInfoResponse)
 	for i := 0; i < maxNumRetries; i++ {
@@ -259,12 +239,12 @@ func sendRpcCall(privateIpAddr string, requestBody string, targetStruct interfac
 	}
 	resp, err := client.Post(url, jsonContentTypeHeader, bytes.NewBuffer(jsonByteArray))
 	if err != nil {
-		return stacktrace.Propagate(err, "Failed to send RPC request to Geth node with private IP '%v'", privateIpAddr)
+		return stacktrace.Propagate(err, "Failed to send RPC request to Besu node with private IP '%v'", privateIpAddr)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return stacktrace.NewError(
-			"Received non-%v status code '%v' on RPC request to Geth node with private IP '%v'",
+			"Received non-%v status code '%v' on RPC request to Besu node with private IP '%v'",
 			http.StatusOK,
 			resp.StatusCode,
 			privateIpAddr,
@@ -280,7 +260,7 @@ func sendRpcCall(privateIpAddr string, requestBody string, targetStruct interfac
 
 	json.Unmarshal(bodyBytes, targetStruct)
 	if err := json.Unmarshal(bodyBytes, targetStruct); err != nil {
-		return stacktrace.Propagate(err, "Error JSON-parsing Geth node RPC response string '%v' into a struct", bodyString)
+		return stacktrace.Propagate(err, "Error JSON-parsing Besu node RPC response string '%v' into a struct", bodyString)
 	}
 	return nil
 }

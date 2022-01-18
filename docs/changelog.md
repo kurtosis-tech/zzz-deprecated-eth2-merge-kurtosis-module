@@ -3,6 +3,7 @@
 * Added Prysm CL (beacon, validator) Launcher
 * Made EL & CL client log levels configurable as a module param, `logLevel`
 * Added self-documenting code for module params
+* Added Besu EL
 
 ### Changes
 * The `WaitForBeaconClientAvailability` method also checks if the returned status is READY, which means the node is synced
