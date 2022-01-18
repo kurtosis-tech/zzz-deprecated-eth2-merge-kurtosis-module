@@ -20,10 +20,12 @@ type ParticipantELClientType string
 const (
 	ParticipantELClientType_Geth       ParticipantELClientType = "geth"
 	ParticipantELClientType_Nethermind ParticipantELClientType = "nethermind"
+	ParticipantELClientType_Besu       ParticipantELClientType = "besu"
 )
 var validParticipantELClientTypes = map[ParticipantELClientType]bool{
 	ParticipantELClientType_Geth:       true,
 	ParticipantELClientType_Nethermind: true,
+	ParticipantELClientType_Besu: true,
 }
 
 // Participant CL client type "enum"

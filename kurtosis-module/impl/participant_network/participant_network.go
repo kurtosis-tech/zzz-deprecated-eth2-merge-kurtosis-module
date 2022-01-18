@@ -9,6 +9,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/prysm"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/teku"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/besu"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/nethermind"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
@@ -113,6 +114,12 @@ func LaunchParticipantNetwork(
 		module_io.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
 			elGenesisData.GetNethermindGenesisJsonFilepath(),
 			networkParams.TotalTerminalDifficulty,
+		),
+		// TODO Modify this to match what Besu actually needs
+		module_io.ParticipantELClientType_Besu: besu.NewBesuELClientLauncher(
+			"",  // TODO Path to Besu genesis
+			genesis_consts.PrefundedAccounts,
+			networkParams.NetworkID,
 		),
 	}
 	allElClientContexts := []*el.ELClientContext{}
