@@ -208,17 +208,14 @@ func LaunchParticipantNetwork(
 		module_io.ParticipantCLClientType_Lodestar: lodestar.NewLodestarClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
-			numParticipants,
 		),
 		module_io.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
 			clGenesisData.GetParentDirpath(),
-			numParticipants,
 		),
 		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLCLientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
 			clValidatorData.PrysmPassword,
-			numParticipants,
 		),
 	}
 	preregisteredValidatorKeysForNodes := clValidatorData.PerNodeKeystoreDirpaths
