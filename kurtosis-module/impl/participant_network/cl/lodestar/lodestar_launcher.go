@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	// TODO DEBUGGING
-	// imageName = "chainsafe/lodestar:next"
-	imageName = "g11tech/lodestar:355ef6"
+	imageName = "chainsafe/lodestar:next"
+	// TODO Uncomment this when we're ready to use the BELLATRIX_ config values
+	// imageName = "g11tech/lodestar:355ef6"
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 

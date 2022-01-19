@@ -21,7 +21,7 @@ This is a [Kurtosis module][module-docs] that will:
     kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module --execute-params '{}'
     ```
 
-To configure the module behaviour, provide a non-empty JSON object to the `--execute-params` flag. The JSON schema that can be passed in is defined HERETODOOOOO, and the default values that will be used if you omit fields are defined HERETODOOOOOO.
+To configure the module behaviour, provide a non-empty JSON object to the `--execute-params` flag. The JSON schema that can be passed in is defined in Go [here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/develop/kurtosis-module/impl/module_io/params.go#L46) (look for the `json:"XXXXXX"` tags of the object to determine the JSON field names), and the default values that will be used if you omit any fields are defined [here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/develop/kurtosis-module/impl/module_io/default_params.go#L4).
 
 ### Management
 Kurtosis will create a new enclave to house the services of the Ethereum network. [This page][using-the-cli] contains documentation for managing the created enclave & viewing detailed information about it.

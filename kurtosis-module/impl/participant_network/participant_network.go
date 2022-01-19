@@ -52,6 +52,7 @@ func LaunchParticipantNetwork(
 	networkParams *module_io.NetworkParams,
 	allParticipantSpecs []*module_io.ParticipantParams,
 	logLevel module_io.ParticipantLogLevel,
+	shouldWaitForMining bool,
 ) (
 	resultParticipants []*Participant,
 	resultClGenesisUnixTimestamp uint64,
@@ -152,26 +153,28 @@ func LaunchParticipantNetwork(
 	}
 	logrus.Infof("Successfully added %v EL clients", numParticipants)
 
-	// Wait for all EL clients to start mining before we proceed with adding the CL clients
-	logrus.Infof("Waiting for all EL clients to start mining before adding CL clients...")
-	perNodeNumRetries := uint32(numParticipants) * elClientMineWaiterMaxNumRetriesPerNode
-	for idx, elClientCtx := range allElClientContexts {
-		miningWaiter := elClientCtx.GetMiningWaiter()
-		if err := miningWaiter.WaitForMining(
-			perNodeNumRetries,
-			elClientMineWaiterTimeBetweenRetries,
-		 ); err != nil {
-			return nil, 0, stacktrace.Propagate(
-				err,
-				"EL client %v didn't start mining even after %v retries with %v between retries",
-				idx,
+	if shouldWaitForMining {
+		// Wait for all EL clients to start mining before we proceed with adding the CL clients
+		logrus.Infof("Waiting for all EL clients to start mining before adding CL clients...")
+		perNodeNumRetries := uint32(numParticipants) * elClientMineWaiterMaxNumRetriesPerNode
+		for idx, elClientCtx := range allElClientContexts {
+			miningWaiter := elClientCtx.GetMiningWaiter()
+			if err := miningWaiter.WaitForMining(
 				perNodeNumRetries,
 				elClientMineWaiterTimeBetweenRetries,
-			 )
+			); err != nil {
+				return nil, 0, stacktrace.Propagate(
+					err,
+					"EL client %v didn't start mining even after %v retries with %v between retries",
+					idx,
+					perNodeNumRetries,
+					elClientMineWaiterTimeBetweenRetries,
+				)
+			}
+			logrus.Infof("EL client %v has begun mining", idx)
 		}
-		logrus.Infof("EL client %v has begun mining", idx)
+		logrus.Infof("All EL clients have started mining")
 	}
-	logrus.Infof("All EL clients have started mining")
 
 	// We create the CL genesis data after the EL network is ready so that the CL genesis timestamp will be close
 	//  to the time the CL nodes are started
