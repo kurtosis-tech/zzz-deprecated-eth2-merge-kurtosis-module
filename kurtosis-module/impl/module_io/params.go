@@ -64,8 +64,19 @@ type ExecuteParams struct {
 }
 
 type ParticipantParams struct {
-	ELClientType ParticipantELClientType `json:"el"`
-	CLClientType ParticipantCLClientType `json:"cl"`
+	// The type of EL client that should be started
+	ELClientType ParticipantELClientType `json:"elType"`
+
+	// The Docker image that should be used for the EL client; leave blank to use the default
+	ELClientImage string				 `json:"elImage"`
+
+	// The type of CL client that should be started
+	CLClientType ParticipantCLClientType `json:"clType"`
+
+	// The Docker image that should be used for the EL client; leave blank to use the default
+	// NOTE: Prysm is different in that it requires two images - a Beacon and a validator
+	//  For Prysm and Prysm only, this field should contain a comma-separated string of "beacon_image,validator_image"
+	CLClientImage string				 `json:"clImage"`
 }
 
 // Parameters controlling particulars of the Eth1 & Eth2 networks

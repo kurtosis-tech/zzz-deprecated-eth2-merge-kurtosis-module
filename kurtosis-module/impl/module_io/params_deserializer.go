@@ -44,6 +44,13 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 				strings.Join(validClientTypes, ", "),
 			 )
 		}
+		if participant.ELClientImage == useDefaultElImageKeyword {
+			defaultElClientImage, found := defaultElImages[elClientType]
+			if !found {
+				return nil, stacktrace.NewError("EL client image wasn't provided, and no default image was defined for EL client type '%v'; this is a bug in the module", elClientType)
+			}
+			participant.ELClientImage = defaultElClientImage
+		}
 
 		clClientType := participant.CLClientType
 		if _, found := validParticipantCLClientTypes[clClientType]; !found {
@@ -57,6 +64,13 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 				clClientType,
 				strings.Join(validClientTypes, ", "),
 			 )
+		}
+		if participant.CLClientImage == useDefaultClImageKeyword {
+			defaultElClientImage, found := defaultClImages[clClientType]
+			if !found {
+				return nil, stacktrace.NewError("CL client image wasn't provided, and no default image was defined for CL client type '%v'; this is a bug in the module", clClientType)
+			}
+			participant.CLClientImage = defaultElClientImage
 		}
 	}
 

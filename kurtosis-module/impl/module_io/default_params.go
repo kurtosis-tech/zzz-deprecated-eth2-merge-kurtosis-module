@@ -1,16 +1,24 @@
 package module_io
 
+const (
+	// If these values are provided for the EL/CL images, then the client type-specific default image will be used
+	useDefaultElImageKeyword = ""
+	useDefaultClImageKeyword = ""
+)
+
 var defaultElImages = map[ParticipantELClientType]string{
 	ParticipantELClientType_Geth: "parithoshj/geth:merge-f72c361", // From around 2022-01-18
 	ParticipantELClientType_Nethermind: "nethermindeth/nethermind:kintsugi_0.5",
 }
 
-var defaultClImage = map[ParticipantCLClientType]string{
+var defaultClImages = map[ParticipantCLClientType]string{
 	ParticipantCLClientType_Lighthouse: "sigp/lighthouse:latest-unstable",
 	ParticipantCLClientType_Teku:       "consensys/teku:latest",
 	ParticipantCLClientType_Nimbus:     "statusim/nimbus-eth2:amd64-latest",
-	ParticipantCLClientType_Prysm:      true,
-	ParticipantCLClientType_Lodestar:   true,
+	// NOTE: Prysm actually has two images - a Beacon and a validator - so we pass in a comma-separated
+	//  "beacon_image,validator_image" string
+	ParticipantCLClientType_Prysm:      "prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest",
+	ParticipantCLClientType_Lodestar:   "chainsafe/lodestar:next",
 }
 
 // To see the exact JSON keys needed to override these values, see the ExecuteParams object and look for the
@@ -19,8 +27,10 @@ func GetDefaultExecuteParams() *ExecuteParams {
 	return &ExecuteParams{
 		Participants: []*ParticipantParams{
 			{
-				ELClientType: ParticipantELClientType_Geth,
-				CLClientType: ParticipantCLClientType_Nimbus,
+				ELClientType:  ParticipantELClientType_Geth,
+				ELClientImage: useDefaultElImageKeyword,
+				CLClientType:  ParticipantCLClientType_Nimbus,
+				CLClientImage: useDefaultClImageKeyword,
 			},
 		},
 		Network: &NetworkParams{
