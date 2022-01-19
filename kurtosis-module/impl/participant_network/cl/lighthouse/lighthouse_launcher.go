@@ -17,8 +17,6 @@ import (
 )
 
 const (
-	imageName = "sigp/lighthouse:latest-unstable"
-
 	lighthouseBinaryCommand = "lighthouse"
 
 	// ---------------------------------- Beacon client -------------------------------------
@@ -73,6 +71,7 @@ func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string) *L
 func (launcher *LighthouseCLClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
+	image string,
 	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
@@ -82,7 +81,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-validator", serviceId))
 
 	// Launch Beacon node
-	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(bootnodeContext, elClientContext, logLevel)
+	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(image, bootnodeContext, elClientContext, logLevel)
 	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse Beacon node with service ID '%v'", beaconNodeServiceId)
@@ -102,6 +101,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	// Launch validator node
 	beaconHttpUrl := fmt.Sprintf("http://%v:%v", beaconServiceCtx.GetPrivateIPAddress(), beaconHttpPort.GetNumber())
 	validatorContainerConfigSupplier := launcher.getValidatorContainerConfigSupplier(
+		image,
 		logLevel,
 		beaconHttpUrl,
 		nodeKeystoreDirpaths.RawKeysDirpath,
@@ -132,6 +132,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 //                                   Private Helper Methods
 // ====================================================================================================
 func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
+	image string,
 	bootClClientCtx *cl.CLClientContext,
 	elClientCtx *el.ELClientContext,
 	logLevel module_io.ParticipantLogLevel,
@@ -203,7 +204,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
-			imageName,
+			image,
 		).WithUsedPorts(
 			beaconUsedPorts,
 		).WithCmdOverride(
@@ -214,6 +215,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 }
 
 func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
+	image string,
 	logLevel module_io.ParticipantLogLevel,
 	beaconClientHttpUrl string,
 	validatorKeysDirpathOnModuleContainer string,
@@ -277,7 +279,7 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
-			imageName,
+			image,
 		).WithUsedPorts(
 			validatorUsedPorts,
 		).WithCmdOverride(

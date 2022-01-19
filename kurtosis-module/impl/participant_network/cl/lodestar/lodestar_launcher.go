@@ -67,6 +67,7 @@ func NewLodestarClientLauncher(genesisConfigYmlFilepathOnModuleContainer string,
 func (launcher *LodestarClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
+	image string,
 	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
@@ -76,6 +77,7 @@ func (launcher *LodestarClientLauncher) Launch(
 	validatorServiceId := serviceId + "-" + validatorSuffixServiceId
 
 	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(
+		image,
 		bootnodeContext,
 		elClientContext,
 		logLevel,
@@ -129,6 +131,7 @@ func (launcher *LodestarClientLauncher) Launch(
 //                                   Private Helper Methods
 // ====================================================================================================
 func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
+	image string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel module_io.ParticipantLogLevel,

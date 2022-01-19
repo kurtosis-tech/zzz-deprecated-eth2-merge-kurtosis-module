@@ -16,9 +16,6 @@ import (
 )
 
 const (
-	//Latest Nethermind Kintsugi image version released to date, can check latest here: https://github.com/NethermindEth/nethermind/issues/3581
-	imageName = "nethermindeth/nethermind:kintsugi_0.5"
-
 	// The dirpath of the execution data directory on the client container
 	executionDataDirpathOnClientContainer = "/execution-data"
 
@@ -70,10 +67,11 @@ func NewNethermindELClientLauncher(genesisJsonFilepathOnModule string, totalTerm
 func (launcher *NethermindELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
+	image string,
 	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *el.ELClientContext,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(bootnodeContext, logLevel)
+	containerConfigSupplier := launcher.getContainerConfigSupplier(image, bootnodeContext, logLevel)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
@@ -102,6 +100,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 //                                       Private Helper Methods
 // ====================================================================================================
 func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
+	image string,
 	bootnodeCtx *el.ELClientContext,
 	logLevel module_io.ParticipantLogLevel,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
@@ -149,7 +148,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
-			imageName,
+			image,
 		).WithUsedPorts(
 			usedPorts,
 		).WithCmdOverride(
