@@ -24,8 +24,8 @@ ALTAIR_FORK_EPOCH: {{ .AltairForkEpoch }}
 # TODO Remove the MERGE_ values here and uncomment the BELLATRIX_ values once all client images are upgraded to use BELLATRIX_ rather than MERGE_
 MERGE_FORK_VERSION: 0x02001020
 MERGE_FORK_EPOCH: {{ .MergeForkEpoch }}
-# BELLATRIX_FORK_VERSION: 0x02001020
-# BELLATRIX_FORK_EPOCH: {{ .MergeForkEpoch }}
+BELLATRIX_FORK_VERSION: 0x02001020
+BELLATRIX_FORK_EPOCH: {{ .MergeForkEpoch }}
 TERMINAL_TOTAL_DIFFICULTY: {{ .TotalTerminalDifficulty }}
 # 0x0000...000 indicates that we use TERMINAL_TOTAL_DIFFICULTY instead of a block has to trigger the merge
 # See also: https://eips.ethereum.org/EIPS/eip-3675
