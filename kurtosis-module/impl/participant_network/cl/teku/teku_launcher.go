@@ -18,7 +18,9 @@ import (
 )
 
 const (
-	imageName                 = "consensys/teku:latest"
+	// TODO DEBUGGING
+	// imageName                 = "consensys/teku:latest"
+	imageName                 = "consensys/teku:develop"
 	tekuBinaryFilepathInImage = "/opt/teku/bin/teku"
 
 	// The Docker container runs as the "teku" user so we can't write to root
