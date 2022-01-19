@@ -28,12 +28,15 @@ jobs:
             circleci-agent step halt
           fi
 
-      - run: bash ./scripts/build.sh
-
       - run: |
           echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
           sudo apt update
           sudo apt install kurtosis-cli
+
+      # If we wanted, we could:
+      #  1) Start a Kurtosis engine
+      #  2) Pass in the RUN_KURTOSIS_TEST=true environment variable here, which would additionally run the Go tests that rely on Kurtosis here (though it would take more time)
+      - run: bash ./scripts/build.sh
 
       - run: |
           source scripts/_constants.env

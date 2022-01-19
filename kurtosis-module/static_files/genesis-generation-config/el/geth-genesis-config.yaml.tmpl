@@ -9,7 +9,7 @@ eth1_premine:
   "m/44'/60'/0'/0/5": 10000000ETH
 eth1_premine_addrs: {}
 chain_id: {{ .NetworkId }}
-deposit_contract_address: "0x4242424242424242424242424242424242424242"
+deposit_contract_address: "{{ .DepositContractAddress }}"
 eth1_genesis_timestamp: {{ .UnixTimestamp }}
 terminal_total_difficulty: {{ .TotalTerminalDifficulty }}
 

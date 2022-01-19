@@ -2,10 +2,11 @@ package nimbus
 
 import (
 	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	cl_client_rest_client2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -60,20 +61,37 @@ var usedPorts = map[string]*services.PortSpec{
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 	metricsPortID:         services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
 }
+var nimbusLogLevels = map[module_io.ParticipantLogLevel]string{
+	module_io.ParticipantLogLevel_Error: "ERROR",
+	module_io.ParticipantLogLevel_Warn:  "WARN",
+	module_io.ParticipantLogLevel_Info:  "INFO",
+	module_io.ParticipantLogLevel_Debug: "DEBUG",
+}
 
 type NimbusLauncher struct {
 	// The dirpath on the module container where the config data directory exists
 	configDataDirpathOnModuleContainer string
+
+	// NOTE: This launcher does NOT take in the expected number of peers because doing so causes the Beacon node not to peer at all
+	// See: https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/26
 }
 
 func NewNimbusLauncher(configDataDirpathOnModuleContainer string) *NimbusLauncher {
 	return &NimbusLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer}
 }
 
-func (launcher NimbusLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, bootnodeContext *cl.CLClientContext, elClientContext *el.ELClientContext, nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths) (resultClientCtx *cl.CLClientContext, resultErr error) {
+func (launcher NimbusLauncher) Launch(
+	enclaveCtx *enclaves.EnclaveContext,
+	serviceId services.ServiceID,
+	logLevel module_io.ParticipantLogLevel,
+	bootnodeContext *cl.CLClientContext,
+	elClientContext *el.ELClientContext,
+	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		bootnodeContext,
 		elClientContext,
+		logLevel,
 		nodeKeystoreDirpaths.NimbusKeysDirpath,
 		nodeKeystoreDirpaths.RawSecretsDirpath,
 	)
@@ -116,10 +134,16 @@ func (launcher NimbusLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, servi
 func (launcher *NimbusLauncher) getContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
+	logLevel module_io.ParticipantLogLevel,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+		nimbusLogLevel, found := nimbusLogLevels[logLevel]
+		if !found {
+			return nil, stacktrace.NewError("No Nimbus log level defined for client log level '%v'; this is a bug in the module", logLevel)
+		}
+
 		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(configDataDirpathRelToSharedDirRoot)
 
 		destConfigDataDirpathOnModule := configDataDirpathOnServiceSharedPath.GetAbsPathOnThisContainer()
@@ -155,6 +179,8 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 		// Sources for these flags:
 		//  1) https://github.com/status-im/nimbus-eth2/blob/stable/scripts/launch_local_testnet.sh
 		//  2) https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
+		// WARNING: Do NOT set the --max-peers flag here, as doing so to the exact number of nodes seems to mess things up!
+		// See: https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/26
 		cmdArgs := []string{
 			"mkdir",
 			consensusDataDirpathInServiceContainer,
@@ -171,8 +197,15 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
 			validatorSecretsDirpathOnServiceContainer,
 			"&&",
+			// If we don't do this chmod, Nimbus will spend a crazy amount of time manually correcting them
+			//  before it starts
+			"chmod",
+			"600",
+			validatorSecretsDirpathOnServiceContainer + "/*",
+			"&&",
 			defaultImageEntrypoint,
 			"--non-interactive=true",
+			"--log-level=" + nimbusLogLevel,
 			"--network=" + configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer(),
 			"--data-dir=" + consensusDataDirpathInServiceContainer,
 			"--web3-url=" + elClientWsUrlStr,
@@ -186,11 +219,12 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--metrics",
 			"--metrics-address=0.0.0.0",
 			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
-			"--log-level=info", // TODO make configurable
 			// There's a bug where if we don't set this flag, the Nimbus nodes won't work:
 			// https://discord.com/channels/641364059387854899/674288681737256970/922890280120750170
 			// https://github.com/status-im/nimbus-eth2/issues/2451
 			"--doppelganger-detection=false",
+			// Set per Pari's recommendation to reduce noise in the logs
+			"--subscribe-all-subnets=true",
 		}
 		if bootnodeContext == nil {
 			// Copied from https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417

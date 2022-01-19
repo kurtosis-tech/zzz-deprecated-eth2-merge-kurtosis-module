@@ -2,11 +2,12 @@ package teku
 
 import (
 	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/availability_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -54,6 +55,8 @@ const (
 	// Teku nodes take ~35s to bring their HTTP server up
 	maxNumHealthcheckRetries = 60
 	timeBetweenHealthcheckRetries = 1 * time.Second
+
+	minPeers = 1
 )
 var usedPorts = map[string]*services.PortSpec{
 	// TODO Add metrics port
@@ -61,22 +64,36 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 }
+var tekuLogLevels = map[module_io.ParticipantLogLevel]string{
+	module_io.ParticipantLogLevel_Error: "ERROR",
+	module_io.ParticipantLogLevel_Warn:  "WARN",
+	module_io.ParticipantLogLevel_Info:  "INFO",
+	module_io.ParticipantLogLevel_Debug: "DEBUG",
+}
 
 type TekuCLClientLauncher struct {
 	genesisConfigYmlFilepathOnModuleContainer string
 	genesisSszFilepathOnModuleContainer string
+	expectedNumBeaconNodes uint32
 }
 
-func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string) *TekuCLClientLauncher {
-	return &TekuCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer}
+func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, expectedNumBeaconNodes uint32) *TekuCLClientLauncher {
+	return &TekuCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
 }
 
-func (launcher *TekuCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, bootnodeContext *cl.CLClientContext, elClientContext *el.ELClientContext, nodeKeystoreDirpaths *prelaunch_data_generator.NodeTypeKeystoreDirpaths) (resultClientCtx *cl.CLClientContext, resultErr error) {
-	containerConfigSupplier := getContainerConfigSupplier(
+func (launcher *TekuCLClientLauncher) Launch(
+	enclaveCtx *enclaves.EnclaveContext,
+	serviceId services.ServiceID,
+	// TODO move to launcher param
+	logLevel module_io.ParticipantLogLevel,
+	bootnodeContext *cl.CLClientContext,
+	elClientContext *el.ELClientContext,
+	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+) (resultClientCtx *cl.CLClientContext, resultErr error) {
+	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		bootnodeContext,
 		elClientContext,
-		launcher.genesisConfigYmlFilepathOnModuleContainer,
-		launcher.genesisSszFilepathOnModuleContainer,
+		logLevel,
 		nodeKeystoreDirpaths.TekuKeysDirpath,
 		nodeKeystoreDirpaths.TekuSecretsDirpath,
 	)
@@ -116,31 +133,35 @@ func (launcher *TekuCLClientLauncher) Launch(enclaveCtx *enclaves.EnclaveContext
 // ====================================================================================================
 //                                   Private Helper Methods
 // ====================================================================================================
-func getContainerConfigSupplier(
+func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
-	genesisConfigYmlFilepathOnModuleContainer string,
-	genesisSszFilepathOnModuleContainer string,
+	logLevel module_io.ParticipantLogLevel,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+		tekuLogLevel, found := tekuLogLevels[logLevel]
+		if !found {
+			return nil, stacktrace.NewError("No Teku log level defined for client log level '%v'; this is a bug in this module", logLevel)
+		}
+
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
 			return nil, stacktrace.Propagate(
 				err,
 				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				genesisConfigYmlFilepathOnModuleContainer,
+				launcher.genesisConfigYmlFilepathOnModuleContainer,
 				genesisConfigYmlRelFilepathInSharedDir,
 			)
 		}
 
 		genesisSszSharedPath := sharedDir.GetChildPath(genesisSszRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
 			return nil, stacktrace.Propagate(
 				err,
 				"An error occurred copying the genesis SSZ from '%v' to shared dir relative path '%v'",
-				genesisSszFilepathOnModuleContainer,
+				launcher.genesisSszFilepathOnModuleContainer,
 				genesisSszRelFilepathInSharedDir,
 			)
 		}
@@ -178,11 +199,16 @@ func getContainerConfigSupplier(
 			destValidatorSecretsDirpathInServiceContainer,
 			"&&",
 			tekuBinaryFilepathInImage,
+			"--logging=" + tekuLogLevel,
+			"--log-destination=CONSOLE",
 			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--initial-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
 			"--data-path=" + consensusDataDirpathOnServiceContainer,
 			"--data-storage-mode=PRUNE",
 			"--p2p-enabled=true",
+			// Set per Pari's recommendation, to reduce noise in the logs
+			"--p2p-subscribe-all-subnets-enabled=true",
+			fmt.Sprintf("--p2p-peer-lower-bound=%v", minPeers),
 			"--eth1-endpoints=" + elClientRpcUrlStr,
 			"--Xee-endpoint=" + elClientRpcUrlStr,
 			"--p2p-advertised-ip=" + privateIpAddr,
@@ -192,7 +218,6 @@ func getContainerConfigSupplier(
 			fmt.Sprintf("--rest-api-port=%v", httpPortNum),
 			"--rest-api-host-allowlist=*",
 			"--data-storage-non-canonical-blocks-enabled=true",
-			"--log-destination=CONSOLE",
 			fmt.Sprintf(
 				"--validator-keys=%v:%v",
 				destValidatorKeysDirpathInServiceContainer,
