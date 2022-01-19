@@ -1,5 +1,18 @@
 package module_io
 
+var defaultElImages = map[ParticipantELClientType]string{
+	ParticipantELClientType_Geth: "parithoshj/geth:merge-f72c361", // From around 2022-01-18
+	ParticipantELClientType_Nethermind: "nethermindeth/nethermind:kintsugi_0.5",
+}
+
+var defaultClImage = map[ParticipantCLClientType]string{
+	ParticipantCLClientType_Lighthouse: "sigp/lighthouse:latest-unstable",
+	ParticipantCLClientType_Teku:       "consensys/teku:latest",
+	ParticipantCLClientType_Nimbus:     "statusim/nimbus-eth2:amd64-latest",
+	ParticipantCLClientType_Prysm:      true,
+	ParticipantCLClientType_Lodestar:   true,
+}
+
 // To see the exact JSON keys needed to override these values, see the ExecuteParams object and look for the
 //  `json:"XXXXXXX"` metadata on the ExecuteParams properties
 func GetDefaultExecuteParams() *ExecuteParams {

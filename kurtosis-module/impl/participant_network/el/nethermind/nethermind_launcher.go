@@ -1,5 +1,4 @@
 package nethermind
-
 import (
 	"bytes"
 	"encoding/json"
