@@ -1,4 +1,6 @@
 # TBD
+
+# 0.3.0
 ### Features
 * Added Prysm CL (beacon, validator) Launcher
 * Made EL & CL client log levels configurable as a module param, `logLevel`
