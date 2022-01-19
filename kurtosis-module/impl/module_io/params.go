@@ -50,6 +50,12 @@ type ExecuteParams struct {
 	// Parameters controlling the settings of the network itself
 	Network *NetworkParams	`json:"network"`
 
+	// If set to false, we won't wait for the EL clients to mine at least 1 block before proceeding with adding the CL clients
+	// This is purely for debug purposes; waiting for blockNumber > 0 is required for the CL network to behave as
+	//  expected, but that wait can be several minutes. Skipping the wait can be a good way to shorten the debug loop on a
+	//  CL client that's failing to start.
+	WaitForMining bool			`json:"waitForMining"`
+
 	// If set, the module will block until a finalized epoch has occurred
 	WaitForFinalization bool	`json:"waitForFinalization"`
 
