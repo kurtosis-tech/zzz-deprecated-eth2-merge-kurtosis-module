@@ -1,5 +1,9 @@
 # TBD
 
+# 0.4.1
+### Fixes
+* Fixed an issue where using emptystring as the default image wasn't working
+
 # 0.4.0
 ### Features
 * Allowed configurable EL & CL client images via the `elImage` and `clImage` keys to participant object

@@ -49,7 +49,9 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 			if !found {
 				return nil, stacktrace.NewError("EL client image wasn't provided, and no default image was defined for EL client type '%v'; this is a bug in the module", elClientType)
 			}
-			participant.ELClientImage = defaultElClientImage
+			// Go's "range" is by-value, so we need to actually by-reference modify the paramsObj we need to
+			//  use the idx
+			paramsObj.Participants[idx].ELClientImage = defaultElClientImage
 		}
 
 		clClientType := participant.CLClientType
@@ -66,11 +68,13 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 			 )
 		}
 		if participant.CLClientImage == useDefaultClImageKeyword {
-			defaultElClientImage, found := defaultClImages[clClientType]
+			defaultClClientImage, found := defaultClImages[clClientType]
 			if !found {
 				return nil, stacktrace.NewError("CL client image wasn't provided, and no default image was defined for CL client type '%v'; this is a bug in the module", clClientType)
 			}
-			participant.CLClientImage = defaultElClientImage
+			// Go's "range" is by-value, so we need to actually by-reference modify the paramsObj we need to
+			//  use the idx
+			paramsObj.Participants[idx].CLClientImage = defaultClClientImage
 		}
 	}
 
