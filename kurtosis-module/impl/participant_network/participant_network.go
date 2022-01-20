@@ -133,6 +133,7 @@ func LaunchParticipantNetwork(
 			newElClientCtx, elClientLaunchErr = elLauncher.Launch(
 				enclaveCtx,
 				elClientServiceId,
+				participantSpec.ELClientImage,
 				logLevel,
 				elClientContextForBootElClients,
 			)
@@ -141,6 +142,7 @@ func LaunchParticipantNetwork(
 			newElClientCtx, elClientLaunchErr = elLauncher.Launch(
 				enclaveCtx,
 				elClientServiceId,
+				participantSpec.ELClientImage,
 				logLevel,
 				bootElClientCtx,
 			)
@@ -155,7 +157,7 @@ func LaunchParticipantNetwork(
 
 	if shouldWaitForMining {
 		// Wait for all EL clients to start mining before we proceed with adding the CL clients
-		logrus.Infof("Waiting for all EL clients to start mining before adding CL clients...")
+		logrus.Infof("Waiting for all EL clients to start mining before adding CL clients... (this will take a few minutes, but is necessary to ensure that the Beacon nodes get slots from the EL clients; you can skip this wait by setting `\"waitForMining\": false` in the params object, but the Beacon nodes likely won't work properly)")
 		perNodeNumRetries := uint32(numParticipants) * elClientMineWaiterMaxNumRetriesPerNode
 		for idx, elClientCtx := range allElClientContexts {
 			miningWaiter := elClientCtx.GetMiningWaiter()
@@ -215,7 +217,7 @@ func LaunchParticipantNetwork(
 		module_io.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
 			clGenesisData.GetParentDirpath(),
 		),
-		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLCLientLauncher(
+		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
 			clValidatorData.PrysmPassword,
@@ -244,6 +246,7 @@ func LaunchParticipantNetwork(
 			newClClientCtx, clClientLaunchErr = clLauncher.Launch(
 				enclaveCtx,
 				clClientServiceId,
+				participantSpec.CLClientImage,
 				logLevel,
 				clClientContextForBootClClients,
 				elClientCtx,
@@ -254,6 +257,7 @@ func LaunchParticipantNetwork(
 			newClClientCtx, clClientLaunchErr = clLauncher.Launch(
 				enclaveCtx,
 				clClientServiceId,
+				participantSpec.CLClientImage,
 				logLevel,
 				bootClClientCtx,
 				elClientCtx,

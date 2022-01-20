@@ -18,7 +18,6 @@ import (
 )
 
 const (
-	imageName                 = "consensys/teku:latest"
 	tekuBinaryFilepathInImage = "/opt/teku/bin/teku"
 
 	// The Docker container runs as the "teku" user so we can't write to root
@@ -69,6 +68,7 @@ var tekuLogLevels = map[module_io.ParticipantLogLevel]string{
 	module_io.ParticipantLogLevel_Warn:  "WARN",
 	module_io.ParticipantLogLevel_Info:  "INFO",
 	module_io.ParticipantLogLevel_Debug: "DEBUG",
+	module_io.ParticipantLogLevel_Trace: "TRACE",
 }
 
 type TekuCLClientLauncher struct {
@@ -84,6 +84,7 @@ func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, g
 func (launcher *TekuCLClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
+	image string,
 	// TODO move to launcher param
 	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *cl.CLClientContext,
@@ -91,6 +92,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
+		image,
 		bootnodeContext,
 		elClientContext,
 		logLevel,
@@ -134,6 +136,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 //                                   Private Helper Methods
 // ====================================================================================================
 func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
+	image string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel module_io.ParticipantLogLevel,
@@ -231,7 +234,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 		cmdStr := strings.Join(cmdArgs, " ")
 
 		containerConfig := services.NewContainerConfigBuilder(
-			imageName,
+			image,
 		).WithUsedPorts(
 			usedPorts,
 		).WithEntrypointOverride([]string{
