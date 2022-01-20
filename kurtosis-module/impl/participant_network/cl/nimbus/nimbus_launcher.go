@@ -16,9 +16,6 @@ import (
 )
 
 const (
-	// imageName = "parithoshj/nimbus:merge-e623091"
-	imageName = "statusim/nimbus-eth2:amd64-latest"
-
 	// Port IDs
 	tcpDiscoveryPortID = "tcp-discovery"
 	udpDiscoveryPortID = "udp-discovery"
@@ -66,6 +63,7 @@ var nimbusLogLevels = map[module_io.ParticipantLogLevel]string{
 	module_io.ParticipantLogLevel_Warn:  "WARN",
 	module_io.ParticipantLogLevel_Info:  "INFO",
 	module_io.ParticipantLogLevel_Debug: "DEBUG",
+	module_io.ParticipantLogLevel_Trace: "TRACE",
 }
 
 type NimbusLauncher struct {
@@ -83,12 +81,14 @@ func NewNimbusLauncher(configDataDirpathOnModuleContainer string) *NimbusLaunche
 func (launcher NimbusLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
+	image string,
 	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
+		image,
 		bootnodeContext,
 		elClientContext,
 		logLevel,
@@ -132,6 +132,7 @@ func (launcher NimbusLauncher) Launch(
 //                                   Private Helper Methods
 // ====================================================================================================
 func (launcher *NimbusLauncher) getContainerConfigSupplier(
+	image string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel module_io.ParticipantLogLevel,
@@ -236,7 +237,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 		cmdStr := strings.Join(cmdArgs, " ")
 
 		containerConfig := services.NewContainerConfigBuilder(
-			imageName,
+			image,
 		).WithUsedPorts(
 			usedPorts,
 		).WithEntrypointOverride([]string{

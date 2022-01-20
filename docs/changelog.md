@@ -1,5 +1,13 @@
 # TBD
 
+# 0.4.0
+### Features
+* Allowed configurable EL & CL client images via the `elImage` and `clImage` keys to participant object
+* Support `trace` loglevel
+
+### Breaking Changes
+* The participant spec's `el` and `cl` keys have been switched to `elType` and `clType`
+
 # 0.3.0
 ### Features
 * Added Prysm CL (beacon, validator) Launcher
