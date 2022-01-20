@@ -7,11 +7,20 @@ const (
 )
 
 var defaultElImages = map[ParticipantELClientType]string{
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantELClientType_Geth: "parithoshj/geth:merge-f72c361", // From around 2022-01-18
 	ParticipantELClientType_Nethermind: "nethermindeth/nethermind:kintsugi_0.5",
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 }
 
 var defaultClImages = map[ParticipantCLClientType]string{
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantCLClientType_Lighthouse: "sigp/lighthouse:latest-unstable",
 	ParticipantCLClientType_Teku:       "consensys/teku:latest",
 	ParticipantCLClientType_Nimbus:     "statusim/nimbus-eth2:amd64-latest",
@@ -19,11 +28,17 @@ var defaultClImages = map[ParticipantCLClientType]string{
 	//  "beacon_image,validator_image" string
 	ParticipantCLClientType_Prysm:      "prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest",
 	ParticipantCLClientType_Lodestar:   "chainsafe/lodestar:next",
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 }
 
 // To see the exact JSON keys needed to override these values, see the ExecuteParams object and look for the
 //  `json:"XXXXXXX"` metadata on the ExecuteParams properties
 func GetDefaultExecuteParams() *ExecuteParams {
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	return &ExecuteParams{
 		Participants: []*ParticipantParams{
 			{
@@ -48,4 +63,7 @@ func GetDefaultExecuteParams() *ExecuteParams {
 		WaitForFinalization: false,
 		ClientLogLevel:      ParticipantLogLevel_Info,
 	}
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 }
