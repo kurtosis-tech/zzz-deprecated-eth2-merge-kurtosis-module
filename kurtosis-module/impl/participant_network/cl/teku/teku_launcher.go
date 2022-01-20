@@ -68,6 +68,7 @@ var tekuLogLevels = map[module_io.ParticipantLogLevel]string{
 	module_io.ParticipantLogLevel_Warn:  "WARN",
 	module_io.ParticipantLogLevel_Info:  "INFO",
 	module_io.ParticipantLogLevel_Debug: "DEBUG",
+	module_io.ParticipantLogLevel_Trace: "TRACE",
 }
 
 type TekuCLClientLauncher struct {

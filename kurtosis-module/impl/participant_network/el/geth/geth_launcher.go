@@ -80,6 +80,7 @@ var verbosityLevels = map[module_io.ParticipantLogLevel]string{
 	module_io.ParticipantLogLevel_Warn:  "2",
 	module_io.ParticipantLogLevel_Info:  "3",
 	module_io.ParticipantLogLevel_Debug: "4",
+	module_io.ParticipantLogLevel_Trace: "5",
 }
 
 type GethELClientLauncher struct {

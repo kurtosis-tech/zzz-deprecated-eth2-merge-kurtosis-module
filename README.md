@@ -99,7 +99,7 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
     "waitForFinalization": false,
 
     // The log level that the clients should log at
-    // Valid values are "error", "warn", "info", and "debug"
+    // Valid values are "error", "warn", "info", "debug", and "trace"
     "logLevel": "info"
 }
 ```
