@@ -66,29 +66,10 @@ func (client *CLClientRESTClient) GetHealth() (HealthStatus, error) {
 }
 
 func (client *CLClientRESTClient) GetNodeSyncingData() (*SyncingData, error) {
-	url := client.getUrl(endpointClass_node, "syncing")
-	resp, err := http.Get(url)
-	if err != nil {
+	respObj := new(GetNodeSyncingDataResponse)
+	if err := client.getAndParseResponse(endpointClass_node, "syncing", respObj); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred getting the node's syncing data")
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, stacktrace.Propagate(err, "Wrong status code when getting the node's syncing data, expected 200 but got %v status code", resp.Status)
-	}
-
-	respBody := resp.Body
-	defer respBody.Close()
-	bodyBytes, err := ioutil.ReadAll(respBody)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred reading the response body")
-	}
-
-	logrus.Debugf("Syncing data from '%v': %v", url, string(bodyBytes))
-
-	respObj := new(GetNodeSyncingDataResponse)
-	if err := json.Unmarshal(bodyBytes, respObj); err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred deserializing the response body")
-	}
-
 	return respObj.Data, nil
 }
 
@@ -159,6 +140,14 @@ func (client *CLClientRESTClient) getAndParseResponse(endpointClass endpointClas
 	}
 	respBody := resp.Body
 	defer respBody.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return stacktrace.NewError(
+			"Expected request to url '%v' to return status doe %v but returned %v",
+			http.StatusOK,
+			resp.StatusCode,
+		 )
+	}
 
 	bodyBytes, err := ioutil.ReadAll(respBody)
 	if err != nil {
