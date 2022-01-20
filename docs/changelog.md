@@ -1,4 +1,6 @@
 # TBD
+
+# 0.4.1
 ### Fixes
 * Fixed an issue where using emptystring as the default image wasn't working
 
