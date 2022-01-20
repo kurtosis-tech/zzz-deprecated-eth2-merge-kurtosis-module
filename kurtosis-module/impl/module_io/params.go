@@ -3,10 +3,16 @@ package module_io
 // Participant log level "enum"
 type ParticipantLogLevel string
 const (
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantLogLevel_Error ParticipantLogLevel = "error"
 	ParticipantLogLevel_Warn ParticipantLogLevel = "warn"
 	ParticipantLogLevel_Info  ParticipantLogLevel = "info"
 	ParticipantLogLevel_Debug ParticipantLogLevel = "debug"
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 )
 var validParticipantLogLevels = map[ParticipantLogLevel]bool{
 	ParticipantLogLevel_Error: true,
@@ -18,8 +24,14 @@ var validParticipantLogLevels = map[ParticipantLogLevel]bool{
 // Participant EL client type "enum"
 type ParticipantELClientType string
 const (
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantELClientType_Geth       ParticipantELClientType = "geth"
 	ParticipantELClientType_Nethermind ParticipantELClientType = "nethermind"
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 )
 var validParticipantELClientTypes = map[ParticipantELClientType]bool{
 	ParticipantELClientType_Geth:       true,
@@ -29,11 +41,17 @@ var validParticipantELClientTypes = map[ParticipantELClientType]bool{
 // Participant CL client type "enum"
 type ParticipantCLClientType string
 const (
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantCLClientType_Lighthouse ParticipantCLClientType = "lighthouse"
 	ParticipantCLClientType_Teku       ParticipantCLClientType = "teku"
 	ParticipantCLClientType_Nimbus     ParticipantCLClientType = "nimbus"
 	ParticipantCLClientType_Prysm      ParticipantCLClientType = "prysm"
 	ParticipantCLClientType_Lodestar   ParticipantCLClientType = "lodestar"
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 )
 var validParticipantCLClientTypes = map[ParticipantCLClientType]bool{
 	ParticipantCLClientType_Lighthouse: true,
@@ -64,8 +82,19 @@ type ExecuteParams struct {
 }
 
 type ParticipantParams struct {
-	ELClientType ParticipantELClientType `json:"el"`
-	CLClientType ParticipantCLClientType `json:"cl"`
+	// The type of EL client that should be started
+	ELClientType ParticipantELClientType `json:"elType"`
+
+	// The Docker image that should be used for the EL client; leave blank to use the default
+	ELClientImage string				 `json:"elImage"`
+
+	// The type of CL client that should be started
+	CLClientType ParticipantCLClientType `json:"clType"`
+
+	// The Docker image that should be used for the EL client; leave blank to use the default
+	// NOTE: Prysm is different in that it requires two images - a Beacon and a validator
+	//  For Prysm and Prysm only, this field should contain a comma-separated string of "beacon_image,validator_image"
+	CLClientImage string				 `json:"clImage"`
 }
 
 // Parameters controlling particulars of the Eth1 & Eth2 networks
@@ -101,6 +130,5 @@ type NetworkParams struct {
 
 	// This menmonic will a) be used to create keystores for all the types of validators that we have and b) be used to generate a CL genesis.ssz that has the children
 	//  validator keys already preregistered as validators
-	// preregisteredValidatorKeysMnemonic = "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
 	PreregisteredValidatorKeysMnemonic string	`json:"preregisteredValidatorKeysMnemonic"`
 }

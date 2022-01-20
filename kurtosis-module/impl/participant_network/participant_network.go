@@ -133,6 +133,7 @@ func LaunchParticipantNetwork(
 			newElClientCtx, elClientLaunchErr = elLauncher.Launch(
 				enclaveCtx,
 				elClientServiceId,
+				participantSpec.ELClientImage,
 				logLevel,
 				elClientContextForBootElClients,
 			)
@@ -141,6 +142,7 @@ func LaunchParticipantNetwork(
 			newElClientCtx, elClientLaunchErr = elLauncher.Launch(
 				enclaveCtx,
 				elClientServiceId,
+				participantSpec.ELClientImage,
 				logLevel,
 				bootElClientCtx,
 			)
@@ -215,7 +217,7 @@ func LaunchParticipantNetwork(
 		module_io.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
 			clGenesisData.GetParentDirpath(),
 		),
-		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLCLientLauncher(
+		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
 			clValidatorData.PrysmPassword,
@@ -244,6 +246,7 @@ func LaunchParticipantNetwork(
 			newClClientCtx, clClientLaunchErr = clLauncher.Launch(
 				enclaveCtx,
 				clClientServiceId,
+				participantSpec.CLClientImage,
 				logLevel,
 				clClientContextForBootClClients,
 				elClientCtx,
@@ -254,6 +257,7 @@ func LaunchParticipantNetwork(
 			newClClientCtx, clClientLaunchErr = clLauncher.Launch(
 				enclaveCtx,
 				clClientServiceId,
+				participantSpec.CLClientImage,
 				logLevel,
 				bootClClientCtx,
 				elClientCtx,

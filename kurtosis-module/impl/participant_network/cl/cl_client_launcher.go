@@ -13,6 +13,7 @@ type CLClientLauncher interface {
 	Launch(
 		enclaveCtx *enclaves.EnclaveContext,
 		serviceId services.ServiceID,
+		image string,
 		logLevel module_io.ParticipantLogLevel,
 		// If nil, the node will be launched as a bootnode
 		bootnodeContext *CLClientContext,

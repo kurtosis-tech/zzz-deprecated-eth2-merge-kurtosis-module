@@ -1,4 +1,9 @@
 # TBD
+### Features
+* Allowed configurable EL & CL client images via the `elImage` and `clImage` keys to participant object
+
+### Breaking Changes
+* The participant spec's `el` and `cl` keys have been switched to `elType` and `clType`
 
 # 0.3.0
 ### Features

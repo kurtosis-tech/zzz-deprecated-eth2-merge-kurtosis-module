@@ -126,7 +126,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		networkParams.SecondsPerSlot,
 		networkParams.SlotsPerEpoch,
 	)
-	logrus.Info("Successfully launched forkmon")
+	logrus.Infof("Successfully launched forkmon at '%v'", forkmonPublicUrl)
 
 	if paramsObj.WaitForFinalization {
 		logrus.Info("Waiting for the first finalized epoch...")
