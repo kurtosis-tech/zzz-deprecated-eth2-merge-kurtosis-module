@@ -57,6 +57,7 @@ var lighthouseLogLevels = map[module_io.ParticipantLogLevel]string{
 	module_io.ParticipantLogLevel_Warn:  "warn",
 	module_io.ParticipantLogLevel_Info:  "info",
 	module_io.ParticipantLogLevel_Debug: "debug",
+	module_io.ParticipantLogLevel_Trace: "trace",
 }
 
 type LighthouseCLClientLauncher struct {

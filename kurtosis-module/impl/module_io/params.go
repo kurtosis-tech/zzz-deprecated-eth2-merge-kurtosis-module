@@ -10,6 +10,7 @@ const (
 	ParticipantLogLevel_Warn ParticipantLogLevel = "warn"
 	ParticipantLogLevel_Info  ParticipantLogLevel = "info"
 	ParticipantLogLevel_Debug ParticipantLogLevel = "debug"
+	ParticipantLogLevel_Trace ParticipantLogLevel = "trace"
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -19,6 +20,7 @@ var validParticipantLogLevels = map[ParticipantLogLevel]bool{
 	ParticipantLogLevel_Warn:  true,
 	ParticipantLogLevel_Info:  true,
 	ParticipantLogLevel_Debug: true,
+	ParticipantLogLevel_Trace: true,
 }
 
 // Participant EL client type "enum"

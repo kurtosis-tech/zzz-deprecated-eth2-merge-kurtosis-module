@@ -1,6 +1,7 @@
 # TBD
 ### Features
 * Allowed configurable EL & CL client images via the `elImage` and `clImage` keys to participant object
+* Support `trace` loglevel
 
 ### Breaking Changes
 * The participant spec's `el` and `cl` keys have been switched to `elType` and `clType`
