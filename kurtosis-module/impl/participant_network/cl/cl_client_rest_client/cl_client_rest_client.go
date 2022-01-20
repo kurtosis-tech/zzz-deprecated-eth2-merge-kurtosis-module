@@ -144,6 +144,7 @@ func (client *CLClientRESTClient) getAndParseResponse(endpointClass endpointClas
 	if resp.StatusCode != http.StatusOK {
 		return stacktrace.NewError(
 			"Expected request to url '%v' to return status doe %v but returned %v",
+			url,
 			http.StatusOK,
 			resp.StatusCode,
 		 )
