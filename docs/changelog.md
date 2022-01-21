@@ -1,4 +1,6 @@
 # TBD
+### Fixes
+* Fixed an issue where the CL REST client would try to deserialize the bodies of responses that came back with non-200 status codes
 
 # 0.4.1
 ### Fixes
