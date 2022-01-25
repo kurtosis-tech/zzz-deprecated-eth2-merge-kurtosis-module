@@ -4,6 +4,9 @@
 * When a Teku node is present, require merge fork epoch to be >= 3 as a workaround for a bug in Teku
 * Disallow a Prysm node being a boot node due to https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/pull/36
 
+### Changes
+* Set the `mergeForkBlock` parameter in the EL genesis config template to `10` per Pari's recommendation
+
 # 0.4.1
 ### Fixes
 * Fixed an issue where using emptystring as the default image wasn't working

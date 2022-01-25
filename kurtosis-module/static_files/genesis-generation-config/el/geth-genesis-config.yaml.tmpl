@@ -13,5 +13,9 @@ deposit_contract_address: "{{ .DepositContractAddress }}"
 eth1_genesis_timestamp: {{ .UnixTimestamp }}
 terminal_total_difficulty: {{ .TotalTerminalDifficulty }}
 
+# Set to 10 per Pari's recommendation
+# To read more about what this is and does, see: https://notes.ethereum.org/cmyGUbKVTTqhUGDg_GYThg
+mergeForkBlock: 10
+
 clique:
   enabled: false
