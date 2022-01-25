@@ -18,12 +18,15 @@ const (
 	elGenesisGenerationInstanceSharedDirpathPrefix = "el-genesis-"
 
 	configDirname                      = "config"
+	genesisConfigFilename  = "genesis-config.yaml"
 
 	outputDirname = "output"
 
 	gethGenesisFilename = "geth.json"
 	nethermindGenesisFilename = "nethermind.json"
 	besuGenesisFilename = "besu.json"
+
+	successfulExecCmdExitCode = 0
 )
 
 type genesisGenerationConfigTemplateData struct {
@@ -93,7 +96,7 @@ func GenerateELGenesisData(
 		}
 	}
 
-	generationConfigSharedFile := configSharedDir.GetChildPath(chainspecAndGethGenesisGenerationConfigFilename)
+	generationConfigSharedFile := configSharedDir.GetChildPath(genesisConfigFilename)
 	templateData := &genesisGenerationConfigTemplateData{
 		NetworkId:               networkId,
 		DepositContractAddress:  depositContractAddress,
