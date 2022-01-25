@@ -1,4 +1,7 @@
 # TBD
+### Features
+* Added generation of Besu genesis file
+
 ### Fixes
 * Fixed an issue where the CL REST client would try to deserialize the bodies of responses that came back with non-200 status codes
 * When a Teku node is present, require merge fork epoch to be >= 3 as a workaround for a bug in Teku
@@ -6,6 +9,8 @@
 
 ### Changes
 * Set the `mergeForkBlock` parameter in the EL genesis config template to `10` per Pari's recommendation
+* Switch back to [the default genesis generator](https://github.com/skylenet/ethereum-genesis-generator) (rather than the Kurtosis fork of it)
+* Nethermind genesis JSON is generated using the genesis generator image
 
 # 0.4.1
 ### Fixes

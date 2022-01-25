@@ -5,26 +5,26 @@ type ELGenesisData struct {
 	// Path to the directory holding all the EL genesis files
 	parentDirpath string
 	
-	chainspecJsonFilepath string
-
 	gethGenesisJsonFilepath string
 
 	nethermindGenesisJsonFilepath string
+
+	besuGenesisJsonFilepath string
 }
 
-func newELGenesisData(parentDirpath string, chainspecJsonFilepath string, gethGenesisJsonFilepath string, nethermindGenesisJsonFilepath string) *ELGenesisData {
-	return &ELGenesisData{parentDirpath: parentDirpath, chainspecJsonFilepath: chainspecJsonFilepath, gethGenesisJsonFilepath: gethGenesisJsonFilepath, nethermindGenesisJsonFilepath: nethermindGenesisJsonFilepath}
+func newELGenesisData(parentDirpath string, gethGenesisJsonFilepath string, nethermindGenesisJsonFilepath string, besuGenesisJsonFilepath string) *ELGenesisData {
+	return &ELGenesisData{parentDirpath: parentDirpath, gethGenesisJsonFilepath: gethGenesisJsonFilepath, nethermindGenesisJsonFilepath: nethermindGenesisJsonFilepath, besuGenesisJsonFilepath: besuGenesisJsonFilepath}
 }
 
 func (paths *ELGenesisData) GetParentDirpath() string {
 	return paths.parentDirpath
-}
-func (paths *ELGenesisData) GetChainspecJsonFilepath() string {
-	return paths.chainspecJsonFilepath
 }
 func (paths *ELGenesisData) GetGethGenesisJsonFilepath() string {
 	return paths.gethGenesisJsonFilepath
 }
 func (paths *ELGenesisData) GetNethermindGenesisJsonFilepath() string {
 	return paths.nethermindGenesisJsonFilepath
+}
+func (paths *ELGenesisData) GetBesuGenesisJsonFilepath() string {
+	return paths.besuGenesisJsonFilepath
 }
