@@ -8,6 +8,7 @@
 * Disallow a Prysm node being a boot node due to https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/pull/36
 
 ### Changes
+* Set the `mergeForkBlock` parameter in the EL genesis config template to `10` per Pari's recommendation
 * Switch back to [the default genesis generator](https://github.com/skylenet/ethereum-genesis-generator) (rather than the Kurtosis fork of it)
 * Nethermind genesis JSON is generated using the genesis generator image
 
