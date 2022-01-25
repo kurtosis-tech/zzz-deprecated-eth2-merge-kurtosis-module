@@ -1,6 +1,12 @@
 # TBD
+### Features
+* Added generation of Besu genesis file
+
 ### Fixes
 * Fixed an issue where the CL REST client would try to deserialize the bodies of responses that came back with non-200 status codes
+
+### Changes
+* Switch back to [the default genesis generator](https://github.com/skylenet/ethereum-genesis-generator) (rather than the Kurtosis fork of it)
 
 # 0.4.1
 ### Fixes

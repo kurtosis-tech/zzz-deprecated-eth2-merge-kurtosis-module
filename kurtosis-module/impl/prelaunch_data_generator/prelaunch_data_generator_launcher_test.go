@@ -48,11 +48,6 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 		gethGenesisConfigRelFilepath,
 	))
 	require.NoError(t, err)
-	nethermindGenesisConfigTemplate, err := static_files.ParseTemplate(path.Join(
-		pwd,
-		staticFilesRelDirpath,
-		nethermindGenesisConfigRelFilepath,
-	))
 	genesisConfigTemplate, err := static_files.ParseTemplate(path.Join(
 		pwd,
 		staticFilesRelDirpath,
@@ -98,7 +93,6 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 
 	_, err = dataGeneratorCtx.GenerateELGenesisData(
 		gethGenesisConfigTemplate,
-		nethermindGenesisConfigTemplate,
 		uint64(time.Now().Unix()),
 	)
 	require.NoError(t, err)

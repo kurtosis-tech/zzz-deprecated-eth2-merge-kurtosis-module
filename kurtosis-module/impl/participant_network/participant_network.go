@@ -73,10 +73,13 @@ func LaunchParticipantNetwork(
 	if err != nil {
 		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the CL mnemonics YAML template")
 	}
+	// TODO DELETE THIS AND THE CORERSPONDING STATIC FILE - NETHERMIND IS NOW GENERATED USING THE ETHEREUM GENESIS GENERATOR
+	/*
 	nethermindGenesisJsonTemplate, err := static_files.ParseTemplate(static_files.NethermindGenesisGenerationJsonTemplateFilepath)
 	if err != nil {
 		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis json template")
 	}
+	*/
 
 	// CL validator key generation is CPU-intensive, so we want to do the generation before any EL clients start mining
 	//  (even though we only start the CL clients after the EL network is fully up & mining)
@@ -96,7 +99,6 @@ func LaunchParticipantNetwork(
 	elGenesisTimestamp := uint64(time.Now().Unix())
 	elGenesisData, err := prelaunchDataGeneratorCtx.GenerateELGenesisData(
 		chainspecAndGethGenesisGenerationConfigTemplate,
-		nethermindGenesisJsonTemplate,
 		elGenesisTimestamp,
 	)
 	if err != nil {

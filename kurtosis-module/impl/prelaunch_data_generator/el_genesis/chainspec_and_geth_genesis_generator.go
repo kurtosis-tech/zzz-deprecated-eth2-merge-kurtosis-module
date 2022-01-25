@@ -4,9 +4,6 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"io/ioutil"
-	"os"
-	"strings"
 	"text/template"
 )
 
@@ -74,33 +71,4 @@ func generateChainspecAndGethGenesis(
 	}
 
 	return chainspecSharedFile.GetAbsPathOnThisContainer(), gethGenesisSharedFile.GetAbsPathOnThisContainer(), nil
-}
-
-func execCmdAndWriteOutputToSharedFile(
-	serviceCtx *services.ServiceContext,
-	cmdArgs []string,
-	outputSharedFile *services.SharedPath,
-) error {
-	exitCode, output, err := serviceCtx.ExecCommand(cmdArgs)
-	if err != nil {
-		return stacktrace.Propagate(
-			err,
-			"An error occurred running command '%v'",
-			strings.Join(cmdArgs, " "),
-		)
-	}
-	if exitCode != successfulExecCmdExitCode {
-		return stacktrace.NewError(
-			"Expected command '%v' to return exit code '%v' but returned '%v' with the following logs:\n%v",
-			strings.Join(cmdArgs, " "),
-			successfulExecCmdExitCode,
-			exitCode,
-			output,
-		)
-	}
-	filepathOnModuleContainer := outputSharedFile.GetAbsPathOnThisContainer()
-	if err := ioutil.WriteFile(filepathOnModuleContainer, []byte(output), os.ModePerm); err != nil {
-		return stacktrace.Propagate(err, "An error occurred writing chainspec file '%v'", filepathOnModuleContainer)
-	}
-	return nil
 }
