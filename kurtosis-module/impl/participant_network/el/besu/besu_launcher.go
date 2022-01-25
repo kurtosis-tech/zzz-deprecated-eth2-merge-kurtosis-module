@@ -21,11 +21,8 @@ import (
 )
 
 const (
-	// TODO Needs to be updated to be the right image for Besu
-	// An image from around 2022-01-18
-	imageName = "parithoshj/geth:merge-f72c361"
+	imageName = "hyperledger/besu:merge"
 
-	// TODO Correct port nums
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
@@ -40,9 +37,6 @@ const (
 	// NOTE: This can't be 0x00000....000
 	// See: https://github.com/ethereum/go-ethereum/issues/19547
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
-
-	// TODO Scale this dynamically based on CPUs available and Besu nodes mining
-	numMiningThreads = 1
 
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
 	sharedGenesisJsonRelFilepath = "genesis.json"
@@ -70,12 +64,12 @@ var usedPorts = map[string]*services.PortSpec{
 	// TODO used ports
 }
 var entrypointArgs = []string{"sh", "-c"}
-// TODO These are copied from Geth; need to be updated for Besu
-var verbosityLevels = map[module_io.ParticipantLogLevel]string{
-	module_io.ParticipantLogLevel_Error: "1",
-	module_io.ParticipantLogLevel_Warn:  "2",
-	module_io.ParticipantLogLevel_Info:  "3",
-	module_io.ParticipantLogLevel_Debug: "4",
+var besuLogLevels = map[module_io.ParticipantLogLevel]string{
+	module_io.ParticipantLogLevel_Error: "ERROR",
+	module_io.ParticipantLogLevel_Warn:  "WARN",
+	module_io.ParticipantLogLevel_Info:  "INFO",
+	module_io.ParticipantLogLevel_Debug: "DEBUG",
+	module_io.ParticipantLogLevel_Trace: "TRACE",
 }
 
 type BesuELClientLauncher struct {
@@ -131,9 +125,9 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 	logLevel module_io.ParticipantLogLevel,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		verbosityLevel, found := verbosityLevels[logLevel]
+		besuLogLevel, found := besuLogLevels[logLevel]
 		if !found {
-			return nil, stacktrace.NewError("No Besu verbosity level was defined for client log level '%v'; this is a bug in this module itself", logLevel)
+			return nil, stacktrace.NewError("No Besu log level was defined for client log level '%v'; this is a bug in this module itself", logLevel)
 		}
 
 		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
@@ -141,6 +135,7 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedGenesisJsonRelFilepath)
 		}
 
+		// TODO MODIFY FOR BESU
 		gethKeysDirSharedPath := sharedDir.GetChildPath(gethKeysRelDirpathInSharedDir)
 		if err := os.Mkdir(gethKeysDirSharedPath.GetAbsPathOnThisContainer(), os.ModePerm); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred creating the Besu keys directory in the shared dir")
@@ -148,7 +143,8 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 
 		accountAddressesToUnlock := []string{}
 		for _, prefundedAccount := range launcher.prefundedAccountInfo {
-			keyFilepathOnModuleContainer := prefundedAccount.BesuKeyFilepath
+			// TODO MAYBE NEED TO MAKE THIS BESU-SPECIFIC??
+			keyFilepathOnModuleContainer := prefundedAccount.GethKeyFilepath
 			keyFilename := path.Base(keyFilepathOnModuleContainer)
 			keyRelFilepathInSharedDir := path.Join(gethKeysRelDirpathInSharedDir, keyFilename)
 			keyFileSharedPath := sharedDir.GetChildPath(keyRelFilepathInSharedDir)
@@ -159,6 +155,8 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 			accountAddressesToUnlock = append(accountAddressesToUnlock, prefundedAccount.Address)
 		}
 
+		// TODO FIGURE OUT IF WE NEED TO DO AN INIT
+		/*
 		initDatadirCmdStr := fmt.Sprintf(
 			"geth init --datadir=%v %v",
 			executionDataDirpathOnClientContainer,
@@ -178,9 +176,32 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 			gethAccountPasswordsFile,
 		)
 
-		accountsToUnlockStr := strings.Join(accountAddressesToUnlock, ",")
+		 */
+
+		// TODO ADD UNLOCKED ACCOUNTS
+		// accountsToUnlockStr := strings.Join(accountAddressesToUnlock, ",")
 		launchNodeCmdArgs := []string{
-			// TODO Fill these in
+			"besu",
+			"--logging=" + besuLogLevel,
+			"--data-path=" + executionDataDirpathOnClientContainer,
+			"--genesis-file=" + genesisJsonSharedPath.GetAbsPathOnServiceContainer(),
+			"--network-id=" + networkId,
+			"--host-allowlist=*",
+			"--Xmerge-support=true",
+			"--miner-enabled=true",
+			"--miner-coinbase=" + miningRewardsAccount,
+			"--rpc-http-enabled=true",
+			"--rpc-http-host=0.0.0.0",
+			fmt.Sprintf("--rpc-http-port=%v", rpcPortNum),
+			"--rpc-http-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,EXECUTION",
+			"--rpc-http-cors-origins=*",
+			"--rpc-ws-enabled=true",
+			"--rpc-ws-host=0.0.0.0",
+			fmt.Sprintf("--rpc-ws-port=%v", wsPortNum),
+			"--rpc-ws-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,EXECUTION",
+			"--p2p-enabled=true",
+			"--p2p-host=" + privateIpAddr,
+			fmt.Sprintf("--p2p-port=%v", discoveryPortNum),
 		}
 		if bootnodeContext != nil {
 			launchNodeCmdArgs = append(
@@ -190,6 +211,8 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 		}
 		launchNodeCmdStr := strings.Join(launchNodeCmdArgs, " ")
 
+		// TODO FIX OR DELETE
+		/*
 		subcommandStrs := []string{
 			initDatadirCmdStr,
 			copyKeysIntoKeystoreCmdStr,
@@ -198,6 +221,8 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 		}
 		commandStr := strings.Join(subcommandStrs, " && ")
 
+		 */
+
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithUsedPorts(
@@ -205,7 +230,8 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 		).WithEntrypointOverride(
 			entrypointArgs,
 		).WithCmdOverride([]string{
-			commandStr,
+			launchNodeCmdStr,
+			// commandStr,
 		}).Build()
 
 		return containerConfig, nil
