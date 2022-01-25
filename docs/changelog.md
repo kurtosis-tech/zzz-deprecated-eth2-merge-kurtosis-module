@@ -1,6 +1,7 @@
 # TBD
 ### Fixes
 * Fixed an issue where the CL REST client would try to deserialize the bodies of responses that came back with non-200 status codes
+* When a Teku node is present, require merge fork epoch to be >= 3 as a workaround for a bug in Teku
 
 # 0.4.1
 ### Fixes
