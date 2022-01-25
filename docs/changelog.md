@@ -2,6 +2,7 @@
 ### Fixes
 * Fixed an issue where the CL REST client would try to deserialize the bodies of responses that came back with non-200 status codes
 * When a Teku node is present, require merge fork epoch to be >= 3 as a workaround for a bug in Teku
+* Disallow a Prysm node being a boot node due to https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/pull/36
 
 # 0.4.1
 ### Fixes
