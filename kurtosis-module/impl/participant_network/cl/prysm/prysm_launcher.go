@@ -16,13 +16,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"text/template"
+	"strings"
 	"time"
 )
 
 const (
-	beaconNodeImageName    = "prysmaticlabs/prysm-beacon-chain:latest"
-	validatorNodeImageName = "prysmaticlabs/prysm-validator:latest"
+	imageSeparatorDelimiter = ","
+	expectedNumImages = 2
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 
@@ -74,39 +74,53 @@ var prysmLogLevels = map[module_io.ParticipantLogLevel]string{
 	module_io.ParticipantLogLevel_Warn:  "warn",
 	module_io.ParticipantLogLevel_Info:  "info",
 	module_io.ParticipantLogLevel_Debug: "debug",
+	module_io.ParticipantLogLevel_Trace: "trace",
 }
 
-type PrysmClientLauncher struct {
+type PrysmCLClientLauncher struct {
 	genesisConfigYmlFilepathOnModuleContainer string
 	genesisSszFilepathOnModuleContainer       string
 	prysmPassword                             string
-	prysmPasswordTxtTemplate                  *template.Template
 }
 
-func NewPrysmCLCLientLauncher(
-	genesisConfigYmlFilepathOnModuleContainer string,
-	genesisSszFilepathOnModuleContainer string,
-	prysmPassword string,
-) *PrysmClientLauncher {
-	return &PrysmClientLauncher{
-		genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer,
-		genesisSszFilepathOnModuleContainer:       genesisSszFilepathOnModuleContainer,
-		prysmPassword:                             prysmPassword,
-	}
+func NewPrysmCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, prysmPassword string) *PrysmCLClientLauncher {
+	return &PrysmCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, prysmPassword: prysmPassword}
 }
 
-func (launcher *PrysmClientLauncher) Launch(
+func (launcher *PrysmCLClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
+	// NOTE: Because Prysm has separate images for Beacon and validator, this string will actually be a delimited
+	//  combination of both Beacon & validator images
+	delimitedImagesStr string,
 	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
+	imageStrs := strings.Split(delimitedImagesStr, imageSeparatorDelimiter)
+	if len(imageStrs) != expectedNumImages {
+		return nil, stacktrace.NewError(
+			"Expected Prysm image string '%v' to contain %v images - Beacon and validator - delimited by '%v'",
+			delimitedImagesStr,
+			expectedNumImages,
+			imageSeparatorDelimiter,
+		)
+	}
+	beaconImage := imageStrs[0]
+	validatorImage := imageStrs[1]
+	if len(strings.TrimSpace(beaconImage)) == 0 {
+		return nil, stacktrace.NewError("An empty Prysm Beacon image was provided")
+	}
+	if len(strings.TrimSpace(validatorImage)) == 0 {
+		return nil, stacktrace.NewError("An empty Prysm validator image was provided")
+	}
+
 	beaconServiceId := serviceId + "-" + beaconSuffixServiceId
 	validatorServiceId := serviceId + "-" + validatorSuffixServiceId
 
 	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(
+		beaconImage,
 		bootnodeContext,
 		elClientContext,
 		logLevel,
@@ -135,15 +149,14 @@ func (launcher *PrysmClientLauncher) Launch(
 
 	beaconRPCEndpoint := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), rpcPortNum)
 	beaconHTTPEndpoint := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), httpPortNum)
-	validatorContainerConfigSupplier := getValidatorContainerConfigSupplier(
+	validatorContainerConfigSupplier := launcher.getValidatorContainerConfigSupplier(
+		validatorImage,
 		validatorServiceId,
 		logLevel,
 		beaconRPCEndpoint,
 		beaconHTTPEndpoint,
-		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		nodeKeystoreDirpaths.RawKeysDirpath,
 		nodeKeystoreDirpaths.PrysmDirpath,
-		launcher.prysmPassword,
 	)
 	_, err = enclaveCtx.AddService(validatorServiceId, validatorContainerConfigSupplier)
 	if err != nil {
@@ -164,7 +177,8 @@ func (launcher *PrysmClientLauncher) Launch(
 // ====================================================================================================
 //                                   Private Helper Methods
 // ====================================================================================================
-func (launcher *PrysmClientLauncher) getBeaconContainerConfigSupplier(
+func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
+	beaconImage string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel module_io.ParticipantLogLevel,
@@ -229,7 +243,7 @@ func (launcher *PrysmClientLauncher) getBeaconContainerConfigSupplier(
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
-			beaconNodeImageName,
+			beaconImage,
 		).WithUsedPorts(
 			beaconNodeUsedPorts,
 		).WithCmdOverride(
@@ -241,15 +255,14 @@ func (launcher *PrysmClientLauncher) getBeaconContainerConfigSupplier(
 	return containerConfigSupplier
 }
 
-func getValidatorContainerConfigSupplier(
+func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
+	validatorImage string,
 	serviceId services.ServiceID,
 	logLevel module_io.ParticipantLogLevel,
 	beaconRPCEndpoint string,
 	beaconHTTPEndpoint string,
-	genesisConfigYmlFilepathOnModuleContainer string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
-	prysmPassword string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		prysmLogLevel, found := prysmLogLevels[logLevel]
@@ -258,11 +271,11 @@ func getValidatorContainerConfigSupplier(
 		}
 
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
 			return nil, stacktrace.Propagate(
 				err,
 				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				genesisConfigYmlFilepathOnModuleContainer,
+				launcher.genesisConfigYmlFilepathOnModuleContainer,
 				genesisConfigYmlRelFilepathInSharedDir,
 			)
 		}
@@ -285,7 +298,7 @@ func getValidatorContainerConfigSupplier(
 
 		prysmPasswordTxtSharedPath := sharedDir.GetChildPath(prysmPasswordTxtRelFilepathInSharedDir)
 		prysmPasswordTxtFilepathOnModuleContainer := prysmPasswordTxtSharedPath.GetAbsPathOnThisContainer()
-		if err := ioutil.WriteFile(prysmPasswordTxtFilepathOnModuleContainer,[]byte(prysmPassword), os.ModePerm); err != nil {
+		if err := ioutil.WriteFile(prysmPasswordTxtFilepathOnModuleContainer, []byte(launcher.prysmPassword), os.ModePerm); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred writing the Prysm keystore password to file '%v'", prysmPasswordTxtFilepathOnModuleContainer)
 		}
 
@@ -305,7 +318,7 @@ func getValidatorContainerConfigSupplier(
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
-			validatorNodeImageName,
+			validatorImage,
 		).WithUsedPorts(
 			validatorNodeUsedPorts,
 		).WithCmdOverride(

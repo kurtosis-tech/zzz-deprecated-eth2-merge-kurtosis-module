@@ -21,9 +21,6 @@ import (
 )
 
 const (
-	// An image from around 2022-01-18
-	imageName = "parithoshj/geth:merge-f72c361"
-
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
@@ -75,6 +72,7 @@ var verbosityLevels = map[module_io.ParticipantLogLevel]string{
 	module_io.ParticipantLogLevel_Warn:  "2",
 	module_io.ParticipantLogLevel_Info:  "3",
 	module_io.ParticipantLogLevel_Debug: "4",
+	module_io.ParticipantLogLevel_Trace: "5",
 }
 
 type GethELClientLauncher struct {
@@ -90,10 +88,11 @@ func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefun
 func (launcher *GethELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
+	image string,
 	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *el.ELClientContext,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(launcher.networkId, bootnodeContext, logLevel)
+	containerConfigSupplier := launcher.getContainerConfigSupplier(launcher.networkId, image, bootnodeContext, logLevel)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
@@ -126,6 +125,7 @@ func (launcher *GethELClientLauncher) Launch(
 // ====================================================================================================
 func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	networkId string,
+	image string,
 	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
 	logLevel module_io.ParticipantLogLevel,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
@@ -219,7 +219,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 		commandStr := strings.Join(subcommandStrs, " && ")
 
 		containerConfig := services.NewContainerConfigBuilder(
-			imageName,
+			image,
 		).WithUsedPorts(
 			usedPorts,
 		).WithEntrypointOverride(

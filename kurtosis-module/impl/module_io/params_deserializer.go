@@ -10,6 +10,10 @@ import (
 const (
 	expectedSecondsPerSlot = 12
 	expectedSlotsPerEpoch = 32
+
+	// TODO Remove this once Teku fixes its bug with merge fork epoch:
+	//  https://discord.com/channels/697535391594446898/697539289042649190/935029250858299412
+	tekuMinimumMergeForkEpoch = 3
 )
 
 func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
@@ -33,12 +37,48 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 
 		elClientType := participant.ELClientType
 		if _, found := validParticipantELClientTypes[elClientType]; !found {
-			return nil, stacktrace.NewError("Participant %v declares unrecognized EL client type '%v'", idx, elClientType)
+			validClientTypes := []string{}
+			for clientType := range validParticipantELClientTypes {
+				validClientTypes = append(validClientTypes, string(clientType))
+			}
+			return nil, stacktrace.NewError(
+				"Participant %v declares unrecognized EL client type '%v'; valid values are: %v",
+				idx,
+				elClientType,
+				strings.Join(validClientTypes, ", "),
+			 )
+		}
+		if participant.ELClientImage == useDefaultElImageKeyword {
+			defaultElClientImage, found := defaultElImages[elClientType]
+			if !found {
+				return nil, stacktrace.NewError("EL client image wasn't provided, and no default image was defined for EL client type '%v'; this is a bug in the module", elClientType)
+			}
+			// Go's "range" is by-value, so we need to actually by-reference modify the paramsObj we need to
+			//  use the idx
+			paramsObj.Participants[idx].ELClientImage = defaultElClientImage
 		}
 
 		clClientType := participant.CLClientType
 		if _, found := validParticipantCLClientTypes[clClientType]; !found {
-			return nil, stacktrace.NewError("Participant %v declares unrecognized CL client type '%v'", idx, clClientType)
+			validClientTypes := []string{}
+			for clientType := range validParticipantCLClientTypes {
+				validClientTypes = append(validClientTypes, string(clientType))
+			}
+			return nil, stacktrace.NewError(
+				"Participant %v declares unrecognized CL client type '%v'; valid values are: %v",
+				idx,
+				clClientType,
+				strings.Join(validClientTypes, ", "),
+			 )
+		}
+		if participant.CLClientImage == useDefaultClImageKeyword {
+			defaultClClientImage, found := defaultClImages[clClientType]
+			if !found {
+				return nil, stacktrace.NewError("CL client image wasn't provided, and no default image was defined for CL client type '%v'; this is a bug in the module", clClientType)
+			}
+			// Go's "range" is by-value, so we need to actually by-reference modify the paramsObj we need to
+			//  use the idx
+			paramsObj.Participants[idx].CLClientImage = defaultClClientImage
 		}
 	}
 
@@ -94,6 +134,25 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 		return nil, stacktrace.NewError("Preregistered validator keys mnemonic must not be empty")
 	}
 
+	// TODO Remove this once we have a way of getting a Prysm node's ENR before genesis time:
+	//  https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/37
+	if paramsObj.Participants[0].CLClientType == ParticipantCLClientType_Prysm {
+		return nil, stacktrace.NewError("Cannot have a Prysm node as the boot CL node due to https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/37")
+	}
+
+	// TODO Remove this check once Teku fixes its bug! See:
+	//  https://discord.com/channels/697535391594446898/697539289042649190/935029250858299412
+	hasTeku := false
+	for _, participant := range paramsObj.Participants {
+		hasTeku = hasTeku || participant.CLClientType == ParticipantCLClientType_Teku
+	}
+	if hasTeku && networkParams.MergeForkEpoch < tekuMinimumMergeForkEpoch {
+		return nil, stacktrace.NewError(
+			"Merge fork epoch is '%v' but cannot be < %v when a Teku node is present due to the following bug in Teku: https://discord.com/channels/697535391594446898/697539289042649190/935029250858299412",
+			networkParams.MergeForkEpoch,
+			tekuMinimumMergeForkEpoch,
+		)
+	}
 
 	return paramsObj, nil
 }

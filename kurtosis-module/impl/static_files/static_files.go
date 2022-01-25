@@ -13,9 +13,8 @@ const (
 	// Geth + CL genesis generation
 	genesisGenerationConfigDirpath = staticFilesDirpath + "/genesis-generation-config"
 
-	elGenesisGenerationConfigDirpath                        = genesisGenerationConfigDirpath + "/el"
-	ChainspecAndGethGenesisGenerationConfigTemplateFilepath = elGenesisGenerationConfigDirpath + "/geth-genesis-config.yaml.tmpl"
-	NethermindGenesisGenerationJsonTemplateFilepath         = elGenesisGenerationConfigDirpath + "/nethermind-genesis.json.tmpl"
+	elGenesisGenerationConfigDirpath                = genesisGenerationConfigDirpath + "/el"
+	ELGenesisGenerationConfigTemplateFilepath       = elGenesisGenerationConfigDirpath + "/genesis-config.yaml.tmpl"
 
 	clGenesisGenerationConfigDirpath             = genesisGenerationConfigDirpath + "/cl"
 	CLGenesisGenerationConfigTemplateFilepath    = clGenesisGenerationConfigDirpath + "/config.yaml.tmpl"

@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	// TODO DEBUGGING
-	// imageName = "chainsafe/lodestar:next"
-	imageName = "g11tech/lodestar:355ef6"
+	imageName = "chainsafe/lodestar:next"
+	// TODO Uncomment this when we're ready to use the BELLATRIX_ config values
+	// imageName = "g11tech/lodestar:355ef6"
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 
@@ -53,6 +53,7 @@ var lodestarLogLevels = map[module_io.ParticipantLogLevel]string{
 	module_io.ParticipantLogLevel_Warn:  "warn",
 	module_io.ParticipantLogLevel_Info:  "info",
 	module_io.ParticipantLogLevel_Debug: "debug",
+	module_io.ParticipantLogLevel_Trace: "silly",
 }
 
 type LodestarClientLauncher struct {
@@ -67,6 +68,7 @@ func NewLodestarClientLauncher(genesisConfigYmlFilepathOnModuleContainer string,
 func (launcher *LodestarClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
+	image string,
 	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
@@ -76,6 +78,7 @@ func (launcher *LodestarClientLauncher) Launch(
 	validatorServiceId := serviceId + "-" + validatorSuffixServiceId
 
 	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(
+		image,
 		bootnodeContext,
 		elClientContext,
 		logLevel,
@@ -129,6 +132,7 @@ func (launcher *LodestarClientLauncher) Launch(
 //                                   Private Helper Methods
 // ====================================================================================================
 func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
+	image string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel module_io.ParticipantLogLevel,

@@ -53,6 +53,7 @@ func LaunchParticipantNetwork(
 	networkParams *module_io.NetworkParams,
 	allParticipantSpecs []*module_io.ParticipantParams,
 	logLevel module_io.ParticipantLogLevel,
+	shouldWaitForMining bool,
 ) (
 	resultParticipants []*Participant,
 	resultClGenesisUnixTimestamp uint64,
@@ -61,9 +62,9 @@ func LaunchParticipantNetwork(
 	numParticipants := uint32(len(allParticipantSpecs))
 
 	// Parse all the templates we'll need first, so if an error is thrown it'll be thrown early
-	chainspecAndGethGenesisGenerationConfigTemplate, err := static_files.ParseTemplate(static_files.ChainspecAndGethGenesisGenerationConfigTemplateFilepath)
+	elGenesisGenerationConfigTemplate, err := static_files.ParseTemplate(static_files.ELGenesisGenerationConfigTemplateFilepath)
 	if err != nil {
-		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the Geth genesis generation config YAML template")
+		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the EL genesis generation config YAML template")
 	}
 	clGenesisConfigTemplate, err := static_files.ParseTemplate(static_files.CLGenesisGenerationConfigTemplateFilepath)
 	if err != nil {
@@ -72,10 +73,6 @@ func LaunchParticipantNetwork(
 	clGenesisMnemonicsYmlTemplate, err := static_files.ParseTemplate(static_files.CLGenesisGenerationMnemonicsTemplateFilepath)
 	if err != nil {
 		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the CL mnemonics YAML template")
-	}
-	nethermindGenesisJsonTemplate, err := static_files.ParseTemplate(static_files.NethermindGenesisGenerationJsonTemplateFilepath)
-	if err != nil {
-		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis json template")
 	}
 
 	// CL validator key generation is CPU-intensive, so we want to do the generation before any EL clients start mining
@@ -95,8 +92,7 @@ func LaunchParticipantNetwork(
 	logrus.Info("Generating EL client genesis data...")
 	elGenesisTimestamp := uint64(time.Now().Unix())
 	elGenesisData, err := prelaunchDataGeneratorCtx.GenerateELGenesisData(
-		chainspecAndGethGenesisGenerationConfigTemplate,
-		nethermindGenesisJsonTemplate,
+		elGenesisGenerationConfigTemplate,
 		elGenesisTimestamp,
 	)
 	if err != nil {
@@ -139,6 +135,7 @@ func LaunchParticipantNetwork(
 			newElClientCtx, elClientLaunchErr = elLauncher.Launch(
 				enclaveCtx,
 				elClientServiceId,
+				participantSpec.ELClientImage,
 				logLevel,
 				elClientContextForBootElClients,
 			)
@@ -147,6 +144,7 @@ func LaunchParticipantNetwork(
 			newElClientCtx, elClientLaunchErr = elLauncher.Launch(
 				enclaveCtx,
 				elClientServiceId,
+				participantSpec.ELClientImage,
 				logLevel,
 				bootElClientCtx,
 			)
@@ -159,26 +157,28 @@ func LaunchParticipantNetwork(
 	}
 	logrus.Infof("Successfully added %v EL clients", numParticipants)
 
-	// Wait for all EL clients to start mining before we proceed with adding the CL clients
-	logrus.Infof("Waiting for all EL clients to start mining before adding CL clients...")
-	perNodeNumRetries := uint32(numParticipants) * elClientMineWaiterMaxNumRetriesPerNode
-	for idx, elClientCtx := range allElClientContexts {
-		miningWaiter := elClientCtx.GetMiningWaiter()
-		if err := miningWaiter.WaitForMining(
-			perNodeNumRetries,
-			elClientMineWaiterTimeBetweenRetries,
-		 ); err != nil {
-			return nil, 0, stacktrace.Propagate(
-				err,
-				"EL client %v didn't start mining even after %v retries with %v between retries",
-				idx,
+	if shouldWaitForMining {
+		// Wait for all EL clients to start mining before we proceed with adding the CL clients
+		logrus.Infof("Waiting for all EL clients to start mining before adding CL clients... (this will take a few minutes, but is necessary to ensure that the Beacon nodes get slots from the EL clients; you can skip this wait by setting `\"waitForMining\": false` in the params object, but the Beacon nodes likely won't work properly)")
+		perNodeNumRetries := uint32(numParticipants) * elClientMineWaiterMaxNumRetriesPerNode
+		for idx, elClientCtx := range allElClientContexts {
+			miningWaiter := elClientCtx.GetMiningWaiter()
+			if err := miningWaiter.WaitForMining(
 				perNodeNumRetries,
 				elClientMineWaiterTimeBetweenRetries,
-			 )
+			); err != nil {
+				return nil, 0, stacktrace.Propagate(
+					err,
+					"EL client %v didn't start mining even after %v retries with %v between retries",
+					idx,
+					perNodeNumRetries,
+					elClientMineWaiterTimeBetweenRetries,
+				)
+			}
+			logrus.Infof("EL client %v has begun mining", idx)
 		}
-		logrus.Infof("EL client %v has begun mining", idx)
+		logrus.Infof("All EL clients have started mining")
 	}
-	logrus.Infof("All EL clients have started mining")
 
 	// We create the CL genesis data after the EL network is ready so that the CL genesis timestamp will be close
 	//  to the time the CL nodes are started
@@ -219,7 +219,7 @@ func LaunchParticipantNetwork(
 		module_io.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
 			clGenesisData.GetParentDirpath(),
 		),
-		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLCLientLauncher(
+		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
 			clValidatorData.PrysmPassword,
@@ -248,6 +248,7 @@ func LaunchParticipantNetwork(
 			newClClientCtx, clClientLaunchErr = clLauncher.Launch(
 				enclaveCtx,
 				clClientServiceId,
+				participantSpec.CLClientImage,
 				logLevel,
 				clClientContextForBootClClients,
 				elClientCtx,
@@ -258,6 +259,7 @@ func LaunchParticipantNetwork(
 			newClClientCtx, clClientLaunchErr = clLauncher.Launch(
 				enclaveCtx,
 				clClientServiceId,
+				participantSpec.CLClientImage,
 				logLevel,
 				bootClClientCtx,
 				elClientCtx,
