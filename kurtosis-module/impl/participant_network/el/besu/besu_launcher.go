@@ -14,20 +14,15 @@ import (
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"path"
 	"strings"
 	"time"
 )
 
 const (
-	imageName = "hyperledger/besu:merge"
-
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
 
-	// TODO Correct port IDs
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
@@ -42,7 +37,7 @@ const (
 	sharedGenesisJsonRelFilepath = "genesis.json"
 
 	// The dirpath of the execution data directory on the client container
-	executionDataDirpathOnClientContainer = "/execution-data"
+	executionDataDirpathOnClientContainer = "/opt/besu/execution-data"
 	keystoreDirpathOnClientContainer = executionDataDirpathOnClientContainer + "/keystore"
 
 	gethKeysRelDirpathInSharedDir = "geth-keys"
@@ -61,7 +56,11 @@ const (
 	gethAccountPasswordsFile = "/tmp/password.txt" // Importing an account to
 )
 var usedPorts = map[string]*services.PortSpec{
-	// TODO used ports
+	rpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
+	wsPortId:           services.NewPortSpec(wsPortNum, services.PortProtocol_TCP),
+	tcpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
+	// TODO Remove if there's no UDP discovery port?????
+	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
 var entrypointArgs = []string{"sh", "-c"}
 var besuLogLevels = map[module_io.ParticipantLogLevel]string{
@@ -85,10 +84,11 @@ func NewBesuELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefun
 func (launcher *BesuELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
+	image string,
 	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *el.ELClientContext,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(launcher.networkId, bootnodeContext, logLevel)
+	containerConfigSupplier := launcher.getContainerConfigSupplier(image, launcher.networkId, bootnodeContext, logLevel)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Besu EL client with service ID '%v'", serviceId)
@@ -120,6 +120,7 @@ func (launcher *BesuELClientLauncher) Launch(
 //                                       Private Helper Methods
 // ====================================================================================================
 func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
+	image string,
 	networkId string,
 	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
 	logLevel module_io.ParticipantLogLevel,
@@ -136,10 +137,12 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 		}
 
 		// TODO MODIFY FOR BESU
+		/*
 		gethKeysDirSharedPath := sharedDir.GetChildPath(gethKeysRelDirpathInSharedDir)
 		if err := os.Mkdir(gethKeysDirSharedPath.GetAbsPathOnThisContainer(), os.ModePerm); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred creating the Besu keys directory in the shared dir")
 		}
+
 
 		accountAddressesToUnlock := []string{}
 		for _, prefundedAccount := range launcher.prefundedAccountInfo {
@@ -154,6 +157,8 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 
 			accountAddressesToUnlock = append(accountAddressesToUnlock, prefundedAccount.Address)
 		}
+
+		 */
 
 		// TODO FIGURE OUT IF WE NEED TO DO AN INIT
 		/*
@@ -224,7 +229,7 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 		 */
 
 		containerConfig := services.NewContainerConfigBuilder(
-			imageName,
+			image,
 		).WithUsedPorts(
 			usedPorts,
 		).WithEntrypointOverride(
@@ -239,6 +244,7 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 	return result
 }
 
+// TODO Extract into a common location!!!
 func (launcher *BesuELClientLauncher) getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
 	maxNumRetries := expectedSecondsForBesuInit + len(launcher.prefundedAccountInfo) * expectedSecondsPerKeyImport + expectedSecondsAfterNodeStartUntilHttpServerIsAvailable
 

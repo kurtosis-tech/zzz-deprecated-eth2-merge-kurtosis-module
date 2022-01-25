@@ -36,6 +36,7 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
             // Defaults by client:
             // - geth: parithoshj/geth:merge-f72c361"
             // - nethermind: nethermindeth/nethermind:kintsugi_0.5
+            // - besu: hyperledger/besu:merge
             "elImage": "",
 
             // The type of CL client that should be started

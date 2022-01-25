@@ -27,13 +27,17 @@ var validParticipantLogLevels = map[ParticipantLogLevel]bool{
 type ParticipantELClientType string
 const (
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	//                        If you change these in any way, you need to:
+	//               1) modify the example JSON config in the README to reflect this
+	//               2) update the default_params for the type you modified
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantELClientType_Geth       ParticipantELClientType = "geth"
 	ParticipantELClientType_Nethermind ParticipantELClientType = "nethermind"
 	ParticipantELClientType_Besu       ParticipantELClientType = "besu"
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	//                        If you change these in any way, you need to:
+	//               1) modify the example JSON config in the README to reflect this
+	//               2) update the default_params for the type you modified
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 )
 var validParticipantELClientTypes = map[ParticipantELClientType]bool{
@@ -46,7 +50,9 @@ var validParticipantELClientTypes = map[ParticipantELClientType]bool{
 type ParticipantCLClientType string
 const (
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	//                        If you change these in any way, you need to:
+	//               1) modify the example JSON config in the README to reflect this
+	//               2) update the default_params for the type you modified
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantCLClientType_Lighthouse ParticipantCLClientType = "lighthouse"
 	ParticipantCLClientType_Teku       ParticipantCLClientType = "teku"
@@ -54,7 +60,9 @@ const (
 	ParticipantCLClientType_Prysm      ParticipantCLClientType = "prysm"
 	ParticipantCLClientType_Lodestar   ParticipantCLClientType = "lodestar"
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	//       If you change these in any way, modify the example JSON config in the README to reflect this!
+	//                        If you change these in any way, you need to:
+	//               1) modify the example JSON config in the README to reflect this
+	//               2) update the default_params for the type you modified
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 )
 var validParticipantCLClientTypes = map[ParticipantCLClientType]bool{

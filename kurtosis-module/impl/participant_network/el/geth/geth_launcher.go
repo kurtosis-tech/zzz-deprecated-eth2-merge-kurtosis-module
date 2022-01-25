@@ -124,8 +124,8 @@ func (launcher *GethELClientLauncher) Launch(
 //                                       Private Helper Methods
 // ====================================================================================================
 func (launcher *GethELClientLauncher) getContainerConfigSupplier(
-	networkId string,
 	image string,
+	networkId string,
 	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
 	logLevel module_io.ParticipantLogLevel,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {

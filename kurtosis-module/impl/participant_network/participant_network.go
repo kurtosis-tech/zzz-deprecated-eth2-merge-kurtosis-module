@@ -111,9 +111,9 @@ func LaunchParticipantNetwork(
 			elGenesisData.GetNethermindGenesisJsonFilepath(),
 			networkParams.TotalTerminalDifficulty,
 		),
-		// TODO Modify this to match what Besu actually needs
 		module_io.ParticipantELClientType_Besu: besu.NewBesuELClientLauncher(
-			"",  // TODO Path to Besu genesis
+			elGenesisData.GetBesuGenesisJsonFilepath(),
+			// TODO REMOVE THIS - LIKELY NOT NEEDED
 			genesis_consts.PrefundedAccounts,
 			networkParams.NetworkID,
 		),
