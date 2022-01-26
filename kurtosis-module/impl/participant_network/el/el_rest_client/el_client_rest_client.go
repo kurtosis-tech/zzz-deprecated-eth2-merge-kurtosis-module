@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kurtosis-tech/stacktrace"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -70,6 +71,9 @@ func (client *ELClientRESTClient) GetNodeInfo() (*NodeInfo, error) {
 	if err := client.makeRequest(getNodeInfoMethod, []string{}, respObj); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred getting the node info")
 	}
+	if respObj.Result == nil {
+		return nil, stacktrace.NewError("Even though the get-node-info response was ostensibly deserialized, the node info was still nil; this indicates an unexpected response from the EL client")
+	}
 	return respObj.Result, nil
 }
 
@@ -103,6 +107,12 @@ func (client *ELClientRESTClient) makeRequest(method string, params []string, re
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred reading the response body bytes")
 	}
+	logrus.Debugf(
+		"Request to '%v' with body '%v' returned result '%v'",
+		url,
+		string(requestBodyBytes),
+		string(respBodyBytes),
+	)
 
 	if err := json.Unmarshal(respBodyBytes, respObj); err != nil {
 		return stacktrace.Propagate(err, "An error occurred deserializing response body string '%v'", string(respBodyBytes))

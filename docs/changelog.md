@@ -1,4 +1,9 @@
 # TBD
+### Features
+* Add extra debug logging to EL REST client, for debugging any issues
+
+### Fixes
+* Use emptystring for Besu ENR, as there's no way to get it right now without the logs
 
 # 0.4.2
 ### Features
