@@ -1,4 +1,5 @@
-package nethermind
+package besu
+
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
@@ -9,16 +10,19 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	"strings"
 	"time"
 )
 
 const (
 	// The dirpath of the execution data directory on the client container
-	executionDataDirpathOnClientContainer = "/execution-data"
+	executionDataDirpathOnClientContainer = "/opt/besu/execution-data"
 
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
-	sharedNethermindGenesisJsonRelFilepath = "nethermind_genesis.json"
+	sharedGenesisJsonRelFilepath = "genesis.json"
 
+	// NOTE: This can't be 0x00000....000
+	// See: https://github.com/ethereum/go-ethereum/issues/19547
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
 
 	rpcPortNum       uint16 = 8545
@@ -32,16 +36,17 @@ const (
 	udpDiscoveryPortId = "udp-discovery"
 
 	getNodeInfoMaxRetries         = 20
-	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
+	getNodeInfoTimeBetweenRetries = 1 * time.Second
 )
-
 var usedPorts = map[string]*services.PortSpec{
 	rpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
 	wsPortId:           services.NewPortSpec(wsPortNum, services.PortProtocol_TCP),
 	tcpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
+	// TODO Remove if there's no UDP discovery port?????
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
-var nethermindLogLevels = map[module_io.ParticipantLogLevel]string{
+var entrypointArgs = []string{"sh", "-c"}
+var besuLogLevels = map[module_io.ParticipantLogLevel]string{
 	module_io.ParticipantLogLevel_Error: "ERROR",
 	module_io.ParticipantLogLevel_Warn:  "WARN",
 	module_io.ParticipantLogLevel_Info:  "INFO",
@@ -49,26 +54,26 @@ var nethermindLogLevels = map[module_io.ParticipantLogLevel]string{
 	module_io.ParticipantLogLevel_Trace: "TRACE",
 }
 
-type NethermindELClientLauncher struct {
-	genesisJsonFilepathOnModule string
-	totalTerminalDifficulty     uint64
+type BesuELClientLauncher struct {
+	genesisJsonFilepathOnModuleContainer string
+	networkId string
 }
 
-func NewNethermindELClientLauncher(genesisJsonFilepathOnModule string, totalTerminalDifficulty uint64) *NethermindELClientLauncher {
-	return &NethermindELClientLauncher{genesisJsonFilepathOnModule: genesisJsonFilepathOnModule, totalTerminalDifficulty: totalTerminalDifficulty}
+func NewBesuELClientLauncher(genesisJsonFilepathOnModuleContainer string, networkId string) *BesuELClientLauncher {
+	return &BesuELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, networkId: networkId}
 }
 
-func (launcher *NethermindELClientLauncher) Launch(
+func (launcher *BesuELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
 	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *el.ELClientContext,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(image, bootnodeContext, logLevel)
+	containerConfigSupplier := launcher.getContainerConfigSupplier(image, launcher.networkId, bootnodeContext, logLevel)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
+		return nil, stacktrace.Propagate(err, "An error occurred launching the Besu EL client with service ID '%v'", serviceId)
 	}
 
 	restClient := el_rest_client.NewELClientRESTClient(
@@ -83,8 +88,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 
 	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
-		// TODO TODO TODO TODO Get Nethermind ENR, so that CL clients can connect to it!!!
-		"", //Nethermind node info endpoint doesn't return ENR field https://docs.nethermind.io/nethermind/ethereum-client/json-rpc/admin
+		nodeInfo.ENR,
 		nodeInfo.Enode,
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
@@ -95,64 +99,67 @@ func (launcher *NethermindELClientLauncher) Launch(
 	return result, nil
 }
 
+
 // ====================================================================================================
 //                                       Private Helper Methods
 // ====================================================================================================
-func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
+func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 	image string,
-	bootnodeCtx *el.ELClientContext,
+	networkId string,
+	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
 	logLevel module_io.ParticipantLogLevel,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		nethermindLogLevel, found := nethermindLogLevels[logLevel]
+		besuLogLevel, found := besuLogLevels[logLevel]
 		if !found {
-			return nil, stacktrace.NewError("No Nethermind log level defined for client log level '%v'; this is a bug in the module", logLevel)
+			return nil, stacktrace.NewError("No Besu log level was defined for client log level '%v'; this is a bug in this module itself", logLevel)
 		}
 
-		nethermindGenesisJsonSharedPath := sharedDir.GetChildPath(sharedNethermindGenesisJsonRelFilepath)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModule, nethermindGenesisJsonSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the Nethermind genesis JSON file from '%v' into the Nethermind node being started",
-				launcher.genesisJsonFilepathOnModule,
-			 )
+		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModuleContainer, genesisJsonSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedGenesisJsonRelFilepath)
 		}
 
-		commandArgs := []string{
-			"--config=kintsugi",
-			"--log=" + nethermindLogLevel,
-			"--datadir=" + executionDataDirpathOnClientContainer,
-			"--Init.ChainSpecPath=" + nethermindGenesisJsonSharedPath.GetAbsPathOnServiceContainer(),
-			"--Init.WebSocketsEnabled=true",
-			"--Init.DiagnosticMode=None",
-			"--JsonRpc.Enabled=true",
-			"--JsonRpc.EnabledModules=net,eth,consensus,engine,admin",
-			"--JsonRpc.Host=0.0.0.0",
-			// TODO Set Eth isMining?
-			fmt.Sprintf("--JsonRpc.Port=%v", rpcPortNum),
-			fmt.Sprintf("--JsonRpc.WebSocketsPort=%v", wsPortNum),
-			fmt.Sprintf("--Network.ExternalIp=%v", privateIpAddr),
-			fmt.Sprintf("--Network.LocalIp=%v", privateIpAddr),
-			fmt.Sprintf("--Network.DiscoveryPort=%v", discoveryPortNum),
-			fmt.Sprintf("--Network.P2PPort=%v", discoveryPortNum),
-			"--Merge.Enabled=true",
-			fmt.Sprintf("--Merge.TerminalTotalDifficulty=%v", launcher.totalTerminalDifficulty),
-			"--Merge.BlockAuthorAccount=" + miningRewardsAccount,
+		launchNodeCmdArgs := []string{
+			"besu",
+			"--logging=" + besuLogLevel,
+			"--data-path=" + executionDataDirpathOnClientContainer,
+			"--genesis-file=" + genesisJsonSharedPath.GetAbsPathOnServiceContainer(),
+			"--network-id=" + networkId,
+			"--host-allowlist=*",
+			"--Xmerge-support=true",
+			"--miner-enabled=true",
+			"--miner-coinbase=" + miningRewardsAccount,
+			"--rpc-http-enabled=true",
+			"--rpc-http-host=0.0.0.0",
+			fmt.Sprintf("--rpc-http-port=%v", rpcPortNum),
+			"--rpc-http-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,EXECUTION",
+			"--rpc-http-cors-origins=*",
+			"--rpc-ws-enabled=true",
+			"--rpc-ws-host=0.0.0.0",
+			fmt.Sprintf("--rpc-ws-port=%v", wsPortNum),
+			"--rpc-ws-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,EXECUTION",
+			"--p2p-enabled=true",
+			"--p2p-host=" + privateIpAddr,
+			fmt.Sprintf("--p2p-port=%v", discoveryPortNum),
 		}
-		if bootnodeCtx != nil {
-			commandArgs = append(
-				commandArgs,
-				"--Discovery.Bootnodes=" + bootnodeCtx.GetEnode(),
+		if bootnodeContext != nil {
+			launchNodeCmdArgs = append(
+				launchNodeCmdArgs,
+				"--bootnodes=" + bootnodeContext.GetEnode(),
 			)
 		}
+		launchNodeCmdStr := strings.Join(launchNodeCmdArgs, " ")
 
 		containerConfig := services.NewContainerConfigBuilder(
 			image,
 		).WithUsedPorts(
 			usedPorts,
-		).WithCmdOverride(
-			commandArgs,
-		).Build()
+		).WithEntrypointOverride(
+			entrypointArgs,
+		).WithCmdOverride([]string{
+			launchNodeCmdStr,
+		}).Build()
 
 		return containerConfig, nil
 	}

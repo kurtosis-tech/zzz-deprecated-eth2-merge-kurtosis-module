@@ -1,6 +1,7 @@
 # TBD
 ### Features
 * Added generation of Besu genesis file
+* Added Besu EL
 
 ### Fixes
 * Fixed an issue where the CL REST client would try to deserialize the bodies of responses that came back with non-200 status codes
@@ -11,6 +12,7 @@
 * Set the `mergeForkBlock` parameter in the EL genesis config template to `10` per Pari's recommendation
 * Switch back to [the default genesis generator](https://github.com/skylenet/ethereum-genesis-generator) (rather than the Kurtosis fork of it)
 * Nethermind genesis JSON is generated using the genesis generator image
+* Centralized EL client availability-waiter and mining-waiter logic
 
 # 0.4.1
 ### Fixes
