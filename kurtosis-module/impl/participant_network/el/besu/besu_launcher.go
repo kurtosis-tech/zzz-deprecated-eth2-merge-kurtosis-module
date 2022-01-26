@@ -88,7 +88,8 @@ func (launcher *BesuELClientLauncher) Launch(
 
 	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
-		nodeInfo.ENR,
+		// TODO Figure out how to get the ENR so CL clients can connect to it!!
+		"", // Besu node info endpoint doesn't return an ENR
 		nodeInfo.Enode,
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
