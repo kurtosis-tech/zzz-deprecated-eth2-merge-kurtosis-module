@@ -6,7 +6,6 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -57,12 +56,11 @@ var besuLogLevels = map[module_io.ParticipantLogLevel]string{
 
 type BesuELClientLauncher struct {
 	genesisJsonFilepathOnModuleContainer string
-	prefundedAccountInfo []*genesis_consts.PrefundedAccount
 	networkId string
 }
 
-func NewBesuELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *BesuELClientLauncher {
-	return &BesuELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo, networkId: networkId}
+func NewBesuELClientLauncher(genesisJsonFilepathOnModuleContainer string, networkId string) *BesuELClientLauncher {
+	return &BesuELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, networkId: networkId}
 }
 
 func (launcher *BesuELClientLauncher) Launch(

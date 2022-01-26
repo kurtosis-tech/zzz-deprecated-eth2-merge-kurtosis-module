@@ -113,8 +113,6 @@ func LaunchParticipantNetwork(
 		),
 		module_io.ParticipantELClientType_Besu: besu.NewBesuELClientLauncher(
 			elGenesisData.GetBesuGenesisJsonFilepath(),
-			// TODO REMOVE THIS - LIKELY NOT NEEDED
-			genesis_consts.PrefundedAccounts,
 			networkParams.NetworkID,
 		),
 	}
