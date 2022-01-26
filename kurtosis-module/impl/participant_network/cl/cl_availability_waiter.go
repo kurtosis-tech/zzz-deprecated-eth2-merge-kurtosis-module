@@ -1,4 +1,4 @@
-package availability_waiter
+package cl
 
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"

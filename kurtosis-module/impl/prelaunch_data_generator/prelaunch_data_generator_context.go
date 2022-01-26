@@ -22,14 +22,12 @@ func newPrelaunchDataGeneratorContext(serviceCtx *services.ServiceContext, netwo
 }
 
 func (ctx *PrelaunchDataGeneratorContext) GenerateELGenesisData(
-	chainspecAndGethGenesisGenerationConfigTemplate *template.Template,
-	nethermindGenesisConfigJsonTemplate *template.Template,
+	genesisGenerationConfigTemplate *template.Template,
 	genesisUnixTimestamp uint64,
 ) (*el_genesis.ELGenesisData, error) {
 	result, err := el_genesis.GenerateELGenesisData(
 		ctx.serviceCtx,
-		chainspecAndGethGenesisGenerationConfigTemplate,
-		nethermindGenesisConfigJsonTemplate,
+		genesisGenerationConfigTemplate,
 		genesisUnixTimestamp,
 		ctx.networkId,
 		ctx.depositContractAddress,

@@ -29,13 +29,14 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
     "participants": [
         {
             // The type of EL client that should be started
-            // Valid values are "geth" and "nethermind"
+            // Valid values are "geth", "nethermind", and "besu"
             "elType": "geth",
 
             // The Docker image that should be used for the EL client; leave blank to use the default for the client type
             // Defaults by client:
             // - geth: parithoshj/geth:merge-f72c361"
             // - nethermind: nethermindeth/nethermind:kintsugi_0.5
+            // - besu: hyperledger/besu:merge
             "elImage": "",
 
             // The type of CL client that should be started

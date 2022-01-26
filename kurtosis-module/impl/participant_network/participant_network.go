@@ -9,6 +9,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/prysm"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/teku"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/besu"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/nethermind"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
@@ -61,9 +62,9 @@ func LaunchParticipantNetwork(
 	numParticipants := uint32(len(allParticipantSpecs))
 
 	// Parse all the templates we'll need first, so if an error is thrown it'll be thrown early
-	chainspecAndGethGenesisGenerationConfigTemplate, err := static_files.ParseTemplate(static_files.ChainspecAndGethGenesisGenerationConfigTemplateFilepath)
+	elGenesisGenerationConfigTemplate, err := static_files.ParseTemplate(static_files.ELGenesisGenerationConfigTemplateFilepath)
 	if err != nil {
-		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the Geth genesis generation config YAML template")
+		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the EL genesis generation config YAML template")
 	}
 	clGenesisConfigTemplate, err := static_files.ParseTemplate(static_files.CLGenesisGenerationConfigTemplateFilepath)
 	if err != nil {
@@ -72,10 +73,6 @@ func LaunchParticipantNetwork(
 	clGenesisMnemonicsYmlTemplate, err := static_files.ParseTemplate(static_files.CLGenesisGenerationMnemonicsTemplateFilepath)
 	if err != nil {
 		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the CL mnemonics YAML template")
-	}
-	nethermindGenesisJsonTemplate, err := static_files.ParseTemplate(static_files.NethermindGenesisGenerationJsonTemplateFilepath)
-	if err != nil {
-		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the Nethermind genesis json template")
 	}
 
 	// CL validator key generation is CPU-intensive, so we want to do the generation before any EL clients start mining
@@ -95,8 +92,7 @@ func LaunchParticipantNetwork(
 	logrus.Info("Generating EL client genesis data...")
 	elGenesisTimestamp := uint64(time.Now().Unix())
 	elGenesisData, err := prelaunchDataGeneratorCtx.GenerateELGenesisData(
-		chainspecAndGethGenesisGenerationConfigTemplate,
-		nethermindGenesisJsonTemplate,
+		elGenesisGenerationConfigTemplate,
 		elGenesisTimestamp,
 	)
 	if err != nil {
@@ -114,6 +110,10 @@ func LaunchParticipantNetwork(
 		module_io.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
 			elGenesisData.GetNethermindGenesisJsonFilepath(),
 			networkParams.TotalTerminalDifficulty,
+		),
+		module_io.ParticipantELClientType_Besu: besu.NewBesuELClientLauncher(
+			elGenesisData.GetBesuGenesisJsonFilepath(),
+			networkParams.NetworkID,
 		),
 	}
 	allElClientContexts := []*el.ELClientContext{}

@@ -1,19 +1,16 @@
 package geth
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"github.com/sirupsen/logrus"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -47,11 +44,6 @@ const (
 
 	gethKeysRelDirpathInSharedDir = "geth-keys"
 
-	jsonContentTypeHeader = "application/json"
-	rpcRequestTimeout = 5 * time.Second
-
-	getNodeInfoRpcRequestBody = `{"jsonrpc":"2.0","method": "admin_nodeInfo","params":[],"id":1}`
-
 	expectedSecondsForGethInit = 5
 	expectedSecondsPerKeyImport = 8
 	expectedSecondsAfterNodeStartUntilHttpServerIsAvailable = 10
@@ -67,14 +59,6 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
 var entrypointArgs = []string{"sh", "-c"}
-var prefundedAccountPrivateKeys = []string{
-	"ef5177cd0b6b21c87db5a0bf35d4084a8a57a9d6a064f86d51ac85f2b873a4e2",  // m/44'/60'/0'/0/0
-	"48fcc39ae27a0e8bf0274021ae6ebd8fe4a0e12623d61464c498900b28feb567", // m/44'/60'/0'/0/1
-	"7988b3a148716ff800414935b305436493e1f25237a2a03e5eebc343735e2f31", // m/44'/60'/0'/0/2
-	"b3c409b6b0b3aa5e65ab2dc1930534608239a478106acf6f3d9178e9f9b00b35", // m/44'/60'/0'/0/3
-	"df9bb6de5d3dc59595bcaa676397d837ff49441d211878c024eabda2cd067c9f", // m/44'/60'/0'/0/4
-	"7da08f856b5956d40a72968f93396f6acff17193f013e8053f6fbb6c08c194d6", // m/44'/60'/0'/0/5
-}
 var verbosityLevels = map[module_io.ParticipantLogLevel]string{
 	module_io.ParticipantLogLevel_Error: "1",
 	module_io.ParticipantLogLevel_Warn:  "2",
@@ -100,21 +84,24 @@ func (launcher *GethELClientLauncher) Launch(
 	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *el.ELClientContext,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(launcher.networkId, image, bootnodeContext, logLevel)
+	containerConfigSupplier := launcher.getContainerConfigSupplier(image, launcher.networkId, bootnodeContext, logLevel)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
 	}
 
-	nodeInfo, err := launcher.getNodeInfoWithRetry(serviceCtx.GetPrivateIPAddress())
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
-	}
-
-	miningWaiter := newGethMiningWaiter(
+	restClient := el_rest_client.NewELClientRESTClient(
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 	)
+
+	maxNumRetries := expectedSecondsForGethInit + len(launcher.prefundedAccountInfo) * expectedSecondsPerKeyImport + expectedSecondsAfterNodeStartUntilHttpServerIsAvailable
+	nodeInfo, err := el.WaitForELClientAvailability(restClient, maxNumRetries, getNodeInfoTimeBetweenRetries)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred waiting for the EL client to become available")
+	}
+
+	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
 		nodeInfo.ENR,
 		nodeInfo.Enode,
@@ -132,8 +119,8 @@ func (launcher *GethELClientLauncher) Launch(
 //                                       Private Helper Methods
 // ====================================================================================================
 func (launcher *GethELClientLauncher) getContainerConfigSupplier(
-	networkId string,
 	image string,
+	networkId string,
 	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
 	logLevel module_io.ParticipantLogLevel,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
@@ -239,56 +226,4 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 		return containerConfig, nil
 	}
 	return result
-}
-
-func (launcher *GethELClientLauncher) getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
-	maxNumRetries := expectedSecondsForGethInit + len(launcher.prefundedAccountInfo) * expectedSecondsPerKeyImport + expectedSecondsAfterNodeStartUntilHttpServerIsAvailable
-
-	getNodeInfoResponse := new(GetNodeInfoResponse)
-	for i := 0; i < maxNumRetries; i++ {
-		if err := sendRpcCall(privateIpAddr, getNodeInfoRpcRequestBody, getNodeInfoResponse); err == nil {
-			return getNodeInfoResponse.Result, nil
-		} else {
-			logrus.Debugf("Getting the node info via RPC failed with error: %v", err)
-		}
-		time.Sleep(getNodeInfoTimeBetweenRetries)
-	}
-	return NodeInfo{}, stacktrace.NewError("Couldn't get the node's info even after %v retries with %v between retries", maxNumRetries, getNodeInfoTimeBetweenRetries)
-}
-
-func sendRpcCall(privateIpAddr string, requestBody string, targetStruct interface{}) error {
-	url := fmt.Sprintf("http://%v:%v", privateIpAddr, rpcPortNum)
-	var jsonByteArray = []byte(requestBody)
-
-	logrus.Debugf("Sending RPC call to '%v' with JSON body '%v'...", url, requestBody)
-
-	client := http.Client{
-		Timeout: rpcRequestTimeout,
-	}
-	resp, err := client.Post(url, jsonContentTypeHeader, bytes.NewBuffer(jsonByteArray))
-	if err != nil {
-		return stacktrace.Propagate(err, "Failed to send RPC request to Geth node with private IP '%v'", privateIpAddr)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return stacktrace.NewError(
-			"Received non-%v status code '%v' on RPC request to Geth node with private IP '%v'",
-			http.StatusOK,
-			resp.StatusCode,
-			privateIpAddr,
-		)
-	}
-
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return stacktrace.Propagate(err, "Error reading the RPC call response body")
-	}
-	bodyString := string(bodyBytes)
-	logrus.Tracef("Response for RPC call %v: %v", requestBody, bodyString)
-
-	json.Unmarshal(bodyBytes, targetStruct)
-	if err := json.Unmarshal(bodyBytes, targetStruct); err != nil {
-		return stacktrace.Propagate(err, "Error JSON-parsing Geth node RPC response string '%v' into a struct", bodyString)
-	}
-	return nil
 }
