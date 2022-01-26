@@ -12,6 +12,7 @@
 * Set the `mergeForkBlock` parameter in the EL genesis config template to `10` per Pari's recommendation
 * Switch back to [the default genesis generator](https://github.com/skylenet/ethereum-genesis-generator) (rather than the Kurtosis fork of it)
 * Nethermind genesis JSON is generated using the genesis generator image
+* Centralized EL client availability-waiter and mining-waiter logic
 
 # 0.4.1
 ### Fixes
