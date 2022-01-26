@@ -1,4 +1,6 @@
 # TBD
+
+# 0.4.2
 ### Features
 * Added generation of Besu genesis file
 * Added Besu EL
