@@ -7,6 +7,7 @@
 
 ### Changes
 * Remove ENR from ELClientContext as it's not needed (EL clients use enode, CL clients use ENR)
+* Use productized `ethereum-genesis-generator` image `kurtosistech/ethereum-genesis-generator:skylenet-commit-6a7800b` with Besu genesis generation fix
 
 # 0.4.2
 ### Features
