@@ -1,4 +1,4 @@
-package geth
+package mining_waiter
 
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
@@ -6,17 +6,15 @@ import (
 	"time"
 )
 
-type gethMiningWaiter struct {
+type miningWaiter struct {
 	restClient *el_rest_client.ELClientRESTClient
 }
 
-func newGethMiningWaiter(elRestClient *el_rest_client.ELClientRESTClient) *gethMiningWaiter {
-	return &gethMiningWaiter{
-		restClient: elRestClient,
-	}
+func NewMiningWaiter(restClient *el_rest_client.ELClientRESTClient) *miningWaiter {
+	return &miningWaiter{restClient: restClient}
 }
 
-func (waiter *gethMiningWaiter) WaitForMining(numRetries uint32, timeBetweenRetries time.Duration) error {
+func (waiter *miningWaiter) WaitForMining(numRetries uint32, timeBetweenRetries time.Duration) error {
 	for i := uint32(0); i < numRetries; i++ {
 		blockNumber, err := waiter.restClient.GetBlockNumber()
 		if err == nil && blockNumber > 0 {
@@ -25,7 +23,7 @@ func (waiter *gethMiningWaiter) WaitForMining(numRetries uint32, timeBetweenRetr
 		time.Sleep(timeBetweenRetries)
 	}
 	return stacktrace.NewError(
-		"The Geth client never started mining, even after %v retries with %v between retries",
+		"The EL client never started mining, even after %v retries with %v between retries",
 		numRetries,
 		timeBetweenRetries,
 	)

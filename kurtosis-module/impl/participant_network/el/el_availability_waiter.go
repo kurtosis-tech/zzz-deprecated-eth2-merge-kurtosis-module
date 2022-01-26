@@ -1,4 +1,4 @@
-package availability_waiter
+package el
 
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
@@ -16,5 +16,5 @@ func WaitForELClientAvailability(restClient *el_rest_client.ELClientRESTClient, 
 		logrus.Debugf("Getting the node info via RPC failed with error: %v", err)
 		time.Sleep(timeBetweenRetries)
 	}
-	return nil, stacktrace.NewError("Couldn't get the node's info even after %v retries with %v between retries", maxNumRetries, getNodeInfoTimeBetweenRetries)
+	return nil, stacktrace.NewError("Couldn't get the node's info even after %v retries with %v between retries", numRetries, timeBetweenRetries)
 }

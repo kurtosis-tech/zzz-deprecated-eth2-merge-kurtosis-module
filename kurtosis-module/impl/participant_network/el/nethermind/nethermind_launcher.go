@@ -1,17 +1,14 @@
 package nethermind
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"github.com/sirupsen/logrus"
-	"io/ioutil"
-	"net/http"
 	"time"
 )
 
@@ -34,10 +31,6 @@ const (
 	tcpDiscoveryPortId = "tcp-discovery"
 	udpDiscoveryPortId = "udp-discovery"
 
-	jsonContentTypeHeader = "application/json"
-	rpcRequestTimeout     = 5 * time.Second
-
-	getNodeInfoRpcRequestBody     = `{"jsonrpc":"2.0","method": "admin_nodeInfo","params":[],"id":1}`
 	getNodeInfoMaxRetries         = 20
 	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
 )
@@ -78,12 +71,17 @@ func (launcher *NethermindELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
 	}
 
-	nodeInfo, err := getNodeInfoWithRetry(serviceCtx.GetPrivateIPAddress())
+	restClient := el_rest_client.NewELClientRESTClient(
+		serviceCtx.GetPrivateIPAddress(),
+		rpcPortNum,
+	)
+
+	nodeInfo, err := el.WaitForELClientAvailability(restClient, getNodeInfoMaxRetries, getNodeInfoTimeBetweenRetries)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
+		return nil, stacktrace.Propagate(err, "An error occurred waiting for the EL client to become available")
 	}
 
-	miningWaiter := &nethermindMiningWaiter{}
+	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
 		// TODO TODO TODO TODO Get Nethermind ENR, so that CL clients can connect to it!!!
 		"", //Nethermind node info endpoint doesn't return ENR field https://docs.nethermind.io/nethermind/ethereum-client/json-rpc/admin
@@ -159,54 +157,4 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 		return containerConfig, nil
 	}
 	return result
-}
-
-func getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
-	getNodeInfoResponse := new(GetNodeInfoResponse)
-	for i := 0; i < getNodeInfoMaxRetries; i++ {
-		if err := sendRpcCall(privateIpAddr, getNodeInfoRpcRequestBody, getNodeInfoResponse); err == nil {
-			return getNodeInfoResponse.Result, nil
-		} else {
-			logrus.Debugf("Getting the node info via RPC failed with error: %v", err)
-		}
-		time.Sleep(getNodeInfoTimeBetweenRetries)
-	}
-	return NodeInfo{}, stacktrace.NewError("Couldn't get the node's info even after %v retries with %v between retries", getNodeInfoMaxRetries, getNodeInfoTimeBetweenRetries)
-}
-
-func sendRpcCall(privateIpAddr string, requestBody string, targetStruct interface{}) error {
-	url := fmt.Sprintf("http://%v:%v", privateIpAddr, rpcPortNum)
-	var jsonByteArray = []byte(requestBody)
-
-	logrus.Debugf("Sending RPC call to '%v' with JSON body '%v'...", url, requestBody)
-
-	client := http.Client{
-		Timeout: rpcRequestTimeout,
-	}
-	resp, err := client.Post(url, jsonContentTypeHeader, bytes.NewBuffer(jsonByteArray))
-	if err != nil {
-		return stacktrace.Propagate(err, "Failed to send RPC request to Nethermind node with private IP '%v'", privateIpAddr)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return stacktrace.NewError(
-			"Received non-%v status code '%v' on RPC request to Nethermind node with private IP '%v'",
-			http.StatusOK,
-			resp.StatusCode,
-			privateIpAddr,
-		)
-	}
-
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return stacktrace.Propagate(err, "Error reading the RPC call response body")
-	}
-	bodyString := string(bodyBytes)
-	logrus.Debugf("Response for RPC call %v: %v", requestBody, bodyString)
-
-	json.Unmarshal(bodyBytes, targetStruct)
-	if err := json.Unmarshal(bodyBytes, targetStruct); err != nil {
-		return stacktrace.Propagate(err, "Error JSON-parsing Nethermind node RPC response string '%v' into a struct", bodyString)
-	}
-	return nil
 }
