@@ -19,5 +19,4 @@ type GetNodeInfoResponse struct {
 
 type NodeInfo struct {
 	Enode string	`json:"enode"`
-	ENR   string	`json:"enr"`
 }

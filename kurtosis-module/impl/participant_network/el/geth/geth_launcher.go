@@ -103,7 +103,6 @@ func (launcher *GethELClientLauncher) Launch(
 
 	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
-		nodeInfo.ENR,
 		nodeInfo.Enode,
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,

@@ -5,6 +5,9 @@
 ### Fixes
 * Use emptystring for Besu ENR, as there's no way to get it right now without the logs
 
+### Changes
+* Remove ENR from ELClientContext as it's not needed (EL clients use enode, CL clients use ENR)
+
 # 0.4.2
 ### Features
 * Added generation of Besu genesis file

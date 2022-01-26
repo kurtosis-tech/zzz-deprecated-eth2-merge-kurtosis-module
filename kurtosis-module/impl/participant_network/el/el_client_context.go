@@ -1,7 +1,6 @@
 package el
 
 type ELClientContext struct {
-	enr string
 	enode string
 	ipAddr string
 	rpcPortNum  uint16
@@ -9,13 +8,10 @@ type ELClientContext struct {
 	miningWaiter ELClientMiningWaiter
 }
 
-func NewELClientContext(enr string, enode string, ipAddr string, rpcPortNum uint16, wsPortNum uint16, miningWaiter ELClientMiningWaiter) *ELClientContext {
-	return &ELClientContext{enr: enr, enode: enode, ipAddr: ipAddr, rpcPortNum: rpcPortNum, wsPortNum: wsPortNum, miningWaiter: miningWaiter}
+func NewELClientContext(enode string, ipAddr string, rpcPortNum uint16, wsPortNum uint16, miningWaiter ELClientMiningWaiter) *ELClientContext {
+	return &ELClientContext{enode: enode, ipAddr: ipAddr, rpcPortNum: rpcPortNum, wsPortNum: wsPortNum, miningWaiter: miningWaiter}
 }
 
-func (ctx *ELClientContext) GetENR() string {
-	return ctx.enr
-}
 func (ctx *ELClientContext) GetEnode() string {
 	return ctx.enode
 }
