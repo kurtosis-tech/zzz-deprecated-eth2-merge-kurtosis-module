@@ -1,19 +1,16 @@
 package geth
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/availability_waiter"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"github.com/sirupsen/logrus"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -46,11 +43,6 @@ const (
 	keystoreDirpathOnClientContainer = executionDataDirpathOnClientContainer + "/keystore"
 
 	gethKeysRelDirpathInSharedDir = "geth-keys"
-
-	jsonContentTypeHeader = "application/json"
-	rpcRequestTimeout = 5 * time.Second
-
-	getNodeInfoRpcRequestBody = `{"jsonrpc":"2.0","method": "admin_nodeInfo","params":[],"id":1}`
 
 	expectedSecondsForGethInit = 5
 	expectedSecondsPerKeyImport = 8
@@ -98,15 +90,18 @@ func (launcher *GethELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
 	}
 
-	nodeInfo, err := launcher.getNodeInfoWithRetry(serviceCtx.GetPrivateIPAddress())
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred getting the newly-started node's info")
-	}
-
-	miningWaiter := newGethMiningWaiter(
+	restClient := el_rest_client.NewELClientRESTClient(
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 	)
+
+	maxNumRetries := expectedSecondsForGethInit + len(launcher.prefundedAccountInfo) * expectedSecondsPerKeyImport + expectedSecondsAfterNodeStartUntilHttpServerIsAvailable
+	nodeInfo, err := availability_waiter.WaitForELClientAvailability(restClient, maxNumRetries, getNodeInfoTimeBetweenRetries)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred waiting for the EL client to become available")
+	}
+
+	miningWaiter := newGethMiningWaiter(restClient)
 	result := el.NewELClientContext(
 		nodeInfo.ENR,
 		nodeInfo.Enode,
@@ -231,56 +226,4 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 		return containerConfig, nil
 	}
 	return result
-}
-
-func (launcher *GethELClientLauncher) getNodeInfoWithRetry(privateIpAddr string) (NodeInfo, error) {
-	maxNumRetries := expectedSecondsForGethInit + len(launcher.prefundedAccountInfo) * expectedSecondsPerKeyImport + expectedSecondsAfterNodeStartUntilHttpServerIsAvailable
-
-	getNodeInfoResponse := new(GetNodeInfoResponse)
-	for i := 0; i < maxNumRetries; i++ {
-		if err := sendRpcCall(privateIpAddr, getNodeInfoRpcRequestBody, getNodeInfoResponse); err == nil {
-			return getNodeInfoResponse.Result, nil
-		} else {
-			logrus.Debugf("Getting the node info via RPC failed with error: %v", err)
-		}
-		time.Sleep(getNodeInfoTimeBetweenRetries)
-	}
-	return NodeInfo{}, stacktrace.NewError("Couldn't get the node's info even after %v retries with %v between retries", maxNumRetries, getNodeInfoTimeBetweenRetries)
-}
-
-func sendRpcCall(privateIpAddr string, requestBody string, targetStruct interface{}) error {
-	url := fmt.Sprintf("http://%v:%v", privateIpAddr, rpcPortNum)
-	var jsonByteArray = []byte(requestBody)
-
-	logrus.Debugf("Sending RPC call to '%v' with JSON body '%v'...", url, requestBody)
-
-	client := http.Client{
-		Timeout: rpcRequestTimeout,
-	}
-	resp, err := client.Post(url, jsonContentTypeHeader, bytes.NewBuffer(jsonByteArray))
-	if err != nil {
-		return stacktrace.Propagate(err, "Failed to send RPC request to Geth node with private IP '%v'", privateIpAddr)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return stacktrace.NewError(
-			"Received non-%v status code '%v' on RPC request to Geth node with private IP '%v'",
-			http.StatusOK,
-			resp.StatusCode,
-			privateIpAddr,
-		)
-	}
-
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return stacktrace.Propagate(err, "Error reading the RPC call response body")
-	}
-	bodyString := string(bodyBytes)
-	logrus.Tracef("Response for RPC call %v: %v", requestBody, bodyString)
-
-	json.Unmarshal(bodyBytes, targetStruct)
-	if err := json.Unmarshal(bodyBytes, targetStruct); err != nil {
-		return stacktrace.Propagate(err, "Error JSON-parsing Geth node RPC response string '%v' into a struct", bodyString)
-	}
-	return nil
 }
