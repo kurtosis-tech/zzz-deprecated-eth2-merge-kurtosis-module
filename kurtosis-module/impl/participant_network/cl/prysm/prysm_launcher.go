@@ -36,8 +36,8 @@ const (
 	// Port nums
 	discoveryTCPPortNum        uint16 = 13000
 	discoveryUDPPortNum        uint16 = 12000
-	rpcPortNum                 uint16 = 4000
-	httpPortNum                uint16 = 3500
+	rpcPortNum                 uint16 = 3500
+	httpPortNum                uint16 = 4000
 	beaconMonitoringPortNum    uint16 = 8080
 	validatorMonitoringPortNum uint16 = 8081
 

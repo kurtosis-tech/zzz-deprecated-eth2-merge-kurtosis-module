@@ -13,6 +13,8 @@ const waitForAvailabilityExpectedStatus = "READY"
 
 func WaitForBeaconClientAvailability(restClient *cl_client_rest_client.CLClientRESTClient, numRetries uint32, timeBetweenRetries time.Duration) error {
 	for i := uint32(0); i < numRetries; i++ {
+		// TODO REMOVE THIS IF THE GENESIS DELAY THING PROVES TO WORK
+		/*
 		// NOTE: We don't check the return code because, per https://ethereum.github.io/beacon-APIs/#/Node/getHealth , a
 		//  503 error is a node that's not initialized (which we'll almost definitely hit because we set the CL
 		//  genesis time to be roughly after all nodes have started).
@@ -20,8 +22,10 @@ func WaitForBeaconClientAvailability(restClient *cl_client_rest_client.CLClientR
 		//  a 200, while Lighthouse will return a 503.
 		// This means that the best we can do with this endpoint is "did we get an actual response?", and we can't check
 		//  the error code
-		_, err := restClient.GetHealth()
-		if err == nil {
+
+		 */
+		healthStatus, err := restClient.GetHealth()
+		if err == nil && healthStatus != cl_client_rest_client.HealthStatus_Error {
 			 return nil
 		}
 		logrus.Debugf(
