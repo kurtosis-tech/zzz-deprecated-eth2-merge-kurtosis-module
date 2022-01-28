@@ -100,7 +100,7 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 	_, err = dataGeneratorCtx.GenerateCLGenesisData(
 		genesisConfigTemplate,
 		genesisMnemonicsTemplate,
-		uint64(time.Now().Unix()),
+		0,
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,
 		networkParams.MergeForkEpoch,

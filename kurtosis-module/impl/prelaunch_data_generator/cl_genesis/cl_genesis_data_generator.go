@@ -39,6 +39,7 @@ type clGenesisConfigTemplateData struct {
 	NetworkId                          string
 	SecondsPerSlot                     uint32
 	UnixTimestamp                      uint64
+	DelaySeconds                       uint64
 	TotalTerminalDifficulty            uint64
 	AltairForkEpoch                    uint64
 	MergeForkEpoch                     uint64
@@ -51,7 +52,7 @@ func GenerateCLGenesisData(
 	genesisGenerationConfigYmlTemplate *template.Template,
 	genesisGenerationMnemonicsYmlTemplate *template.Template,
 	serviceCtx *services.ServiceContext,
-	genesisUnixTimestamp uint64,
+	genesisDelaySeconds uint64,
 	networkId string,
 	depositContractAddress string,
 	totalTerminalDifficulty uint64,
@@ -85,10 +86,12 @@ func GenerateCLGenesisData(
 		}
 	}
 
+	genesisTimestamp := uint64(time.Now().Unix())
 	templateData := &clGenesisConfigTemplateData{
 		NetworkId:                          networkId,
 		SecondsPerSlot:                     secondsPerSlot,
-		UnixTimestamp:                      genesisUnixTimestamp,
+		UnixTimestamp:                      genesisTimestamp,
+		DelaySeconds:                       genesisDelaySeconds,
 		TotalTerminalDifficulty:            totalTerminalDifficulty,
 		AltairForkEpoch:                    altairForkEpoch,
 		MergeForkEpoch:                     mergeForkEpoch,
@@ -109,7 +112,8 @@ func GenerateCLGenesisData(
 	result, err := runClGenesisGeneration(
 		genesisGenerationConfigSharedFile,
 		genesisGenerationMnemonicsSharedFile,
-		genesisUnixTimestamp,
+		genesisTimestamp,
+		genesisDelaySeconds,
 		depositContractAddress,
 		serviceCtx,
 		outputSharedDir,
@@ -147,7 +151,8 @@ func createGenesisGenerationConfig(
 func runClGenesisGeneration(
 	genesisGenerationConfigSharedFile *services.SharedPath,
 	genesisGenerationMnemonicsSharedFile *services.SharedPath,
-	genesisTimestamp uint64,
+	genesisUnixTimestamp uint64,
+	genesisDelaySeconds uint64,
 	depositContractAddress string,
 	serviceCtx *services.ServiceContext,
 	outputSharedDir *services.SharedPath,
@@ -199,7 +204,7 @@ func runClGenesisGeneration(
 		"--config", genesisGenerationConfigSharedFile.GetAbsPathOnServiceContainer(),
 		"--eth1-block", eth1Block,
 		"--mnemonics", genesisGenerationMnemonicsSharedFile.GetAbsPathOnServiceContainer(),
-		"--timestamp", fmt.Sprintf("%v", genesisTimestamp),
+		"--timestamp", fmt.Sprintf("%v", genesisUnixTimestamp),
 		"--tranches-dir", tranchesSharedDir.GetAbsPathOnServiceContainer(),
 		"--state-output", genesisStateSharedFile.GetAbsPathOnServiceContainer(),
 	}
@@ -223,6 +228,7 @@ func runClGenesisGeneration(
 	}
 
 	result := newCLGenesisData(
+		genesisUnixTimestamp + genesisDelaySeconds,
 		outputSharedDir.GetAbsPathOnThisContainer(),
 		genesisConfigSharedFile.GetAbsPathOnThisContainer(),
 		genesisStateSharedFile.GetAbsPathOnThisContainer(),

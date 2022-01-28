@@ -66,7 +66,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Info("Successfully created prelaunch data generator")
 
 	logrus.Infof("Adding %v participants logging at level '%v'...", numParticipants, paramsObj.ClientLogLevel)
-	participants, clGenesisUnixTimestamp, err := participant_network.LaunchParticipantNetwork(
+	participants, clNetworkStartUnixTimestamp, err := participant_network.LaunchParticipantNetwork(
 		enclaveCtx,
 		prelaunchDataGeneratorCtx,
 		networkParams,
@@ -100,18 +100,20 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 	logrus.Info("Successfully launched transaction spammer")
 
+	/*
 	logrus.Info("Waiting until CL genesis occurs to add forkmon...")
 	// We need to wait until the CL genesis has been reached to launch Forkmon because it has a bug (as of 2022-01-18) where
 	//  if a CL ndoe's getHealth endpoint returns a non-200 error code, Forkmon will mark the node as failed and will never revisit it
 	// This is fine with nodes who report 200 before genesis, but certain nodes (e.g. Lighthouse) will report a 503 before genesis
 	// Therefore, the simple fix is wait until CL genesis to start Forkmon
-	secondsRemainingUntilClGenesis := clGenesisUnixTimestamp - uint64(time.Now().Unix())
+	secondsRemainingUntilClGenesis := clNetworkStartUnixTimestamp - uint64(time.Now().Unix())
 	if secondsRemainingUntilClGenesis < 0 {
 		secondsRemainingUntilClGenesis = 0
 	}
 	durationUntilClGenesis := time.Duration(int64(secondsRemainingUntilClGenesis)) * time.Second
 	time.Sleep(durationUntilClGenesis)
 	logrus.Info("CL genesis has occurred")
+	 */
 
 	logrus.Info("Launching forkmon...")
 	forkmonConfigTemplate, err := static_files.ParseTemplate(static_files.ForkmonConfigTemplateFilepath)
@@ -122,7 +124,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		enclaveCtx,
 		forkmonConfigTemplate,
 		allClClientContexts,
-		clGenesisUnixTimestamp,
+		clNetworkStartUnixTimestamp,
 		networkParams.SecondsPerSlot,
 		networkParams.SlotsPerEpoch,
 	)

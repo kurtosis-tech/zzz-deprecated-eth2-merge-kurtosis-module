@@ -181,14 +181,13 @@ func LaunchParticipantNetwork(
 	// We create the CL genesis data after the EL network is ready so that the CL genesis timestamp will be close
 	//  to the time the CL nodes are started
 	logrus.Info("Generating CL client genesis data...")
-	// Set the genesis timestamp in the future so we don't start running slots until all the CL nodes are up
-	clGenesisTimestamp := uint64(time.Now().Unix()) +
-		uint64(clGenesisDataGenerationTime.Seconds()) +
+	// Set a genesis delay so we don't start running slots until all the CL nodes are up
+	genesisDelaySeconds := uint64(clGenesisDataGenerationTime.Seconds()) +
 		uint64(numParticipants) * uint64(clNodeStartupTime.Seconds())
 	clGenesisData, err := prelaunchDataGeneratorCtx.GenerateCLGenesisData(
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
-		clGenesisTimestamp,
+		genesisDelaySeconds,
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,
 		networkParams.MergeForkEpoch,
@@ -290,5 +289,5 @@ func LaunchParticipantNetwork(
 		allParticipants = append(allParticipants, participant)
 	}
 
-	return allParticipants, clGenesisTimestamp, nil
+	return allParticipants, clGenesisData.GetNetworkStartUnixTimestamp(), nil
 }
