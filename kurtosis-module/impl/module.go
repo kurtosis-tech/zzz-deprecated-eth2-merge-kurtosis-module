@@ -100,7 +100,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 	logrus.Info("Successfully launched transaction spammer")
 
-	logrus.Info("Waiting until CL genesis occurred...")
+	logrus.Info("Waiting until CL genesis occurs to add forkmon...")
 	// We need to wait until the CL genesis has been reached to launch Forkmon because it has a bug (as of 2022-01-18) where
 	//  if a CL ndoe's getHealth endpoint returns a non-200 error code, Forkmon will mark the node as failed and will never revisit it
 	// This is fine with nodes who report 200 before genesis, but certain nodes (e.g. Lighthouse) will report a 503 before genesis
