@@ -4,6 +4,7 @@
 
 ### Fixes
 * Use emptystring for Besu ENR, as there's no way to get it right now without the logs
+* Fixed a Teku break caused by a flag getting renamed in the latest version of the Teku image
 
 # 0.4.2
 ### Features

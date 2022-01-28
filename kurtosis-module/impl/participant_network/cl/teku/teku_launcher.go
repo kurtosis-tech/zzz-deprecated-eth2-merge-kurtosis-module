@@ -225,7 +225,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 				destValidatorKeysDirpathInServiceContainer,
 				destValidatorSecretsDirpathInServiceContainer,
 			),
-			"--Xvalidators-suggested-fee-recipient-address=" + validatingRewardsAccount,
+			"--Xvalidators-proposer-default-fee-recipient=" + validatingRewardsAccount,
 		}
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes=" + bootnodeContext.GetENR())
