@@ -134,14 +134,12 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 		return nil, stacktrace.NewError("Preregistered validator keys mnemonic must not be empty")
 	}
 
-	/*
+
 	// TODO Remove this once we have a way of getting a Prysm node's ENR before genesis time:
 	//  https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/37
 	if paramsObj.Participants[0].CLClientType == ParticipantCLClientType_Prysm {
 		return nil, stacktrace.NewError("Cannot have a Prysm node as the boot CL node due to https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/37")
 	}
-
-	 */
 
 	// TODO Remove this check once Teku fixes its bug! See:
 	//  https://discord.com/channels/697535391594446898/697539289042649190/935029250858299412
