@@ -52,7 +52,6 @@ func LaunchParticipantNetwork(
 	prelaunchDataGeneratorCtx *prelaunch_data_generator.PrelaunchDataGeneratorContext,
 	networkParams *module_io.NetworkParams,
 	allParticipantSpecs []*module_io.ParticipantParams,
-	logLevel module_io.ParticipantLogLevel,
 	shouldWaitForMining bool,
 ) (
 	resultParticipants []*Participant,
@@ -134,7 +133,7 @@ func LaunchParticipantNetwork(
 				enclaveCtx,
 				elClientServiceId,
 				participantSpec.ELClientImage,
-				logLevel,
+				participantSpec.ELClientLogLevel,
 				elClientContextForBootElClients,
 			)
 		} else {
@@ -143,7 +142,7 @@ func LaunchParticipantNetwork(
 				enclaveCtx,
 				elClientServiceId,
 				participantSpec.ELClientImage,
-				logLevel,
+				participantSpec.ELClientLogLevel,
 				bootElClientCtx,
 			)
 		}
@@ -247,7 +246,7 @@ func LaunchParticipantNetwork(
 				enclaveCtx,
 				clClientServiceId,
 				participantSpec.CLClientImage,
-				logLevel,
+				participantSpec.CLClientLogLevel,
 				clClientContextForBootClClients,
 				elClientCtx,
 				newClNodeValidatorKeystores,
@@ -258,7 +257,7 @@ func LaunchParticipantNetwork(
 				enclaveCtx,
 				clClientServiceId,
 				participantSpec.CLClientImage,
-				logLevel,
+				participantSpec.CLClientLogLevel,
 				bootClClientCtx,
 				elClientCtx,
 				newClNodeValidatorKeystores,

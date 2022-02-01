@@ -1,7 +1,8 @@
 package nethermind
+
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io/participant_log_level"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
@@ -41,12 +42,12 @@ var usedPorts = map[string]*services.PortSpec{
 	tcpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
-var nethermindLogLevels = map[module_io.ParticipantLogLevel]string{
-	module_io.ParticipantLogLevel_Error: "ERROR",
-	module_io.ParticipantLogLevel_Warn:  "WARN",
-	module_io.ParticipantLogLevel_Info:  "INFO",
-	module_io.ParticipantLogLevel_Debug: "DEBUG",
-	module_io.ParticipantLogLevel_Trace: "TRACE",
+var NethermindLogLevels = map[participant_log_level.ParticipantLogLevel]string{
+	participant_log_level.ParticipantLogLevel_Error: "ERROR",
+	participant_log_level.ParticipantLogLevel_Warn:  "WARN",
+	participant_log_level.ParticipantLogLevel_Info:  "INFO",
+	participant_log_level.ParticipantLogLevel_Debug: "DEBUG",
+	participant_log_level.ParticipantLogLevel_Trace: "TRACE",
 }
 
 type NethermindELClientLauncher struct {
@@ -62,7 +63,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 	bootnodeContext *el.ELClientContext,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
 	containerConfigSupplier := launcher.getContainerConfigSupplier(image, bootnodeContext, logLevel)
@@ -101,13 +102,9 @@ func (launcher *NethermindELClientLauncher) Launch(
 func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 	image string,
 	bootnodeCtx *el.ELClientContext,
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		nethermindLogLevel, found := nethermindLogLevels[logLevel]
-		if !found {
-			return nil, stacktrace.NewError("No Nethermind log level defined for client log level '%v'; this is a bug in the module", logLevel)
-		}
 
 		nethermindGenesisJsonSharedPath := sharedDir.GetChildPath(sharedNethermindGenesisJsonRelFilepath)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModule, nethermindGenesisJsonSharedPath); err != nil {
@@ -120,7 +117,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 
 		commandArgs := []string{
 			"--config=kintsugi",
-			"--log=" + nethermindLogLevel,
+			"--log=" + logLevel,
 			"--datadir=" + executionDataDirpathOnClientContainer,
 			"--Init.ChainSpecPath=" + nethermindGenesisJsonSharedPath.GetAbsPathOnServiceContainer(),
 			"--Init.WebSocketsEnabled=true",

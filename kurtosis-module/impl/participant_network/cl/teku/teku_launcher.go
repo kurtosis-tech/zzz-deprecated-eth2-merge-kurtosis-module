@@ -2,7 +2,7 @@ package teku
 
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io/participant_log_level"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
@@ -62,12 +62,12 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 }
-var tekuLogLevels = map[module_io.ParticipantLogLevel]string{
-	module_io.ParticipantLogLevel_Error: "ERROR",
-	module_io.ParticipantLogLevel_Warn:  "WARN",
-	module_io.ParticipantLogLevel_Info:  "INFO",
-	module_io.ParticipantLogLevel_Debug: "DEBUG",
-	module_io.ParticipantLogLevel_Trace: "TRACE",
+var TekuLogLevels = map[participant_log_level.ParticipantLogLevel]string{
+	participant_log_level.ParticipantLogLevel_Error: "ERROR",
+	participant_log_level.ParticipantLogLevel_Warn:  "WARN",
+	participant_log_level.ParticipantLogLevel_Info:  "INFO",
+	participant_log_level.ParticipantLogLevel_Debug: "DEBUG",
+	participant_log_level.ParticipantLogLevel_Trace: "TRACE",
 }
 
 type TekuCLClientLauncher struct {
@@ -85,7 +85,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 	serviceId services.ServiceID,
 	image string,
 	// TODO move to launcher param
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
@@ -138,15 +138,11 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 	image string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		tekuLogLevel, found := tekuLogLevels[logLevel]
-		if !found {
-			return nil, stacktrace.NewError("No Teku log level defined for client log level '%v'; this is a bug in this module", logLevel)
-		}
 
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
@@ -201,7 +197,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			destValidatorSecretsDirpathInServiceContainer,
 			"&&",
 			tekuBinaryFilepathInImage,
-			"--logging=" + tekuLogLevel,
+			"--logging=" + logLevel,
 			"--log-destination=CONSOLE",
 			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--initial-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),

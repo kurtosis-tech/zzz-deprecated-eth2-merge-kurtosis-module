@@ -39,6 +39,11 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
             // - besu: hyperledger/besu:merge
             "elImage": "",
 
+            // The log level that the EL client should log at, it overrides the value set in the `logLevel` property
+            // This value must be specific for the client's implementation, For instance if you want to set info log 
+            // level for Geth client, you should set "3" and "INFO" for Besu clients
+            "elLogLevel": "",
+
             // The type of CL client that should be started
             // Valid values are "nimbus", "lighthouse", "lodestar", "teku", and "prysm"
             "clType": "nimbus",
@@ -50,7 +55,12 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
             // - nimbus: statusim/nimbus-eth2:amd64-latest",
             // - prysm: prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest",
             // - lodestar: chainsafe/lodestar:next",
-            "clImage": ""
+            "clImage": "",
+
+            // The log level that the CL client should log at, it overrides the value set in the `logLevel` property
+            // This value must be specific for the client's implementation, For instance if you want to set info log 
+            // level for Teky client, you should set "INFO" and "info" for Lodestar clients
+            "clLogLevel": "",
         }
     ],
 

@@ -2,7 +2,7 @@ package geth
 
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io/participant_log_level"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
@@ -59,12 +59,12 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
 var entrypointArgs = []string{"sh", "-c"}
-var verbosityLevels = map[module_io.ParticipantLogLevel]string{
-	module_io.ParticipantLogLevel_Error: "1",
-	module_io.ParticipantLogLevel_Warn:  "2",
-	module_io.ParticipantLogLevel_Info:  "3",
-	module_io.ParticipantLogLevel_Debug: "4",
-	module_io.ParticipantLogLevel_Trace: "5",
+var VerbosityLevels = map[participant_log_level.ParticipantLogLevel]string{
+	participant_log_level.ParticipantLogLevel_Error: "1",
+	participant_log_level.ParticipantLogLevel_Warn:  "2",
+	participant_log_level.ParticipantLogLevel_Info:  "3",
+	participant_log_level.ParticipantLogLevel_Debug: "4",
+	participant_log_level.ParticipantLogLevel_Trace: "5",
 }
 
 type GethELClientLauncher struct {
@@ -81,7 +81,7 @@ func (launcher *GethELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 	bootnodeContext *el.ELClientContext,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
 	containerConfigSupplier := launcher.getContainerConfigSupplier(image, launcher.networkId, bootnodeContext, logLevel)
@@ -122,13 +122,9 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	image string,
 	networkId string,
 	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
-	logLevel module_io.ParticipantLogLevel,
+	verbosityLevel string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		verbosityLevel, found := verbosityLevels[logLevel]
-		if !found {
-			return nil, stacktrace.NewError("No Geth verbosity level was defined for client log level '%v'; this is a bug in this module itself", logLevel)
-		}
 
 		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModuleContainer, genesisJsonSharedPath); err != nil {

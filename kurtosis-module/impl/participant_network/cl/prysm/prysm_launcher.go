@@ -2,7 +2,7 @@ package prysm
 
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io/participant_log_level"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
@@ -68,12 +68,12 @@ var beaconNodeUsedPorts = map[string]*services.PortSpec{
 var validatorNodeUsedPorts = map[string]*services.PortSpec{
 	validatorMonitoringPortID: services.NewPortSpec(validatorMonitoringPortNum, services.PortProtocol_TCP),
 }
-var prysmLogLevels = map[module_io.ParticipantLogLevel]string{
-	module_io.ParticipantLogLevel_Error: "error",
-	module_io.ParticipantLogLevel_Warn:  "warn",
-	module_io.ParticipantLogLevel_Info:  "info",
-	module_io.ParticipantLogLevel_Debug: "debug",
-	module_io.ParticipantLogLevel_Trace: "trace",
+var PrysmLogLevels = map[participant_log_level.ParticipantLogLevel]string{
+	participant_log_level.ParticipantLogLevel_Error: "error",
+	participant_log_level.ParticipantLogLevel_Warn:  "warn",
+	participant_log_level.ParticipantLogLevel_Info:  "info",
+	participant_log_level.ParticipantLogLevel_Debug: "debug",
+	participant_log_level.ParticipantLogLevel_Trace: "trace",
 }
 
 type PrysmCLClientLauncher struct {
@@ -92,7 +92,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 	// NOTE: Because Prysm has separate images for Beacon and validator, this string will actually be a delimited
 	//  combination of both Beacon & validator images
 	delimitedImagesStr string,
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
@@ -180,15 +180,11 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 	beaconImage string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 	genesisConfigYmlFilepathOnModuleContainer string,
 	genesisSszFilepathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		prysmLogLevel, found := prysmLogLevels[logLevel]
-		if !found {
-			return nil, stacktrace.NewError("No Prysm log level defined for client log level '%v'; this is a bug in the module", logLevel)
-		}
 
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
 		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
@@ -233,7 +229,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			fmt.Sprintf("--min-sync-peers=%v", minPeers),
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", beaconMonitoringPortNum),
-			"--verbosity=" + prysmLogLevel,
+			"--verbosity=" + logLevel,
 			// Set per Pari's recommendation to reduce noise
 			"--subscribe-all-subnets=true",
 		}
@@ -257,17 +253,13 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 	validatorImage string,
 	serviceId services.ServiceID,
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 	beaconRPCEndpoint string,
 	beaconHTTPEndpoint string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		prysmLogLevel, found := prysmLogLevels[logLevel]
-		if !found {
-			return nil, stacktrace.NewError("No Prysm log level defined for client log level '%v'; this is a bug in the module", logLevel)
-		}
 
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
@@ -313,7 +305,7 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			"--datadir=" + rootDirpath,
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
-			"--verbosity=" + prysmLogLevel,
+			"--verbosity=" + logLevel,
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(

@@ -1,18 +1,25 @@
 package module_io
 
+import "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io/participant_log_level"
+
 const (
 	// If these values are provided for the EL/CL images, then the client type-specific default image will be used
 	useDefaultElImageKeyword = ""
 	useDefaultClImageKeyword = ""
+
+	unspecifiedLogLevel                 = ""
+	unspecifiedGlobalParticipanLogLevel = ""
+	defaultELClientParticipantLogLevel  = participant_log_level.ParticipantLogLevel_Debug
+	defaultCLClientParticipantLogLevel  = participant_log_level.ParticipantLogLevel_Debug
 )
 
 var defaultElImages = map[ParticipantELClientType]string{
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	ParticipantELClientType_Geth: "parithoshj/geth:merge-f72c361", // From around 2022-01-18
+	ParticipantELClientType_Geth:       "parithoshj/geth:merge-f72c361", // From around 2022-01-18
 	ParticipantELClientType_Nethermind: "nethermindeth/nethermind:kintsugi_0.5",
-	ParticipantELClientType_Besu: "hyperledger/besu:merge",
+	ParticipantELClientType_Besu:       "hyperledger/besu:merge",
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -27,8 +34,8 @@ var defaultClImages = map[ParticipantCLClientType]string{
 	ParticipantCLClientType_Nimbus:     "statusim/nimbus-eth2:amd64-latest",
 	// NOTE: Prysm actually has two images - a Beacon and a validator - so we pass in a comma-separated
 	//  "beacon_image,validator_image" string
-	ParticipantCLClientType_Prysm:      "prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest",
-	ParticipantCLClientType_Lodestar:   "chainsafe/lodestar:next",
+	ParticipantCLClientType_Prysm:    "prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest",
+	ParticipantCLClientType_Lodestar: "chainsafe/lodestar:next",
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -43,10 +50,12 @@ func GetDefaultExecuteParams() *ExecuteParams {
 	return &ExecuteParams{
 		Participants: []*ParticipantParams{
 			{
-				ELClientType:  ParticipantELClientType_Geth,
-				ELClientImage: useDefaultElImageKeyword,
-				CLClientType:  ParticipantCLClientType_Nimbus,
-				CLClientImage: useDefaultClImageKeyword,
+				ELClientType:     ParticipantELClientType_Geth,
+				ELClientImage:    useDefaultElImageKeyword,
+				ELClientLogLevel: unspecifiedLogLevel,
+				CLClientType:     ParticipantCLClientType_Nimbus,
+				CLClientLogLevel: unspecifiedLogLevel,
+				CLClientImage:    useDefaultClImageKeyword,
 			},
 		},
 		Network: &NetworkParams{
@@ -62,7 +71,7 @@ func GetDefaultExecuteParams() *ExecuteParams {
 		},
 		WaitForMining:       true,
 		WaitForFinalization: false,
-		ClientLogLevel:      ParticipantLogLevel_Info,
+		ClientLogLevel:      unspecifiedGlobalParticipanLogLevel,
 	}
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!

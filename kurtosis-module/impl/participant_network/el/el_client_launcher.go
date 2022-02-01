@@ -1,7 +1,6 @@
 package el
 
 import (
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 )
@@ -11,7 +10,7 @@ type ELClientLauncher interface {
 		enclaveCtx *enclaves.EnclaveContext,
 		serviceId services.ServiceID,
 		image string,
-		loglevel module_io.ParticipantLogLevel,
+		loglevel string,
 		// If nil, then the node will be launched as a bootnode
 		bootnodeContext *ELClientContext,
 	) (
