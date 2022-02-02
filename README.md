@@ -39,9 +39,11 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
             // - besu: hyperledger/besu:merge
             "elImage": "",
 
-            // The log level that the EL client should log at, it overrides the value set in the `logLevel` property
-            // This value must be specific for the client's implementation, For instance if you want to set info log 
-            // level for Geth client, you should set "3" and "INFO" for Besu clients
+            // The log level string that this participant's EL client should log at
+            // If this is emptystring then the global `logLevel` parameter's value will be translated into a string appropriate for the client (e.g. if
+            //  global `logLevel` = `info` then Geth would receive `3`, Besu would receive `INFO`, etc.)
+            // If this is not emptystring, then this value will override the global `logLevel` setting to allow for fine-grained control
+            //  over a specific participant's logging
             "elLogLevel": "",
 
             // The type of CL client that should be started
@@ -57,10 +59,13 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
             // - lodestar: chainsafe/lodestar:next",
             "clImage": "",
 
-            // The log level that the CL client should log at, it overrides the value set in the `logLevel` property
-            // This value must be specific for the client's implementation, For instance if you want to set info log 
-            // level for Teky client, you should set "INFO" and "info" for Lodestar clients
-            "clLogLevel": "",
+
+            // The log level string that this participant's EL client should log at
+            // If this is emptystring then the global `logLevel` parameter's value will be translated into a string appropriate for the client (e.g. if
+            //  global `logLevel` = `info` then Teku would receive `INFO`, Prysm would receive `info`, etc.)
+            // If this is not emptystring, then this value will override the global `logLevel` setting to allow for fine-grained control
+            //  over a specific participant's logging
+            "clLogLevel": ""
         }
     ],
 
