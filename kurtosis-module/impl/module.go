@@ -125,6 +125,9 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		networkParams.SecondsPerSlot,
 		networkParams.SlotsPerEpoch,
 	)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred launching forkmon service")
+	}
 	logrus.Infof("Successfully launched forkmon at '%v'", forkmonPublicUrl)
 
 	if paramsObj.WaitForFinalization {

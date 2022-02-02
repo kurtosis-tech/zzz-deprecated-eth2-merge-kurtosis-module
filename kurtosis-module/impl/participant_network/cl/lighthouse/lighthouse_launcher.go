@@ -20,36 +20,44 @@ const (
 
 	// ---------------------------------- Beacon client -------------------------------------
 	consensusDataDirpathOnBeaconServiceContainer = "/consensus-data"
-	beaconConfigDataDirpathRelToSharedDirRoot = "config-data"
+	beaconConfigDataDirpathRelToSharedDirRoot    = "config-data"
 
 	// Port IDs
 	beaconTcpDiscoveryPortID = "tcp-discovery"
 	beaconUdpDiscoveryPortID = "udp-discovery"
-	beaconHttpPortID         = "http"
+	beaconHttpPortID         = "beacon-http"
+	beaconMetricsPortID      = "beacon-metrics"
 
 	// Port nums
-	beaaconDiscoveryPortNum uint16 = 9000
-	beaconHttpPortNum              = 4000
+	beaconDiscoveryPortNum uint16 = 9000
+	beaconHttpPortNum      uint16 = 4000
+	beaconMetricsPortNum   uint16 = 5054
 
-	maxNumHealthcheckRetries = 10
+	maxNumHealthcheckRetries      = 10
 	timeBetweenHealthcheckRetries = 1 * time.Second
 
 	// ---------------------------------- Validator client -------------------------------------
 	validatorConfigDataDirpathRelToSharedDirRoot = "config-data"
 
-	validatorKeysRelDirpathInSharedDir = "validator-keys"
+	validatorKeysRelDirpathInSharedDir    = "validator-keys"
 	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
 
-	validatorHttpPortID = "http"
-	validatorHttpPortNum = 5042
+	validatorHttpPortID    = "validator-http"
+	validatorMetricsPortID = "validator-metrics"
+	validatorHttpPortNum   = 5042
+	validatorMetricsPortNum   = 5064
+
 )
+
 var beaconUsedPorts = map[string]*services.PortSpec{
-	beaconTcpDiscoveryPortID: services.NewPortSpec(beaaconDiscoveryPortNum, services.PortProtocol_TCP),
-	beaconUdpDiscoveryPortID: services.NewPortSpec(beaaconDiscoveryPortNum, services.PortProtocol_UDP),
+	beaconTcpDiscoveryPortID: services.NewPortSpec(beaconDiscoveryPortNum, services.PortProtocol_TCP),
+	beaconUdpDiscoveryPortID: services.NewPortSpec(beaconDiscoveryPortNum, services.PortProtocol_UDP),
 	beaconHttpPortID:         services.NewPortSpec(beaconHttpPortNum, services.PortProtocol_TCP),
+	beaconMetricsPortID:      services.NewPortSpec(beaconMetricsPortNum, services.PortProtocol_TCP),
 }
 var validatorUsedPorts = map[string]*services.PortSpec{
 	validatorHttpPortID: services.NewPortSpec(validatorHttpPortNum, services.PortProtocol_TCP),
+	validatorMetricsPortID: services.NewPortSpec(validatorMetricsPortNum, services.PortProtocol_TCP),
 }
 var LighthouseLogLevels = map[participant_log_level.ParticipantLogLevel]string{
 	participant_log_level.ParticipantLogLevel_Error: "error",
@@ -164,8 +172,8 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 		//  have with a network running in Kurtosis.
 		//    "--disable-enr-auto-update",
 		//    "--enr-address=" + externalIpAddress,
-		//    fmt.Sprintf("--enr-udp-port=%v", beaaconDiscoveryPortNum),
-		//    fmt.Sprintf("--enr-tcp-port=%v", beaaconDiscoveryPortNum),
+		//    fmt.Sprintf("--enr-udp-port=%v", beaconDiscoveryPortNum),
+		//    fmt.Sprintf("--enr-tcp-port=%v", beaconDiscoveryPortNum),
 		cmdArgs := []string{
 			lighthouseBinaryCommand,
 			"beacon_node",
@@ -176,11 +184,11 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			// vvvvvvvvvvvvvvvvvvv REMOVE THESE WHEN CONNECTING TO EXTERNAL NET vvvvvvvvvvvvvvvvvvvvv
 			"--disable-enr-auto-update",
 			"--enr-address=" + privateIpAddr,
-			fmt.Sprintf("--enr-udp-port=%v", beaaconDiscoveryPortNum),
-			fmt.Sprintf("--enr-tcp-port=%v", beaaconDiscoveryPortNum),
+			fmt.Sprintf("--enr-udp-port=%v", beaconDiscoveryPortNum),
+			fmt.Sprintf("--enr-tcp-port=%v", beaconDiscoveryPortNum),
 			// ^^^^^^^^^^^^^^^^^^^ REMOVE THESE WHEN CONNECTING TO EXTERNAL NET ^^^^^^^^^^^^^^^^^^^^^
 			"--listen-address=0.0.0.0",
-			fmt.Sprintf("--port=%v", beaaconDiscoveryPortNum), // NOTE: Remove for connecting to external net!
+			fmt.Sprintf("--port=%v", beaconDiscoveryPortNum), // NOTE: Remove for connecting to external net!
 			"--http",
 			"--http-address=0.0.0.0",
 			fmt.Sprintf("--http-port=%v", beaconHttpPortNum),
@@ -194,9 +202,15 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--eth1-endpoints=" + elClientRpcUrlStr,
 			// Set per Paris' recommendation to reduce noise in the logs
 			"--subscribe-all-subnets",
+			// vvvvvvvvvvvvvvvvvvv PROMETHEUS CONFIG vvvvvvvvvvvvvvvvvvvvv
+			"--metrics",
+			"--metrics-address=" + privateIpAddr,
+			"--metrics-allow-origin=*",
+			fmt.Sprintf("--metrics-port=%v", beaconMetricsPortNum),
+			// ^^^^^^^^^^^^^^^^^^^ PROMETHEUS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 		if bootClClientCtx != nil {
-			cmdArgs = append(cmdArgs, "--boot-nodes=" + bootClClientCtx.GetENR())
+			cmdArgs = append(cmdArgs, "--boot-nodes="+bootClClientCtx.GetENR())
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
@@ -268,6 +282,12 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 			fmt.Sprintf("--http-port=%v", validatorHttpPortNum),
 			"--beacon-nodes=" + beaconClientHttpUrl,
 			"--enable-doppelganger-protection=false",
+			// vvvvvvvvvvvvvvvvvvv PROMETHEUS CONFIG vvvvvvvvvvvvvvvvvvvvv
+			"--metrics",
+			"--metrics-address=" + privateIpAddr,
+			"--metrics-allow-origin=*",
+			fmt.Sprintf("--metrics-port=%v", beaconMetricsPortNum),
+			// ^^^^^^^^^^^^^^^^^^^ PROMETHEUS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
