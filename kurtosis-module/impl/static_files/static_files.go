@@ -22,6 +22,9 @@ const (
 
 	// Forkmon config
 	ForkmonConfigTemplateFilepath = staticFilesDirpath + "/forkmon-config/config.toml.tmpl"
+
+	//Prometheus config
+	PrometheusConfigTemplateFilepath = staticFilesDirpath + "prometheus-config/prometheus.yml.tmpl"
 )
 
 func ParseTemplate(filepath string) (*template.Template, error) {
