@@ -2,7 +2,7 @@ package lighthouse
 
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io/participant_log_level"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
@@ -51,12 +51,12 @@ var beaconUsedPorts = map[string]*services.PortSpec{
 var validatorUsedPorts = map[string]*services.PortSpec{
 	validatorHttpPortID: services.NewPortSpec(validatorHttpPortNum, services.PortProtocol_TCP),
 }
-var LighthouseLogLevels = map[participant_log_level.ParticipantLogLevel]string{
-	participant_log_level.ParticipantLogLevel_Error: "error",
-	participant_log_level.ParticipantLogLevel_Warn:  "warn",
-	participant_log_level.ParticipantLogLevel_Info:  "info",
-	participant_log_level.ParticipantLogLevel_Debug: "debug",
-	participant_log_level.ParticipantLogLevel_Trace: "trace",
+var lighthouseLogLevels = map[module_io.GlobalClientLogLevel]string{
+	module_io.GlobalClientLogLevel_Error: "error",
+	module_io.GlobalClientLogLevel_Warn:  "warn",
+	module_io.GlobalClientLogLevel_Info:  "info",
+	module_io.GlobalClientLogLevel_Debug: "debug",
+	module_io.GlobalClientLogLevel_Trace: "trace",
 }
 
 type LighthouseCLClientLauncher struct {
@@ -72,13 +72,19 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
-	logLevel string,
+	participantLogLevel string,
+	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	beaconNodeServiceId := services.ServiceID(fmt.Sprintf("%v-beacon", serviceId))
 	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-validator", serviceId))
+
+	logLevel, err := module_io.DefineAndReturnWhichLogLevelShouldBeUsed(participantLogLevel, globalLogLevel, lighthouseLogLevels)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred defining which log level should be used between participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+	}
 
 	// Launch Beacon node
 	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(image, bootnodeContext, elClientContext, logLevel)

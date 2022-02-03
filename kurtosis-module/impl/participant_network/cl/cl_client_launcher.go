@@ -1,6 +1,7 @@
 package cl
 
 import (
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
@@ -13,7 +14,8 @@ type CLClientLauncher interface {
 		enclaveCtx *enclaves.EnclaveContext,
 		serviceId services.ServiceID,
 		image string,
-		logLevel string,
+		participantLogLevel string,
+		globalLogLevel module_io.GlobalClientLogLevel,
 		// If nil, the node will be launched as a bootnode
 		bootnodeContext *CLClientContext,
 		elClientContext *el.ELClientContext,

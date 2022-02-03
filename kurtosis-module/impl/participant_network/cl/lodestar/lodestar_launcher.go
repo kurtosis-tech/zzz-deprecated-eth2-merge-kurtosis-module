@@ -2,7 +2,7 @@ package lodestar
 
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io/participant_log_level"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
@@ -47,12 +47,12 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 }
-var LodestarLogLevels = map[participant_log_level.ParticipantLogLevel]string{
-	participant_log_level.ParticipantLogLevel_Error: "error",
-	participant_log_level.ParticipantLogLevel_Warn:  "warn",
-	participant_log_level.ParticipantLogLevel_Info:  "info",
-	participant_log_level.ParticipantLogLevel_Debug: "debug",
-	participant_log_level.ParticipantLogLevel_Trace: "silly",
+var lodestarLogLevels = map[module_io.GlobalClientLogLevel]string{
+	module_io.GlobalClientLogLevel_Error: "error",
+	module_io.GlobalClientLogLevel_Warn:  "warn",
+	module_io.GlobalClientLogLevel_Info:  "info",
+	module_io.GlobalClientLogLevel_Debug: "debug",
+	module_io.GlobalClientLogLevel_Trace: "silly",
 }
 
 type LodestarClientLauncher struct {
@@ -68,13 +68,19 @@ func (launcher *LodestarClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
-	logLevel string,
+	participantLogLevel string,
+	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	beaconServiceId := serviceId + "-" + beaconSuffixServiceId
 	validatorServiceId := serviceId + "-" + validatorSuffixServiceId
+
+	logLevel, err := module_io.DefineAndReturnWhichLogLevelShouldBeUsed(participantLogLevel, globalLogLevel, lodestarLogLevels)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred defining which log level should be used between participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+	}
 
 	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(
 		image,

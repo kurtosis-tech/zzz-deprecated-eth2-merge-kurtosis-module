@@ -2,7 +2,6 @@ package module_io
 
 import (
 	"encoding/json"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io/participant_log_level"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
 	"strings"
@@ -21,6 +20,10 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 	paramsObj := GetDefaultExecuteParams()
 	if err := json.Unmarshal([]byte(paramsStr), paramsObj); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred deserializing the serialized params")
+	}
+
+	if _, found := validGlobalClientLogLevels[paramsObj.ClientLogLevel]; !found {
+		return nil, stacktrace.NewError("Unrecognized client log level '%v'", paramsObj.ClientLogLevel)
 	}
 
 	// Validate participants
@@ -55,19 +58,6 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 			paramsObj.Participants[idx].ELClientImage = defaultElClientImage
 		}
 
-		if participant.ELClientLogLevel == unspecifiedLogLevel {
-			var elClientParticipanLogLevel participant_log_level.ParticipantLogLevel
-			if paramsObj.ClientLogLevel != unspecifiedGlobalParticipanLogLevel {
-				elClientParticipanLogLevel = paramsObj.ClientLogLevel
-			} else {
-				elClientParticipanLogLevel = defaultELClientParticipantLogLevel
-			}
-			elClientLogLevel, found := elClientsParticipantLogLevels[elClientType][elClientParticipanLogLevel]
-			if !found {
-				return nil, stacktrace.NewError("EL client log level wasn't provided, and no default log level was defined for EL client type '%v'; this is a bug in the module", elClientType)
-			}
-			paramsObj.Participants[idx].ELClientLogLevel = elClientLogLevel
-		}
 
 		clClientType := participant.CLClientType
 		if _, found := validParticipantCLClientTypes[clClientType]; !found {
@@ -90,19 +80,6 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 			// Go's "range" is by-value, so we need to actually by-reference modify the paramsObj we need to
 			//  use the idx
 			paramsObj.Participants[idx].CLClientImage = defaultClClientImage
-		}
-		if participant.CLClientLogLevel == unspecifiedLogLevel {
-			var clClientParticipanLogLevel participant_log_level.ParticipantLogLevel
-			if paramsObj.ClientLogLevel != unspecifiedGlobalParticipanLogLevel {
-				clClientParticipanLogLevel = paramsObj.ClientLogLevel
-			} else {
-				clClientParticipanLogLevel = defaultCLClientParticipantLogLevel
-			}
-			clClientLogLevel, found := clClientsParticipantLogLevels[clClientType][clClientParticipanLogLevel]
-			if !found {
-				return nil, stacktrace.NewError("EL client log level wasn't provided, and no default log level was defined for CL client type '%v'; this is a bug in the module", clClientType)
-			}
-			paramsObj.Participants[idx].CLClientLogLevel = clClientLogLevel
 		}
 	}
 

@@ -2,7 +2,7 @@ package geth
 
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io/participant_log_level"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
@@ -59,12 +59,12 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
 var entrypointArgs = []string{"sh", "-c"}
-var VerbosityLevels = map[participant_log_level.ParticipantLogLevel]string{
-	participant_log_level.ParticipantLogLevel_Error: "1",
-	participant_log_level.ParticipantLogLevel_Warn:  "2",
-	participant_log_level.ParticipantLogLevel_Info:  "3",
-	participant_log_level.ParticipantLogLevel_Debug: "4",
-	participant_log_level.ParticipantLogLevel_Trace: "5",
+var verbosityLevels = map[module_io.GlobalClientLogLevel]string{
+	module_io.GlobalClientLogLevel_Error: "1",
+	module_io.GlobalClientLogLevel_Warn:  "2",
+	module_io.GlobalClientLogLevel_Info:  "3",
+	module_io.GlobalClientLogLevel_Debug: "4",
+	module_io.GlobalClientLogLevel_Trace: "5",
 }
 
 type GethELClientLauncher struct {
@@ -81,9 +81,16 @@ func (launcher *GethELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
-	logLevel string,
+	participantLogLevel string,
+	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *el.ELClientContext,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
+
+	logLevel, err := module_io.DefineAndReturnWhichLogLevelShouldBeUsed(participantLogLevel, globalLogLevel, verbosityLevels)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred defining which log level should be used between participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+	}
+
 	containerConfigSupplier := launcher.getContainerConfigSupplier(image, launcher.networkId, bootnodeContext, logLevel)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
