@@ -39,9 +39,6 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
             // - besu: hyperledger/besu:merge
             "elImage": "",
 
-            // Extra parameters that will get passed to the EL client
-            "elExtraParams": []
-
             // The type of CL client that should be started
             // Valid values are "nimbus", "lighthouse", "lodestar", "teku", and "prysm"
             "clType": "nimbus",
@@ -54,9 +51,6 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
             // - prysm: prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest",
             // - lodestar: chainsafe/lodestar:next",
             "clImage": ""
-
-            // Extra parameters that will get passed to the CL client
-            "clExtraParams": []
         }
     ],
 

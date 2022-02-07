@@ -1,11 +1,10 @@
 # TBD
 ### Features
 * Add extra debug logging to EL REST client, for debugging any issues
-* Added two new participant config properties, `elExtraParams` and `clExtraParams`, for adding extra parameters to the EL & CL clients respectively
 
 ### Changes
 * Set config values to `BELLATRIX_` rather than `MERGE_`
-* Set `ETH1_FOLLOW_DISTANCE` to 20
+* Set `ETH1_FOLLOW_DISTANCE` to 30
 
 ### Fixes
 * Use emptystring for Besu ENR, as there's no way to get it right now without the logs
