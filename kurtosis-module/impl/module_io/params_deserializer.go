@@ -57,6 +57,9 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 			//  use the idx
 			paramsObj.Participants[idx].ELClientImage = defaultElClientImage
 		}
+		if participant.ELExtraParams == nil {
+			paramsObj.Participants[idx].ELExtraParams = []string{}
+		}
 
 		clClientType := participant.CLClientType
 		if _, found := validParticipantCLClientTypes[clClientType]; !found {
@@ -79,6 +82,9 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 			// Go's "range" is by-value, so we need to actually by-reference modify the paramsObj we need to
 			//  use the idx
 			paramsObj.Participants[idx].CLClientImage = defaultClClientImage
+		}
+		if participant.CLExtraParams == nil {
+			paramsObj.Participants[idx].CLExtraParams = []string{}
 		}
 	}
 

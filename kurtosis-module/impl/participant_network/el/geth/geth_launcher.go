@@ -83,8 +83,15 @@ func (launcher *GethELClientLauncher) Launch(
 	image string,
 	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *el.ELClientContext,
+	extraParams []string,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(image, launcher.networkId, bootnodeContext, logLevel)
+	containerConfigSupplier := launcher.getContainerConfigSupplier(
+		image,
+		launcher.networkId,
+		bootnodeContext,
+		logLevel,
+		extraParams,
+	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
@@ -123,6 +130,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	networkId string,
 	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
 	logLevel module_io.ParticipantLogLevel,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		verbosityLevel, found := verbosityLevels[logLevel]
@@ -202,6 +210,9 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 				launchNodeCmdArgs,
 				"--bootnodes=" + bootnodeContext.GetEnode(),
 			)
+		}
+		if len(extraParams) > 0 {
+			launchNodeCmdArgs = append(launchNodeCmdArgs, extraParams...)
 		}
 		launchNodeCmdStr := strings.Join(launchNodeCmdArgs, " ")
 

@@ -277,6 +277,9 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 			"--beacon-nodes=" + beaconClientHttpUrl,
 			"--enable-doppelganger-protection=false",
 		}
+		if len(extraParams) > 0 {
+			launchNodeCmdArgs = append(launchNodeCmdArgs, extraParams...)
+		}
 
 		containerConfig := services.NewContainerConfigBuilder(
 			image,

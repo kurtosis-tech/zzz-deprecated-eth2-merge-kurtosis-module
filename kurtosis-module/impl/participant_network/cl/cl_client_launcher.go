@@ -19,6 +19,7 @@ type CLClientLauncher interface {
 		bootnodeContext *CLClientContext,
 		elClientContext *el.ELClientContext,
 		nodeKeystoreDirpaths *cl_validator_keystores.NodeTypeKeystoreDirpaths,
+		extraParams []string,
 	) (
 		resultClientCtx *CLClientContext,
 		resultErr error,

@@ -64,8 +64,9 @@ func (launcher *NethermindELClientLauncher) Launch(
 	image string,
 	logLevel module_io.ParticipantLogLevel,
 	bootnodeContext *el.ELClientContext,
+	extraParams []string,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
-	containerConfigSupplier := launcher.getContainerConfigSupplier(image, bootnodeContext, logLevel)
+	containerConfigSupplier := launcher.getContainerConfigSupplier(image, bootnodeContext, logLevel, extraParams)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
@@ -102,6 +103,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 	image string,
 	bootnodeCtx *el.ELClientContext,
 	logLevel module_io.ParticipantLogLevel,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		nethermindLogLevel, found := nethermindLogLevels[logLevel]
@@ -144,6 +146,9 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 				commandArgs,
 				"--Discovery.Bootnodes=" + bootnodeCtx.GetEnode(),
 			)
+		}
+		if len(extraParams) > 0 {
+			commandArgs = append(commandArgs, extraParams...)
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(

@@ -100,6 +100,9 @@ type ParticipantParams struct {
 	// The Docker image that should be used for the EL client; leave blank to use the default
 	ELClientImage string				 `json:"elImage"`
 
+	// Optional extra parameters that will be passed to the EL client
+	ELExtraParams []string				 `json:"elExtraParams"`
+
 	// The type of CL client that should be started
 	CLClientType ParticipantCLClientType `json:"clType"`
 
@@ -107,6 +110,9 @@ type ParticipantParams struct {
 	// NOTE: Prysm is different in that it requires two images - a Beacon and a validator
 	//  For Prysm and Prysm only, this field should contain a comma-separated string of "beacon_image,validator_image"
 	CLClientImage string				 `json:"clImage"`
+
+	// Optional extra parameters that will be passed to the CL client
+	CLExtraParams []string				 `json:"clExtraParams"`
 }
 
 // Parameters controlling particulars of the Eth1 & Eth2 networks
