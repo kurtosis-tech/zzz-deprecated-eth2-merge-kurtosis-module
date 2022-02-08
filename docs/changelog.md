@@ -1,4 +1,6 @@
 # TBD
+
+# 0.4.3
 ### Features
 * Add extra debug logging to EL REST client, for debugging any issues
 * Add new module's params `elLogLevel` and `clLogLevel` to configure a specific EL and CL client's log level
