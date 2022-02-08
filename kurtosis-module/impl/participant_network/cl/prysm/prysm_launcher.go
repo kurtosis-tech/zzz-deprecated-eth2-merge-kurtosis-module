@@ -119,9 +119,9 @@ func (launcher *PrysmCLClientLauncher) Launch(
 	beaconServiceId := serviceId + "-" + beaconSuffixServiceId
 	validatorServiceId := serviceId + "-" + validatorSuffixServiceId
 
-	logLevel, err := module_io.DefineAndReturnWhichLogLevelShouldBeUsed(participantLogLevel, globalLogLevel, prysmLogLevels)
+	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, prysmLogLevels)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred defining which log level should be used between participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
 	}
 
 	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(

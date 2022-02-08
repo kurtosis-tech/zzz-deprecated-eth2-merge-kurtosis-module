@@ -75,7 +75,10 @@ func GetDefaultExecuteParams() *ExecuteParams {
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 }
 
-func DefineAndReturnWhichLogLevelShouldBeUsed(participantLogLevel string, globalLogLevel GlobalClientLogLevel, clientLogLevels map[GlobalClientLogLevel]string) (string, error) {
+// Gets the string of the log level that the client should log at:
+//  - If the participant-specific log level string is present, use that
+//  - If the participant-specific log level string is empty, use the global default
+func GetClientLogLevelStrOrDefault(participantLogLevel string, globalLogLevel GlobalClientLogLevel, clientLogLevels map[GlobalClientLogLevel]string) (string, error) {
 
 	var (
 		logLevel = participantLogLevel

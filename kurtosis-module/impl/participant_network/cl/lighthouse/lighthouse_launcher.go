@@ -81,9 +81,9 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	beaconNodeServiceId := services.ServiceID(fmt.Sprintf("%v-beacon", serviceId))
 	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-validator", serviceId))
 
-	logLevel, err := module_io.DefineAndReturnWhichLogLevelShouldBeUsed(participantLogLevel, globalLogLevel, lighthouseLogLevels)
+	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, lighthouseLogLevels)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred defining which log level should be used between participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
 	}
 
 	// Launch Beacon node
