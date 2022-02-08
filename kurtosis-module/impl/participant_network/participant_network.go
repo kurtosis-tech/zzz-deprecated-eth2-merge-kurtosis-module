@@ -137,6 +137,7 @@ func LaunchParticipantNetwork(
 				participantSpec.ELClientLogLevel,
 				globalLogLevel,
 				elClientContextForBootElClients,
+				participantSpec.ELExtraParams,
 			)
 		} else {
 			bootElClientCtx := allElClientContexts[bootParticipantIndex]
@@ -147,6 +148,7 @@ func LaunchParticipantNetwork(
 				participantSpec.ELClientLogLevel,
 				globalLogLevel,
 				bootElClientCtx,
+				participantSpec.ELExtraParams,
 			)
 		}
 		if elClientLaunchErr != nil {
@@ -254,6 +256,8 @@ func LaunchParticipantNetwork(
 				clClientContextForBootClClients,
 				elClientCtx,
 				newClNodeValidatorKeystores,
+				participantSpec.BeaconExtraParams,
+				participantSpec.ValidatorExtraParams,
 			)
 		} else {
 			bootClClientCtx := allClClientContexts[bootParticipantIndex]
@@ -266,6 +270,8 @@ func LaunchParticipantNetwork(
 				bootClClientCtx,
 				elClientCtx,
 				newClNodeValidatorKeystores,
+				participantSpec.BeaconExtraParams,
+				participantSpec.ValidatorExtraParams,
 			)
 		}
 		if clClientLaunchErr != nil {

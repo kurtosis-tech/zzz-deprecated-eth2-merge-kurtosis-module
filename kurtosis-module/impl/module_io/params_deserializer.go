@@ -84,8 +84,11 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 			//  use the idx
 			paramsObj.Participants[idx].CLClientImage = defaultClClientImage
 		}
-		if participant.CLExtraParams == nil {
-			paramsObj.Participants[idx].CLExtraParams = []string{}
+		if participant.BeaconExtraParams == nil {
+			paramsObj.Participants[idx].BeaconExtraParams = []string{}
+		}
+		if participant.ValidatorExtraParams == nil {
+			paramsObj.Participants[idx].ValidatorExtraParams = []string{}
 		}
 	}
 
