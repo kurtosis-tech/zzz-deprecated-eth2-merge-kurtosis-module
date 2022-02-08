@@ -46,6 +46,9 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
             //  over a specific participant's logging
             "elLogLevel": "",
 
+            // A list of optional extra params that will be passed to the EL client container for modifying its behaviour
+            "elExtraParams": [],
+
             // The type of CL client that should be started
             // Valid values are "nimbus", "lighthouse", "lodestar", "teku", and "prysm"
             "clType": "nimbus",
@@ -66,6 +69,14 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
             // If this is not emptystring, then this value will override the global `logLevel` setting to allow for fine-grained control
             //  over a specific participant's logging
             "clLogLevel": ""
+
+            // A list of optional extra params that will be passed to the CL client Beacon container for modifying its behaviour
+            // If the client combines the Beacon & validator nodes (e.g. Teku, Nimbus), then this list will be passed to the combined Beacon-validator node
+            "beaconExtraParams": [],
+
+            // A list of optional extra params that will be passed to the CL client validator container for modifying its behaviour
+            // If the client combines the Beacon & validator nodes (e.g. Teku, Nimbus), then this list will also be passed to the combined Beacon-validator node
+            "validatorExtraParams": [],
         }
     ],
 
