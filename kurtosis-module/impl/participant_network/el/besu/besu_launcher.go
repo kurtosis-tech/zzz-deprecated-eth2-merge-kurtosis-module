@@ -1,5 +1,4 @@
 package besu
-
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
@@ -46,12 +45,12 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
 var entrypointArgs = []string{"sh", "-c"}
-var besuLogLevels = map[module_io.ParticipantLogLevel]string{
-	module_io.ParticipantLogLevel_Error: "ERROR",
-	module_io.ParticipantLogLevel_Warn:  "WARN",
-	module_io.ParticipantLogLevel_Info:  "INFO",
-	module_io.ParticipantLogLevel_Debug: "DEBUG",
-	module_io.ParticipantLogLevel_Trace: "TRACE",
+var besuLogLevels = map[module_io.GlobalClientLogLevel]string{
+	module_io.GlobalClientLogLevel_Error: "ERROR",
+	module_io.GlobalClientLogLevel_Warn:  "WARN",
+	module_io.GlobalClientLogLevel_Info:  "INFO",
+	module_io.GlobalClientLogLevel_Debug: "DEBUG",
+	module_io.GlobalClientLogLevel_Trace: "TRACE",
 }
 
 type BesuELClientLauncher struct {
@@ -67,10 +66,16 @@ func (launcher *BesuELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
-	logLevel module_io.ParticipantLogLevel,
+	participantLogLevel string,
+	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *el.ELClientContext,
 	extraParams []string,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
+	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, besuLogLevels)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+	}
+
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		image,
 		launcher.networkId,
@@ -78,6 +83,7 @@ func (launcher *BesuELClientLauncher) Launch(
 		logLevel,
 		extraParams,
 	)
+
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Besu EL client with service ID '%v'", serviceId)
@@ -115,14 +121,10 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 	image string,
 	networkId string,
 	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		besuLogLevel, found := besuLogLevels[logLevel]
-		if !found {
-			return nil, stacktrace.NewError("No Besu log level was defined for client log level '%v'; this is a bug in this module itself", logLevel)
-		}
 
 		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModuleContainer, genesisJsonSharedPath); err != nil {
@@ -131,7 +133,7 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 
 		launchNodeCmdArgs := []string{
 			"besu",
-			"--logging=" + besuLogLevel,
+			"--logging=" + logLevel,
 			"--data-path=" + executionDataDirpathOnClientContainer,
 			"--genesis-file=" + genesisJsonSharedPath.GetAbsPathOnServiceContainer(),
 			"--network-id=" + networkId,

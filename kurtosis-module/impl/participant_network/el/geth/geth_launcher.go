@@ -59,12 +59,12 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 }
 var entrypointArgs = []string{"sh", "-c"}
-var verbosityLevels = map[module_io.ParticipantLogLevel]string{
-	module_io.ParticipantLogLevel_Error: "1",
-	module_io.ParticipantLogLevel_Warn:  "2",
-	module_io.ParticipantLogLevel_Info:  "3",
-	module_io.ParticipantLogLevel_Debug: "4",
-	module_io.ParticipantLogLevel_Trace: "5",
+var verbosityLevels = map[module_io.GlobalClientLogLevel]string{
+	module_io.GlobalClientLogLevel_Error: "1",
+	module_io.GlobalClientLogLevel_Warn:  "2",
+	module_io.GlobalClientLogLevel_Info:  "3",
+	module_io.GlobalClientLogLevel_Debug: "4",
+	module_io.GlobalClientLogLevel_Trace: "5",
 }
 
 type GethELClientLauncher struct {
@@ -81,10 +81,16 @@ func (launcher *GethELClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
-	logLevel module_io.ParticipantLogLevel,
+	participantLogLevel string,
+	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *el.ELClientContext,
 	extraParams []string,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
+	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, verbosityLevels)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+	}
+
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		image,
 		launcher.networkId,
@@ -92,6 +98,7 @@ func (launcher *GethELClientLauncher) Launch(
 		logLevel,
 		extraParams,
 	)
+
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
@@ -129,14 +136,10 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	image string,
 	networkId string,
 	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
-	logLevel module_io.ParticipantLogLevel,
+	verbosityLevel string,
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		verbosityLevel, found := verbosityLevels[logLevel]
-		if !found {
-			return nil, stacktrace.NewError("No Geth verbosity level was defined for client log level '%v'; this is a bug in this module itself", logLevel)
-		}
 
 		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModuleContainer, genesisJsonSharedPath); err != nil {

@@ -39,8 +39,12 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
             // - besu: hyperledger/besu:merge
             "elImage": "",
 
-            // Extra parameters that will get passed to the EL client
-            "elExtraParams": []
+            // The log level string that this participant's EL client should log at
+            // If this is emptystring then the global `logLevel` parameter's value will be translated into a string appropriate for the client (e.g. if
+            //  global `logLevel` = `info` then Geth would receive `3`, Besu would receive `INFO`, etc.)
+            // If this is not emptystring, then this value will override the global `logLevel` setting to allow for fine-grained control
+            //  over a specific participant's logging
+            "elLogLevel": "",
 
             // The type of CL client that should be started
             // Valid values are "nimbus", "lighthouse", "lodestar", "teku", and "prysm"
@@ -53,10 +57,15 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
             // - nimbus: statusim/nimbus-eth2:amd64-latest",
             // - prysm: prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest",
             // - lodestar: chainsafe/lodestar:next",
-            "clImage": ""
+            "clImage": "",
 
-            // Extra parameters that will get passed to the CL client
-            "clExtraParams": []
+
+            // The log level string that this participant's EL client should log at
+            // If this is emptystring then the global `logLevel` parameter's value will be translated into a string appropriate for the client (e.g. if
+            //  global `logLevel` = `info` then Teku would receive `INFO`, Prysm would receive `info`, etc.)
+            // If this is not emptystring, then this value will override the global `logLevel` setting to allow for fine-grained control
+            //  over a specific participant's logging
+            "clLogLevel": ""
         }
     ],
 

@@ -1,26 +1,26 @@
 package module_io
 
-// Participant log level "enum"
-type ParticipantLogLevel string
+// GlobalClient log level "enum"
+type GlobalClientLogLevel string
 const (
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	ParticipantLogLevel_Error ParticipantLogLevel = "error"
-	ParticipantLogLevel_Warn ParticipantLogLevel = "warn"
-	ParticipantLogLevel_Info  ParticipantLogLevel = "info"
-	ParticipantLogLevel_Debug ParticipantLogLevel = "debug"
-	ParticipantLogLevel_Trace ParticipantLogLevel = "trace"
+	GlobalClientLogLevel_Error GlobalClientLogLevel = "error"
+	GlobalClientLogLevel_Warn  GlobalClientLogLevel = "warn"
+	GlobalClientLogLevel_Info  GlobalClientLogLevel = "info"
+	GlobalClientLogLevel_Debug GlobalClientLogLevel = "debug"
+	GlobalClientLogLevel_Trace GlobalClientLogLevel = "trace"
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 )
-var validParticipantLogLevels = map[ParticipantLogLevel]bool{
-	ParticipantLogLevel_Error: true,
-	ParticipantLogLevel_Warn:  true,
-	ParticipantLogLevel_Info:  true,
-	ParticipantLogLevel_Debug: true,
-	ParticipantLogLevel_Trace: true,
+var validGlobalClientLogLevels = map[GlobalClientLogLevel]bool{
+	GlobalClientLogLevel_Error: true,
+	GlobalClientLogLevel_Warn:  true,
+	GlobalClientLogLevel_Info:  true,
+	GlobalClientLogLevel_Debug: true,
+	GlobalClientLogLevel_Trace: true,
 }
 
 // Participant EL client type "enum"
@@ -90,7 +90,7 @@ type ExecuteParams struct {
 	WaitForFinalization bool	`json:"waitForFinalization"`
 
 	// The log level that the started clients should log at
-	ClientLogLevel ParticipantLogLevel `json:"logLevel"`
+	ClientLogLevel GlobalClientLogLevel `json:"logLevel"`
 }
 
 type ParticipantParams struct {
@@ -98,7 +98,14 @@ type ParticipantParams struct {
 	ELClientType ParticipantELClientType `json:"elType"`
 
 	// The Docker image that should be used for the EL client; leave blank to use the default
-	ELClientImage string				 `json:"elImage"`
+	ELClientImage string `json:"elImage"`
+
+	// The log level string that this participant's EL client should log at
+	// If this is emptystring then the global `logLevel` parameter's value will be translated into a string appropriate for the client (e.g. if
+	//  global `logLevel` = `info` then Geth would receive `3`, Besu would receive `INFO`, etc.)
+	// If this is not emptystring, then this value will override the global `logLevel` setting to allow for fine-grained control
+	//  over a specific participant's logging
+	ELClientLogLevel string `json:"elLogLevel"`
 
 	// Optional extra parameters that will be passed to the EL client
 	ELExtraParams []string				 `json:"elExtraParams"`
@@ -109,10 +116,22 @@ type ParticipantParams struct {
 	// The Docker image that should be used for the EL client; leave blank to use the default
 	// NOTE: Prysm is different in that it requires two images - a Beacon and a validator
 	//  For Prysm and Prysm only, this field should contain a comma-separated string of "beacon_image,validator_image"
-	CLClientImage string				 `json:"clImage"`
+	CLClientImage string `json:"clImage"`
 
-	// Optional extra parameters that will be passed to the CL client
-	CLExtraParams []string				 `json:"clExtraParams"`
+	// The log level string that this participant's CL client should log at
+	// If this is emptystring then the global `logLevel` parameter's value will be translated into a string appropriate for the client (e.g. if
+	//  global `logLevel` = `info` then Nimbus would receive `INFO`, Prysm would receive `info`, etc.)
+	// If this is not emptystring, then this value will override the global `logLevel` setting to allow for fine-grained control
+	//  over a specific participant's logging
+	CLClientLogLevel string `json:"clLogLevel"`
+
+	// Extra parameters that will be passed to the Beacon container (if a separate one exists), or to the combined node if
+	// the Beacon and validator are combined
+	BeaconExtraParams []string `json:"beaconExtraParams"`
+
+	// Extra parameters that will be passed to the validator container (if a separate one exists), or to the combined node if
+	// the Beacon and validator are combined
+	ValidatorExtraParams []string `json:"validatorExtraParams"`
 }
 
 // Parameters controlling particulars of the Eth1 & Eth2 networks

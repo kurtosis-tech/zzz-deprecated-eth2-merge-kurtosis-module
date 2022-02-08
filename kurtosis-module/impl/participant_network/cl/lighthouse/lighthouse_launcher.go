@@ -51,12 +51,12 @@ var beaconUsedPorts = map[string]*services.PortSpec{
 var validatorUsedPorts = map[string]*services.PortSpec{
 	validatorHttpPortID: services.NewPortSpec(validatorHttpPortNum, services.PortProtocol_TCP),
 }
-var lighthouseLogLevels = map[module_io.ParticipantLogLevel]string{
-	module_io.ParticipantLogLevel_Error: "error",
-	module_io.ParticipantLogLevel_Warn:  "warn",
-	module_io.ParticipantLogLevel_Info:  "info",
-	module_io.ParticipantLogLevel_Debug: "debug",
-	module_io.ParticipantLogLevel_Trace: "trace",
+var lighthouseLogLevels = map[module_io.GlobalClientLogLevel]string{
+	module_io.GlobalClientLogLevel_Error: "error",
+	module_io.GlobalClientLogLevel_Warn:  "warn",
+	module_io.GlobalClientLogLevel_Info:  "info",
+	module_io.GlobalClientLogLevel_Debug: "debug",
+	module_io.GlobalClientLogLevel_Trace: "trace",
 }
 
 type LighthouseCLClientLauncher struct {
@@ -72,13 +72,19 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
-	logLevel module_io.ParticipantLogLevel,
+	participantLogLevel string,
+	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	beaconNodeServiceId := services.ServiceID(fmt.Sprintf("%v-beacon", serviceId))
 	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-validator", serviceId))
+
+	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, lighthouseLogLevels)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+	}
 
 	// Launch Beacon node
 	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(image, bootnodeContext, elClientContext, logLevel)
@@ -135,13 +141,9 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 	image string,
 	bootClClientCtx *cl.CLClientContext,
 	elClientCtx *el.ELClientContext,
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		lighthouseLogLevel, found := lighthouseLogLevels[logLevel]
-		if !found {
-			return nil, stacktrace.NewError("No Lighthouse log level defined for client log level '%v'; this is a bug in the module", logLevel)
-		}
 
 		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(beaconConfigDataDirpathRelToSharedDirRoot)
 
@@ -173,7 +175,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 		cmdArgs := []string{
 			lighthouseBinaryCommand,
 			"beacon_node",
-			"--debug-level=" + lighthouseLogLevel,
+			"--debug-level=" + logLevel,
 			"--datadir=" + consensusDataDirpathOnBeaconServiceContainer,
 			"--testnet-dir=" + configDataDirpathOnService,
 			"--eth1",
@@ -216,16 +218,12 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 
 func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 	image string,
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 	beaconClientHttpUrl string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		lighthouseLogLevel, found := lighthouseLogLevels[logLevel]
-		if !found {
-			return nil, stacktrace.NewError("No Lighthouse log level defined for client log level '%v'; this is a bug in the module", logLevel)
-		}
 
 		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(validatorConfigDataDirpathRelToSharedDirRoot)
 
@@ -263,7 +261,7 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 		cmdArgs := []string{
 			"lighthouse",
 			"validator_client",
-			"--debug-level=" + lighthouseLogLevel,
+			"--debug-level=" + logLevel,
 			"--testnet-dir=" + configDataDirpathOnService,
 			"--validators-dir=" + validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
 			// NOTE: When secrets-dir is specified, we can't add the --data-dir flag

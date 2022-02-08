@@ -22,7 +22,7 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 		return nil, stacktrace.Propagate(err, "An error occurred deserializing the serialized params")
 	}
 
-	if _, found := validParticipantLogLevels[paramsObj.ClientLogLevel]; !found {
+	if _, found := validGlobalClientLogLevels[paramsObj.ClientLogLevel]; !found {
 		return nil, stacktrace.NewError("Unrecognized client log level '%v'", paramsObj.ClientLogLevel)
 	}
 
@@ -60,6 +60,7 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 		if participant.ELExtraParams == nil {
 			paramsObj.Participants[idx].ELExtraParams = []string{}
 		}
+
 
 		clClientType := participant.CLClientType
 		if _, found := validParticipantCLClientTypes[clClientType]; !found {
