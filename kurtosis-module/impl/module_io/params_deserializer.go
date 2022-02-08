@@ -22,7 +22,7 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 		return nil, stacktrace.Propagate(err, "An error occurred deserializing the serialized params")
 	}
 
-	if _, found := validParticipantLogLevels[paramsObj.ClientLogLevel]; !found {
+	if _, found := validGlobalClientLogLevels[paramsObj.ClientLogLevel]; !found {
 		return nil, stacktrace.NewError("Unrecognized client log level '%v'", paramsObj.ClientLogLevel)
 	}
 
@@ -57,6 +57,10 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 			//  use the idx
 			paramsObj.Participants[idx].ELClientImage = defaultElClientImage
 		}
+		if participant.ELExtraParams == nil {
+			paramsObj.Participants[idx].ELExtraParams = []string{}
+		}
+
 
 		clClientType := participant.CLClientType
 		if _, found := validParticipantCLClientTypes[clClientType]; !found {
@@ -79,6 +83,12 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 			// Go's "range" is by-value, so we need to actually by-reference modify the paramsObj we need to
 			//  use the idx
 			paramsObj.Participants[idx].CLClientImage = defaultClClientImage
+		}
+		if participant.BeaconExtraParams == nil {
+			paramsObj.Participants[idx].BeaconExtraParams = []string{}
+		}
+		if participant.ValidatorExtraParams == nil {
+			paramsObj.Participants[idx].ValidatorExtraParams = []string{}
 		}
 	}
 

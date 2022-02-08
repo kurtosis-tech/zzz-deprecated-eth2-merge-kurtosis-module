@@ -14,11 +14,14 @@ type CLClientLauncher interface {
 		enclaveCtx *enclaves.EnclaveContext,
 		serviceId services.ServiceID,
 		image string,
-		logLevel module_io.ParticipantLogLevel,
+		participantLogLevel string,
+		globalLogLevel module_io.GlobalClientLogLevel,
 		// If nil, the node will be launched as a bootnode
 		bootnodeContext *CLClientContext,
 		elClientContext *el.ELClientContext,
 		nodeKeystoreDirpaths *cl_validator_keystores.NodeTypeKeystoreDirpaths,
+		extraBeaconParams []string,
+		extraValidatorParams []string,
 	) (
 		resultClientCtx *CLClientContext,
 		resultErr error,

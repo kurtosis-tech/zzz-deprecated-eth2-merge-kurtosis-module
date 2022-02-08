@@ -68,12 +68,12 @@ var beaconNodeUsedPorts = map[string]*services.PortSpec{
 var validatorNodeUsedPorts = map[string]*services.PortSpec{
 	validatorMonitoringPortID: services.NewPortSpec(validatorMonitoringPortNum, services.PortProtocol_TCP),
 }
-var prysmLogLevels = map[module_io.ParticipantLogLevel]string{
-	module_io.ParticipantLogLevel_Error: "error",
-	module_io.ParticipantLogLevel_Warn:  "warn",
-	module_io.ParticipantLogLevel_Info:  "info",
-	module_io.ParticipantLogLevel_Debug: "debug",
-	module_io.ParticipantLogLevel_Trace: "trace",
+var prysmLogLevels = map[module_io.GlobalClientLogLevel]string{
+	module_io.GlobalClientLogLevel_Error: "error",
+	module_io.GlobalClientLogLevel_Warn:  "warn",
+	module_io.GlobalClientLogLevel_Info:  "info",
+	module_io.GlobalClientLogLevel_Debug: "debug",
+	module_io.GlobalClientLogLevel_Trace: "trace",
 }
 
 type PrysmCLClientLauncher struct {
@@ -92,10 +92,13 @@ func (launcher *PrysmCLClientLauncher) Launch(
 	// NOTE: Because Prysm has separate images for Beacon and validator, this string will actually be a delimited
 	//  combination of both Beacon & validator images
 	delimitedImagesStr string,
-	logLevel module_io.ParticipantLogLevel,
+	participantLogLevel string,
+	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	extraBeaconParams []string,
+	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	imageStrs := strings.Split(delimitedImagesStr, imageSeparatorDelimiter)
 	if len(imageStrs) != expectedNumImages {
@@ -118,6 +121,11 @@ func (launcher *PrysmCLClientLauncher) Launch(
 	beaconServiceId := serviceId + "-" + beaconSuffixServiceId
 	validatorServiceId := serviceId + "-" + validatorSuffixServiceId
 
+	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, prysmLogLevels)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+	}
+
 	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(
 		beaconImage,
 		bootnodeContext,
@@ -125,6 +133,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		logLevel,
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		launcher.genesisSszFilepathOnModuleContainer,
+		extraBeaconParams,
 	)
 	beaconServiceCtx, err := enclaveCtx.AddService(beaconServiceId, beaconContainerConfigSupplier)
 	if err != nil {
@@ -156,6 +165,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		beaconHTTPEndpoint,
 		nodeKeystoreDirpaths.RawKeysDirpath,
 		nodeKeystoreDirpaths.PrysmDirpath,
+		extraValidatorParams,
 	)
 	_, err = enclaveCtx.AddService(validatorServiceId, validatorContainerConfigSupplier)
 	if err != nil {
@@ -180,15 +190,12 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 	beaconImage string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 	genesisConfigYmlFilepathOnModuleContainer string,
 	genesisSszFilepathOnModuleContainer string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		prysmLogLevel, found := prysmLogLevels[logLevel]
-		if !found {
-			return nil, stacktrace.NewError("No Prysm log level defined for client log level '%v'; this is a bug in the module", logLevel)
-		}
 
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
 		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
@@ -233,12 +240,15 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			fmt.Sprintf("--min-sync-peers=%v", minPeers),
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", beaconMonitoringPortNum),
-			"--verbosity=" + prysmLogLevel,
+			"--verbosity=" + logLevel,
 			// Set per Pari's recommendation to reduce noise
 			"--subscribe-all-subnets=true",
 		}
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--bootstrap-node=" + bootnodeContext.GetENR())
+		}
+		if len(extraParams) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
@@ -257,17 +267,14 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 	validatorImage string,
 	serviceId services.ServiceID,
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 	beaconRPCEndpoint string,
 	beaconHTTPEndpoint string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		prysmLogLevel, found := prysmLogLevels[logLevel]
-		if !found {
-			return nil, stacktrace.NewError("No Prysm log level defined for client log level '%v'; this is a bug in the module", logLevel)
-		}
 
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
@@ -313,7 +320,10 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			"--datadir=" + rootDirpath,
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
-			"--verbosity=" + prysmLogLevel,
+			"--verbosity=" + logLevel,
+		}
+		if len(extraParams) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(

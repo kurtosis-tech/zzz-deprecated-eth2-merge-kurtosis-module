@@ -62,12 +62,12 @@ var usedPorts = map[string]*services.PortSpec{
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 }
-var tekuLogLevels = map[module_io.ParticipantLogLevel]string{
-	module_io.ParticipantLogLevel_Error: "ERROR",
-	module_io.ParticipantLogLevel_Warn:  "WARN",
-	module_io.ParticipantLogLevel_Info:  "INFO",
-	module_io.ParticipantLogLevel_Debug: "DEBUG",
-	module_io.ParticipantLogLevel_Trace: "TRACE",
+var tekuLogLevels = map[module_io.GlobalClientLogLevel]string{
+	module_io.GlobalClientLogLevel_Error: "ERROR",
+	module_io.GlobalClientLogLevel_Warn:  "WARN",
+	module_io.GlobalClientLogLevel_Info:  "INFO",
+	module_io.GlobalClientLogLevel_Debug: "DEBUG",
+	module_io.GlobalClientLogLevel_Trace: "TRACE",
 }
 
 type TekuCLClientLauncher struct {
@@ -85,11 +85,21 @@ func (launcher *TekuCLClientLauncher) Launch(
 	serviceId services.ServiceID,
 	image string,
 	// TODO move to launcher param
-	logLevel module_io.ParticipantLogLevel,
+	participantLogLevel string,
+	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	extraBeaconParams []string,
+	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
+
+	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, tekuLogLevels)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+	}
+
+	extraParams := append(extraBeaconParams, extraValidatorParams...)
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		image,
 		bootnodeContext,
@@ -97,6 +107,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 		logLevel,
 		nodeKeystoreDirpaths.TekuKeysDirpath,
 		nodeKeystoreDirpaths.TekuSecretsDirpath,
+		extraParams,
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
@@ -138,15 +149,12 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 	image string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		tekuLogLevel, found := tekuLogLevels[logLevel]
-		if !found {
-			return nil, stacktrace.NewError("No Teku log level defined for client log level '%v'; this is a bug in this module", logLevel)
-		}
 
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
@@ -201,7 +209,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			destValidatorSecretsDirpathInServiceContainer,
 			"&&",
 			tekuBinaryFilepathInImage,
-			"--logging=" + tekuLogLevel,
+			"--logging=" + logLevel,
 			"--log-destination=CONSOLE",
 			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--initial-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
@@ -225,10 +233,13 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 				destValidatorKeysDirpathInServiceContainer,
 				destValidatorSecretsDirpathInServiceContainer,
 			),
-			"--Xvalidators-suggested-fee-recipient-address=" + validatingRewardsAccount,
+			"--Xvalidators-proposer-default-fee-recipient=" + validatingRewardsAccount,
 		}
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes=" + bootnodeContext.GetENR())
+		}
+		if len(extraParams) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
 		}
 		cmdStr := strings.Join(cmdArgs, " ")
 

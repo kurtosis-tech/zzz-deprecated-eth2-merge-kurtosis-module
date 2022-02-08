@@ -39,6 +39,16 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
             // - besu: hyperledger/besu:merge
             "elImage": "",
 
+            // The log level string that this participant's EL client should log at
+            // If this is emptystring then the global `logLevel` parameter's value will be translated into a string appropriate for the client (e.g. if
+            //  global `logLevel` = `info` then Geth would receive `3`, Besu would receive `INFO`, etc.)
+            // If this is not emptystring, then this value will override the global `logLevel` setting to allow for fine-grained control
+            //  over a specific participant's logging
+            "elLogLevel": "",
+
+            // A list of optional extra params that will be passed to the EL client container for modifying its behaviour
+            "elExtraParams": [],
+
             // The type of CL client that should be started
             // Valid values are "nimbus", "lighthouse", "lodestar", "teku", and "prysm"
             "clType": "nimbus",
@@ -50,7 +60,23 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
             // - nimbus: statusim/nimbus-eth2:amd64-latest",
             // - prysm: prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest",
             // - lodestar: chainsafe/lodestar:next",
-            "clImage": ""
+            "clImage": "",
+
+
+            // The log level string that this participant's EL client should log at
+            // If this is emptystring then the global `logLevel` parameter's value will be translated into a string appropriate for the client (e.g. if
+            //  global `logLevel` = `info` then Teku would receive `INFO`, Prysm would receive `info`, etc.)
+            // If this is not emptystring, then this value will override the global `logLevel` setting to allow for fine-grained control
+            //  over a specific participant's logging
+            "clLogLevel": ""
+
+            // A list of optional extra params that will be passed to the CL client Beacon container for modifying its behaviour
+            // If the client combines the Beacon & validator nodes (e.g. Teku, Nimbus), then this list will be passed to the combined Beacon-validator node
+            "beaconExtraParams": [],
+
+            // A list of optional extra params that will be passed to the CL client validator container for modifying its behaviour
+            // If the client combines the Beacon & validator nodes (e.g. Teku, Nimbus), then this list will also be passed to the combined Beacon-validator node
+            "validatorExtraParams": [],
         }
     ],
 
@@ -104,10 +130,6 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
     "logLevel": "info"
 }
 ```
-
-
-
-defined in Go [here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/develop/kurtosis-module/impl/module_io/params.go#L46) (look for the `json:"XXXXXX"` tags of the object to determine the JSON field names), and the default values that will be used if you omit any fields are defined [here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/develop/kurtosis-module/impl/module_io/default_params.go#L4).
 
 ### Management
 Kurtosis will create a new enclave to house the services of the Ethereum network. [This page][using-the-cli] contains documentation for managing the created enclave & viewing detailed information about it.
