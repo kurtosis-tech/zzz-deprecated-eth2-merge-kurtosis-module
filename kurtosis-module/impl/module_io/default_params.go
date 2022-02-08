@@ -1,18 +1,22 @@
 package module_io
 
+import "github.com/kurtosis-tech/stacktrace"
+
 const (
 	// If these values are provided for the EL/CL images, then the client type-specific default image will be used
 	useDefaultElImageKeyword = ""
 	useDefaultClImageKeyword = ""
+
+	unspecifiedLogLevel                 = ""
 )
 
 var defaultElImages = map[ParticipantELClientType]string{
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	ParticipantELClientType_Geth: "parithoshj/geth:merge-f72c361", // From around 2022-01-18
+	ParticipantELClientType_Geth:       "parithoshj/geth:merge-f72c361", // From around 2022-01-18
 	ParticipantELClientType_Nethermind: "nethermindeth/nethermind:kintsugi_0.5",
-	ParticipantELClientType_Besu: "hyperledger/besu:merge",
+	ParticipantELClientType_Besu:       "hyperledger/besu:merge",
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -27,8 +31,8 @@ var defaultClImages = map[ParticipantCLClientType]string{
 	ParticipantCLClientType_Nimbus:     "statusim/nimbus-eth2:amd64-latest",
 	// NOTE: Prysm actually has two images - a Beacon and a validator - so we pass in a comma-separated
 	//  "beacon_image,validator_image" string
-	ParticipantCLClientType_Prysm:      "prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest",
-	ParticipantCLClientType_Lodestar:   "chainsafe/lodestar:next",
+	ParticipantCLClientType_Prysm:    "prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest",
+	ParticipantCLClientType_Lodestar: "chainsafe/lodestar:next",
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -43,10 +47,12 @@ func GetDefaultExecuteParams() *ExecuteParams {
 	return &ExecuteParams{
 		Participants: []*ParticipantParams{
 			{
-				ELClientType:  ParticipantELClientType_Geth,
-				ELClientImage: useDefaultElImageKeyword,
-				CLClientType:  ParticipantCLClientType_Nimbus,
-				CLClientImage: useDefaultClImageKeyword,
+				ELClientType:     ParticipantELClientType_Geth,
+				ELClientImage:    useDefaultElImageKeyword,
+				ELClientLogLevel: unspecifiedLogLevel,
+				CLClientType:     ParticipantCLClientType_Nimbus,
+				CLClientImage:    useDefaultClImageKeyword,
+				CLClientLogLevel: unspecifiedLogLevel,
 			},
 		},
 		Network: &NetworkParams{
@@ -62,9 +68,29 @@ func GetDefaultExecuteParams() *ExecuteParams {
 		},
 		WaitForMining:       true,
 		WaitForFinalization: false,
-		ClientLogLevel:      ParticipantLogLevel_Info,
+		ClientLogLevel:      GlobalClientLogLevel_Info,
 	}
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+}
+
+// Gets the string of the log level that the client should log at:
+//  - If the participant-specific log level string is present, use that
+//  - If the participant-specific log level string is empty, use the global default
+func GetClientLogLevelStrOrDefault(participantLogLevel string, globalLogLevel GlobalClientLogLevel, clientLogLevels map[GlobalClientLogLevel]string) (string, error) {
+
+	var (
+		logLevel = participantLogLevel
+		found bool
+	)
+
+	if logLevel == unspecifiedLogLevel {
+		logLevel, found = clientLogLevels[globalLogLevel]
+		if !found {
+			return "", stacktrace.NewError("No participant log level defined for global client log level '%v'; this is a bug in the module", globalLogLevel)
+		}
+	}
+
+	return logLevel, nil
 }
