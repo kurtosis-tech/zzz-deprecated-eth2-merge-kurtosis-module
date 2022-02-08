@@ -1,6 +1,7 @@
 # TBD
 ### Features
 * Add extra debug logging to EL REST client, for debugging any issues
+* Add new module's params `elLogLevel` and `clLogLevel` to configure a specific EL and CL client's log level
 
 ### Fixes
 * Use emptystring for Besu ENR, as there's no way to get it right now without the logs

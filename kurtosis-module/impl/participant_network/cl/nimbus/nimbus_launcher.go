@@ -58,12 +58,12 @@ var usedPorts = map[string]*services.PortSpec{
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 	metricsPortID:         services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
 }
-var nimbusLogLevels = map[module_io.ParticipantLogLevel]string{
-	module_io.ParticipantLogLevel_Error: "ERROR",
-	module_io.ParticipantLogLevel_Warn:  "WARN",
-	module_io.ParticipantLogLevel_Info:  "INFO",
-	module_io.ParticipantLogLevel_Debug: "DEBUG",
-	module_io.ParticipantLogLevel_Trace: "TRACE",
+var nimbusLogLevels = map[module_io.GlobalClientLogLevel]string{
+	module_io.GlobalClientLogLevel_Error: "ERROR",
+	module_io.GlobalClientLogLevel_Warn:  "WARN",
+	module_io.GlobalClientLogLevel_Info:  "INFO",
+	module_io.GlobalClientLogLevel_Debug: "DEBUG",
+	module_io.GlobalClientLogLevel_Trace: "TRACE",
 }
 
 type NimbusLauncher struct {
@@ -82,11 +82,18 @@ func (launcher NimbusLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
-	logLevel module_io.ParticipantLogLevel,
+	participantLogLevel string,
+	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
+
+	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, nimbusLogLevels)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+	}
+
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		image,
 		bootnodeContext,
@@ -135,15 +142,11 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 	image string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
-	logLevel module_io.ParticipantLogLevel,
+	logLevel string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		nimbusLogLevel, found := nimbusLogLevels[logLevel]
-		if !found {
-			return nil, stacktrace.NewError("No Nimbus log level defined for client log level '%v'; this is a bug in the module", logLevel)
-		}
 
 		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(configDataDirpathRelToSharedDirRoot)
 
@@ -206,7 +209,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"&&",
 			defaultImageEntrypoint,
 			"--non-interactive=true",
-			"--log-level=" + nimbusLogLevel,
+			"--log-level=" + logLevel,
 			"--network=" + configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer(),
 			"--data-dir=" + consensusDataDirpathInServiceContainer,
 			"--web3-url=" + elClientWsUrlStr,

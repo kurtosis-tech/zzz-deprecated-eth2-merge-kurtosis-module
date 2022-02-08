@@ -38,9 +38,15 @@ jobs:
       #  2) Pass in the RUN_KURTOSIS_TEST=true environment variable here, which would additionally run the Go tests that rely on Kurtosis here (though it would take more time)
       - run: bash ./scripts/build.sh
 
+      #Run config init to avoid metrics consent prompt when execute engine start command,
+      #We do not send metrics from CI to not dirty the metrics data
+      - run: kurtosis config init dont-send-metrics
+
       - run: |
           source scripts/_constants.env
           docker_image_tag="$(bash ./scripts/get-docker-image-tag.sh)"
+
+
           kurtosis module exec "${IMAGE_ORG_AND_REPO}:${docker_image_tag}" --load-params '{"logLevel":"debug"}'
 
   push_artifacts:
