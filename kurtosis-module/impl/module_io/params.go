@@ -107,12 +107,15 @@ type ParticipantParams struct {
 	//  over a specific participant's logging
 	ELClientLogLevel string `json:"elLogLevel"`
 
+	// Optional extra parameters that will be passed to the EL client
+	ELExtraParams []string				 `json:"elExtraParams"`
+
 	// The type of CL client that should be started
 	CLClientType ParticipantCLClientType `json:"clType"`
 
 	// The Docker image that should be used for the EL client; leave blank to use the default
 	// NOTE: Prysm is different in that it requires two images - a Beacon and a validator
-	// For Prysm and Prysm only, this field should contain a comma-separated string of "beacon_image,validator_image"
+	//  For Prysm and Prysm only, this field should contain a comma-separated string of "beacon_image,validator_image"
 	CLClientImage string `json:"clImage"`
 
 	// The log level string that this participant's CL client should log at
@@ -121,6 +124,14 @@ type ParticipantParams struct {
 	// If this is not emptystring, then this value will override the global `logLevel` setting to allow for fine-grained control
 	//  over a specific participant's logging
 	CLClientLogLevel string `json:"clLogLevel"`
+
+	// Extra parameters that will be passed to the Beacon container (if a separate one exists), or to the combined node if
+	// the Beacon and validator are combined
+	BeaconExtraParams []string `json:"beaconExtraParams"`
+
+	// Extra parameters that will be passed to the validator container (if a separate one exists), or to the combined node if
+	// the Beacon and validator are combined
+	ValidatorExtraParams []string `json:"validatorExtraParams"`
 }
 
 // Parameters controlling particulars of the Eth1 & Eth2 networks

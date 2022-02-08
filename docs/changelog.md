@@ -2,6 +2,7 @@
 ### Features
 * Add extra debug logging to EL REST client, for debugging any issues
 * Add new module's params `elLogLevel` and `clLogLevel` to configure a specific EL and CL client's log level
+* Added the `elExtraParams`, `beaconExtraParams`, and `validatorExtraParams` properties to a participant to allow for overriding participant commands
 
 ### Changes
 * Set config values to `BELLATRIX_` rather than `MERGE_`

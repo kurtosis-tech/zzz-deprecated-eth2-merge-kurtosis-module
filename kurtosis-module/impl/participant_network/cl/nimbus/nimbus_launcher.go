@@ -87,6 +87,8 @@ func (launcher NimbusLauncher) Launch(
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	extraBeaconParams []string,
+	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 
 	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, nimbusLogLevels)
@@ -94,6 +96,7 @@ func (launcher NimbusLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
 	}
 
+	extraParams := append(extraBeaconParams, extraValidatorParams...)
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		image,
 		bootnodeContext,
@@ -101,6 +104,7 @@ func (launcher NimbusLauncher) Launch(
 		logLevel,
 		nodeKeystoreDirpaths.NimbusKeysDirpath,
 		nodeKeystoreDirpaths.RawSecretsDirpath,
+		extraParams,
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
@@ -145,6 +149,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 	logLevel string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
@@ -236,6 +241,9 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			cmdArgs = append(cmdArgs, "--subscribe-all-subnets")
 		} else {
 			cmdArgs = append(cmdArgs, "--bootstrap-node=" + bootnodeContext.GetENR())
+		}
+		if len(extraParams) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
 		}
 		cmdStr := strings.Join(cmdArgs, " ")
 

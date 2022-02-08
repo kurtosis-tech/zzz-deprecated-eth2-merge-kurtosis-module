@@ -73,6 +73,8 @@ func (launcher *LodestarClientLauncher) Launch(
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	extraBeaconParams []string,
+	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	beaconServiceId := serviceId + "-" + beaconSuffixServiceId
 	validatorServiceId := serviceId + "-" + validatorSuffixServiceId
@@ -87,6 +89,7 @@ func (launcher *LodestarClientLauncher) Launch(
 		bootnodeContext,
 		elClientContext,
 		logLevel,
+		extraBeaconParams,
 	)
 	beaconServiceCtx, err := enclaveCtx.AddService(beaconServiceId, beaconContainerConfigSupplier)
 	if err != nil {
@@ -117,6 +120,7 @@ func (launcher *LodestarClientLauncher) Launch(
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		nodeKeystoreDirpaths.RawKeysDirpath,
 		nodeKeystoreDirpaths.LodestarSecretsDirpath,
+		extraValidatorParams,
 	)
 	_, err = enclaveCtx.AddService(validatorServiceId, validatorContainerConfigSupplier)
 	if err != nil {
@@ -141,6 +145,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
@@ -197,6 +202,9 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--network.discv5.bootEnrs=" + bootnodeContext.GetENR())
 		}
+		if len(extraParams) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
+		}
 
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
@@ -218,6 +226,7 @@ func getValidatorContainerConfigSupplier(
 	genesisConfigYmlFilepathOnModuleContainer string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
@@ -241,6 +250,9 @@ func getValidatorContainerConfigSupplier(
 			"--server=" + beaconEndpoint,
 			"--keystoresDir=" + validatorKeysDirpathOnModuleContainer,
 			"--secretsDir=" + validatorSecretsDirpathOnModuleContainer,
+		}
+		if len(cmdArgs) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(

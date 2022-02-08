@@ -15,6 +15,7 @@ type ELClientLauncher interface {
 		globalLogLevel module_io.GlobalClientLogLevel,
 		// If nil, then the node will be launched as a bootnode
 		bootnodeContext *ELClientContext,
+		extraParams []string,
 	) (
 		resultClientCtx *ELClientContext,
 		resultErr error,

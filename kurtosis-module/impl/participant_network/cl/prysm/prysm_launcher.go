@@ -97,6 +97,8 @@ func (launcher *PrysmCLClientLauncher) Launch(
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	extraBeaconParams []string,
+	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	imageStrs := strings.Split(delimitedImagesStr, imageSeparatorDelimiter)
 	if len(imageStrs) != expectedNumImages {
@@ -131,6 +133,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		logLevel,
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		launcher.genesisSszFilepathOnModuleContainer,
+		extraBeaconParams,
 	)
 	beaconServiceCtx, err := enclaveCtx.AddService(beaconServiceId, beaconContainerConfigSupplier)
 	if err != nil {
@@ -162,6 +165,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		beaconHTTPEndpoint,
 		nodeKeystoreDirpaths.RawKeysDirpath,
 		nodeKeystoreDirpaths.PrysmDirpath,
+		extraValidatorParams,
 	)
 	_, err = enclaveCtx.AddService(validatorServiceId, validatorContainerConfigSupplier)
 	if err != nil {
@@ -189,6 +193,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 	logLevel string,
 	genesisConfigYmlFilepathOnModuleContainer string,
 	genesisSszFilepathOnModuleContainer string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
@@ -242,6 +247,9 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--bootstrap-node=" + bootnodeContext.GetENR())
 		}
+		if len(extraParams) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
+		}
 
 		containerConfig := services.NewContainerConfigBuilder(
 			beaconImage,
@@ -264,6 +272,7 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 	beaconHTTPEndpoint string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
@@ -312,6 +321,9 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
 			"--verbosity=" + logLevel,
+		}
+		if len(extraParams) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(

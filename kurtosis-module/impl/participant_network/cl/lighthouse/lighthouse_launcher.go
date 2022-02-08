@@ -77,6 +77,8 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	extraBeaconParams []string,
+	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	beaconNodeServiceId := services.ServiceID(fmt.Sprintf("%v-beacon", serviceId))
 	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-validator", serviceId))
@@ -87,7 +89,13 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	}
 
 	// Launch Beacon node
-	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(image, bootnodeContext, elClientContext, logLevel)
+	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(
+		image,
+		bootnodeContext,
+		elClientContext,
+		logLevel,
+		extraBeaconParams,
+	)
 	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse Beacon node with service ID '%v'", beaconNodeServiceId)
@@ -112,6 +120,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 		beaconHttpUrl,
 		nodeKeystoreDirpaths.RawKeysDirpath,
 		nodeKeystoreDirpaths.RawSecretsDirpath,
+		extraValidatorParams,
 	)
 	if _, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse validator node with service ID '%v'", validatorNodeServiceId)
@@ -142,6 +151,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 	bootClClientCtx *cl.CLClientContext,
 	elClientCtx *el.ELClientContext,
 	logLevel string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
@@ -204,6 +214,9 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 		if bootClClientCtx != nil {
 			cmdArgs = append(cmdArgs, "--boot-nodes=" + bootClClientCtx.GetENR())
 		}
+		if len(extraParams) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
+		}
 
 		containerConfig := services.NewContainerConfigBuilder(
 			image,
@@ -222,6 +235,7 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 	beaconClientHttpUrl string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
@@ -274,6 +288,9 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 			fmt.Sprintf("--http-port=%v", validatorHttpPortNum),
 			"--beacon-nodes=" + beaconClientHttpUrl,
 			"--enable-doppelganger-protection=false",
+		}
+		if len(extraParams) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
