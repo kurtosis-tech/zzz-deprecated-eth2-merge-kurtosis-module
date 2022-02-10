@@ -24,7 +24,13 @@ const (
 	ForkmonConfigTemplateFilepath = staticFilesDirpath + "/forkmon-config/config.toml.tmpl"
 
 	//Prometheus config
-	PrometheusConfigTemplateFilepath = staticFilesDirpath + "prometheus-config/prometheus.yml.tmpl"
+	PrometheusConfigTemplateFilepath = staticFilesDirpath + "/prometheus-config/prometheus.yml.tmpl"
+
+	//Grafana config
+	grafanaConfigDirpath                    = "/grafana-config"
+	GrafanaDatasourceConfigTemplateFilepath = staticFilesDirpath + grafanaConfigDirpath + "/datasource.yml.tmpl"
+	GrafanaDashboardsConfigDirpath          = staticFilesDirpath + grafanaConfigDirpath + "/dashboards"
+	GrafanaDashboardsConfigTemplateFilepath = GrafanaDashboardsConfigDirpath + "/dashboards.yml.tmpl"
 )
 
 func ParseTemplate(filepath string) (*template.Template, error) {

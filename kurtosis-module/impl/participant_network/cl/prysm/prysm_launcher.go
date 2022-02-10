@@ -166,6 +166,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		nil,
 		beaconRestClient,
 	)
 

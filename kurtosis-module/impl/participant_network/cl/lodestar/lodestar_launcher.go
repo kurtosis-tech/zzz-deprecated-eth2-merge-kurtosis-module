@@ -121,6 +121,7 @@ func (launcher *LodestarClientLauncher) Launch(
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		nil,
 		beaconRestClient,
 	)
 

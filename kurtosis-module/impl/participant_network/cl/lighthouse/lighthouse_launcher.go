@@ -16,6 +16,10 @@ import (
 )
 
 const (
+	clientName = "lighthouse"
+	beaconNodeName = clientName + "-beacon"
+	validatorNodeName = clientName + "-validator"
+
 	lighthouseBinaryCommand = "lighthouse"
 
 	// ---------------------------------- Beacon client -------------------------------------
@@ -47,6 +51,9 @@ const (
 	validatorHttpPortNum   = 5042
 	validatorMetricsPortNum   = 5064
 
+	metricsPath = "/metrics"
+
+	grafanaDashboardConfigFilename = "lighthouse.json"
 )
 
 var beaconUsedPorts = map[string]*services.PortSpec{
@@ -115,7 +122,8 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 		nodeKeystoreDirpaths.RawKeysDirpath,
 		nodeKeystoreDirpaths.RawSecretsDirpath,
 	)
-	if _, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier); err != nil {
+	validatorServiceCtx, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
+	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse validator node with service ID '%v'", validatorNodeServiceId)
 	}
 
@@ -126,10 +134,29 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the new Lighthouse Beacon node's identity, which is necessary to retrieve its ENR")
 	}
 
+	beaconMetricsPort, found := beaconServiceCtx.GetPrivatePorts()[beaconMetricsPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Lighthouse Beacon service to have port with ID '%v', but none was found", beaconMetricsPortID)
+	}
+	beaconMetricsUrl := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), beaconMetricsPort.GetNumber())
+
+	validatorMetricsPort, found := validatorServiceCtx.GetPrivatePorts()[validatorMetricsPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Lighthouse Validator service to have port with ID '%v', but none was found", validatorMetricsPortID)
+	}
+	validatorMetricsUrl := fmt.Sprintf("%v:%v", validatorServiceCtx.GetPrivateIPAddress(), validatorMetricsPort.GetNumber())
+
+	beaconNodeMetricsInfo := cl.NewCLNodeMetricsInfo(beaconNodeName, metricsPath, beaconMetricsUrl)
+	validatorNodeMetricsInfo := cl.NewCLNodeMetricsInfo(validatorNodeName, metricsPath, validatorMetricsUrl)
+	clNodesMetricsInfo := []*cl.CLNodeMetricsInfo{beaconNodeMetricsInfo, validatorNodeMetricsInfo}
+
+	metricsInfo := cl.NewCLMetricsInfo(grafanaDashboardConfigFilename, clNodesMetricsInfo)
+
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		beaconHttpPortNum,
+		metricsInfo,
 		beaconRestClient,
 	)
 
@@ -286,7 +313,7 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 			"--metrics",
 			"--metrics-address=" + privateIpAddr,
 			"--metrics-allow-origin=*",
-			fmt.Sprintf("--metrics-port=%v", beaconMetricsPortNum),
+			fmt.Sprintf("--metrics-port=%v", validatorMetricsPortNum),
 			// ^^^^^^^^^^^^^^^^^^^ PROMETHEUS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 

@@ -122,6 +122,7 @@ func (launcher NimbusLauncher) Launch(
 		nodeIdentity.ENR,
 		serviceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		nil,
 		restClient,
 	)
 

@@ -2,16 +2,15 @@ package impl
 
 import (
 	"encoding/json"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/forkmon"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/grafana"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prometheus"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/transaction_spammer"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
@@ -66,7 +65,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Info("Successfully created prelaunch data generator")
 
 	logrus.Infof("Adding %v participants logging at level '%v'...", numParticipants, paramsObj.ClientLogLevel)
-	participants, clGenesisUnixTimestamp, err := participant_network.LaunchParticipantNetwork(
+	participants, _, err := participant_network.LaunchParticipantNetwork(
 		enclaveCtx,
 		prelaunchDataGeneratorCtx,
 		networkParams,
@@ -88,6 +87,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 	logrus.Infof("Successfully added %v participants", numParticipants)
 
+	/*
 	logrus.Info("Launching transaction spammer...")
 	if err := transaction_spammer.LaunchTransanctionSpammer(
 		enclaveCtx,
@@ -98,6 +98,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		return "", stacktrace.Propagate(err, "An error occurred launching the transaction spammer")
 	}
 	logrus.Info("Successfully launched transaction spammer")
+
 
 	logrus.Info("Waiting until CL genesis occurs to add forkmon...")
 	// We need to wait until the CL genesis has been reached to launch Forkmon because it has a bug (as of 2022-01-18) where
@@ -112,7 +113,9 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	time.Sleep(durationUntilClGenesis)
 	logrus.Info("CL genesis has occurred")
 
-	logrus.Info("Launching forkmon...")
+	 */
+
+	/*logrus.Info("Launching forkmon...")
 	forkmonConfigTemplate, err := static_files.ParseTemplate(static_files.ForkmonConfigTemplateFilepath)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing forkmon config template file '%v'", static_files.ForkmonConfigTemplateFilepath)
@@ -129,6 +132,24 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		return "", stacktrace.Propagate(err, "An error occurred launching forkmon service")
 	}
 	logrus.Infof("Successfully launched forkmon at '%v'", forkmonPublicUrl)
+	*/
+
+
+	logrus.Info("Launching prometheus...")
+	prometheusConfigTemplate, err := static_files.ParseTemplate(static_files.PrometheusConfigTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing prometheus config template file '%v'", static_files.PrometheusConfigTemplateFilepath)
+	}
+	prometheusPublicUrl, prometheusPrivateUrl, err := prometheus.LaunchPrometheus(
+		enclaveCtx,
+		prometheusConfigTemplate,
+		allClClientContexts,
+    )
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred launching prometheus service")
+	}
+	logrus.Infof("Successfully launched prometheus at '%v'", prometheusPublicUrl)
+
 
 	if paramsObj.WaitForFinalization {
 		logrus.Info("Waiting for the first finalized epoch...")
@@ -141,8 +162,33 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		logrus.Info("First finalized epoch occurred successfully")
 	}
 
+	logrus.Info("Launching grafana...")
+	grafanaDatasourceConfigTemplate, err := static_files.ParseTemplate(static_files.GrafanaDatasourceConfigTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing grafana-datasource-config-template file '%v'", static_files.PrometheusConfigTemplateFilepath)
+	}
+
+	grafanaDashboardsConfigTemplate, err := static_files.ParseTemplate(static_files.GrafanaDashboardsConfigTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing grafana-dashboards-config-template file '%v'", static_files.GrafanaDashboardsConfigTemplateFilepath)
+	}
+
+	grafanaPublicUrl, err := grafana.LaunchGrafana(
+		enclaveCtx,
+		grafanaDatasourceConfigTemplate,
+		grafanaDashboardsConfigTemplate,
+		prometheusPrivateUrl,
+		allClClientContexts,
+	)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred launching grafana service")
+	}
+	logrus.Infof("Successfully launched grafana at '%v'", grafanaPublicUrl)
+
 	responseObj := &module_io.ExecuteResponse{
-		ForkmonPublicURL: forkmonPublicUrl,
+		//ForkmonPublicURL: forkmonPublicUrl,
+		PrometheusPublicURL: prometheusPublicUrl,
+		GrafanaPublicURL: grafanaPublicUrl,
 	}
 	responseStr, err := json.MarshalIndent(responseObj, responseJsonLinePrefixStr, responseJsonLineIndentStr)
 	if err != nil {

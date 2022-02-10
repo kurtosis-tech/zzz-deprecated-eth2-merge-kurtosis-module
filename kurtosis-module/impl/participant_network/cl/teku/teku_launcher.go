@@ -125,6 +125,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 		nodeIdentity.ENR,
 		serviceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		nil,
 		restClient,
 	)
 
