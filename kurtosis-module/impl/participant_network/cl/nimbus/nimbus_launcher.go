@@ -16,6 +16,9 @@ import (
 )
 
 const (
+	clientName = "nimbus"
+	beaconNodeName = clientName + "-beacon"
+
 	// Port IDs
 	tcpDiscoveryPortID = "tcp-discovery"
 	udpDiscoveryPortID = "udp-discovery"
@@ -51,6 +54,10 @@ const (
 
 	maxNumHealthcheckRetries = 15
 	timeBetweenHealthcheckRetries = 1 * time.Second
+
+	metricsPath = "/metrics"
+
+	grafanaDashboardConfigFilename = "nimbus.json"
 )
 var usedPorts = map[string]*services.PortSpec{
 	tcpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
@@ -118,11 +125,22 @@ func (launcher NimbusLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the new Nimbus node's identity, which is necessary to retrieve its ENR")
 	}
 
+	metricsPort, found := serviceCtx.GetPrivatePorts()[metricsPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Nimbus service to have port with ID '%v', but none was found", metricsPortID)
+	}
+	metricsUrl := fmt.Sprintf("%v:%v", serviceCtx.GetPrivateIPAddress(), metricsPort.GetNumber())
+
+	nodeMetricsInfo := cl.NewCLNodeMetricsInfo(beaconNodeName, metricsPath, metricsUrl)
+	clNodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
+
+	metricsInfo := cl.NewCLMetricsInfo(grafanaDashboardConfigFilename, clNodesMetricsInfo)
+
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
 		serviceCtx.GetPrivateIPAddress(),
 		httpPortNum,
-		nil,
+		metricsInfo,
 		restClient,
 	)
 
@@ -214,15 +232,17 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--rest-port=%v", httpPortNum),
 			"--validators-dir=" + validatorKeysDirpathOnServiceContainer,
 			"--secrets-dir=" + validatorSecretsDirpathOnServiceContainer,
-			"--metrics",
-			"--metrics-address=0.0.0.0",
-			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
 			// There's a bug where if we don't set this flag, the Nimbus nodes won't work:
 			// https://discord.com/channels/641364059387854899/674288681737256970/922890280120750170
 			// https://github.com/status-im/nimbus-eth2/issues/2451
 			"--doppelganger-detection=false",
 			// Set per Pari's recommendation to reduce noise in the logs
 			"--subscribe-all-subnets=true",
+			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
+			"--metrics",
+			"--metrics-address=" + privateIpAddr,
+			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
+			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 		if bootnodeContext == nil {
 			// Copied from https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417

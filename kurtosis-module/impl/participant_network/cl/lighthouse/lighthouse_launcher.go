@@ -229,12 +229,12 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--eth1-endpoints=" + elClientRpcUrlStr,
 			// Set per Paris' recommendation to reduce noise in the logs
 			"--subscribe-all-subnets",
-			// vvvvvvvvvvvvvvvvvvv PROMETHEUS CONFIG vvvvvvvvvvvvvvvvvvvvv
+			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics",
 			"--metrics-address=" + privateIpAddr,
 			"--metrics-allow-origin=*",
 			fmt.Sprintf("--metrics-port=%v", beaconMetricsPortNum),
-			// ^^^^^^^^^^^^^^^^^^^ PROMETHEUS CONFIG ^^^^^^^^^^^^^^^^^^^^^
+			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 		if bootClClientCtx != nil {
 			cmdArgs = append(cmdArgs, "--boot-nodes="+bootClClientCtx.GetENR())
