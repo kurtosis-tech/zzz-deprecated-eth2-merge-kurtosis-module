@@ -121,11 +121,11 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 				err,
 				"An error occurred copying the Nethermind genesis JSON file from '%v' into the Nethermind node being started",
 				launcher.genesisJsonFilepathOnModule,
-			 )
+			)
 		}
 
 		commandArgs := []string{
-			"--config=kintsugi",
+			"--config=kiln",
 			"--log=" + logLevel,
 			"--datadir=" + executionDataDirpathOnClientContainer,
 			"--Init.ChainSpecPath=" + nethermindGenesisJsonSharedPath.GetAbsPathOnServiceContainer(),
@@ -143,12 +143,12 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--Network.P2PPort=%v", discoveryPortNum),
 			"--Merge.Enabled=true",
 			fmt.Sprintf("--Merge.TerminalTotalDifficulty=%v", launcher.totalTerminalDifficulty),
-			"--Merge.BlockAuthorAccount=" + miningRewardsAccount,
+			"--Merge.FeeRecipient=" + miningRewardsAccount,
 		}
 		if bootnodeCtx != nil {
 			commandArgs = append(
 				commandArgs,
-				"--Discovery.Bootnodes=" + bootnodeCtx.GetEnode(),
+				"--Discovery.Bootnodes="+bootnodeCtx.GetEnode(),
 			)
 		}
 		if len(extraParams) > 0 {
