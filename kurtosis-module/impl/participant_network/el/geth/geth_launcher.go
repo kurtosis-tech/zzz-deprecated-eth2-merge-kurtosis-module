@@ -40,18 +40,19 @@ const (
 
 	// The dirpath of the execution data directory on the client container
 	executionDataDirpathOnClientContainer = "/execution-data"
-	keystoreDirpathOnClientContainer = executionDataDirpathOnClientContainer + "/keystore"
+	keystoreDirpathOnClientContainer      = executionDataDirpathOnClientContainer + "/keystore"
 
 	gethKeysRelDirpathInSharedDir = "geth-keys"
 
-	expectedSecondsForGethInit = 5
-	expectedSecondsPerKeyImport = 8
+	expectedSecondsForGethInit                              = 5
+	expectedSecondsPerKeyImport                             = 8
 	expectedSecondsAfterNodeStartUntilHttpServerIsAvailable = 10
-	getNodeInfoTimeBetweenRetries = 1 * time.Second
+	getNodeInfoTimeBetweenRetries                           = 1 * time.Second
 
 	gethAccountPassword      = "password"          // Password that the Geth accounts will be locked with
 	gethAccountPasswordsFile = "/tmp/password.txt" // Importing an account to
 )
+
 var usedPorts = map[string]*services.PortSpec{
 	rpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
 	wsPortId:           services.NewPortSpec(wsPortNum, services.PortProtocol_TCP),
@@ -69,8 +70,8 @@ var verbosityLevels = map[module_io.GlobalClientLogLevel]string{
 
 type GethELClientLauncher struct {
 	genesisJsonFilepathOnModuleContainer string
-	prefundedAccountInfo []*genesis_consts.PrefundedAccount
-	networkId string
+	prefundedAccountInfo                 []*genesis_consts.PrefundedAccount
+	networkId                            string
 }
 
 func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *GethELClientLauncher {
@@ -109,7 +110,7 @@ func (launcher *GethELClientLauncher) Launch(
 		rpcPortNum,
 	)
 
-	maxNumRetries := expectedSecondsForGethInit + len(launcher.prefundedAccountInfo) * expectedSecondsPerKeyImport + expectedSecondsAfterNodeStartUntilHttpServerIsAvailable
+	maxNumRetries := expectedSecondsForGethInit + len(launcher.prefundedAccountInfo)*expectedSecondsPerKeyImport + expectedSecondsAfterNodeStartUntilHttpServerIsAvailable
 	nodeInfo, err := el.WaitForELClientAvailability(restClient, maxNumRetries, getNodeInfoTimeBetweenRetries)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the EL client to become available")
@@ -127,7 +128,6 @@ func (launcher *GethELClientLauncher) Launch(
 
 	return result, nil
 }
-
 
 // ====================================================================================================
 //                                       Private Helper Methods
@@ -192,9 +192,8 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--mine",
 			"--miner.etherbase=" + miningRewardsAccount,
 			fmt.Sprintf("--miner.threads=%v", numMiningThreads),
-			"--datadir="  + executionDataDirpathOnClientContainer,
+			"--datadir=" + executionDataDirpathOnClientContainer,
 			"--networkid=" + networkId,
-			"--catalyst",
 			"--http",
 			"--http.addr=0.0.0.0",
 			// WARNING: The admin info endpoint is enabled so that we can easily get ENR/enode, which means
@@ -211,7 +210,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 		if bootnodeContext != nil {
 			launchNodeCmdArgs = append(
 				launchNodeCmdArgs,
-				"--bootnodes=" + bootnodeContext.GetEnode(),
+				"--bootnodes="+bootnodeContext.GetEnode(),
 			)
 		}
 		if len(extraParams) > 0 {

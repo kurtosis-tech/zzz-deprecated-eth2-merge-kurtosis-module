@@ -1,5 +1,12 @@
 # TBD
 
+# 0.4.4
+
+### Changes
+* Upped the Lodestar wait-for-availability time to 60s
+* Updated flags for Kiln testnet compatibility
+* Switches key generation to use insecure mode, making key generation extremely fast
+
 # 0.4.3
 ### Features
 * Add extra debug logging to EL REST client, for debugging any issues
