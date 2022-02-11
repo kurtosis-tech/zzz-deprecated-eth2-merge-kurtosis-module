@@ -8,7 +8,8 @@ type ExecuteResponse struct {
 }
 
 type GrafanaInfo struct {
-	PublicURL string `json:"Url"`
-	User string `json:"User"`
-	Password string `json:"Password"`
+	PublicURL string `json:"url"`
+	DashboardURL string `json:"dashboardUrl"`
+	User string `json:"user"`
+	Password string `json:"password"`
 }

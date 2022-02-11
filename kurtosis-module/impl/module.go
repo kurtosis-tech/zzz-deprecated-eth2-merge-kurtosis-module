@@ -2,6 +2,7 @@ package impl
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/forkmon"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/grafana"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
@@ -37,6 +38,7 @@ const (
 
 	grafanaUser = "admin"
 	grafanaPassword = "admin"
+	grafanaDashboardPathUrl = "d/QdTOwy-nz/eth2-merge-kurtosis-module-dashboard?orgId=1"
 )
 
 
@@ -174,6 +176,9 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching grafana service")
 	}
+
+	grafanaDashboardUrl := fmt.Sprintf("%v/%v", grafanaPublicUrl, grafanaDashboardPathUrl)
+
 	logrus.Infof("Successfully launched grafana at '%v'", grafanaPublicUrl)
 
 	if paramsObj.WaitForFinalization {
@@ -192,6 +197,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		PrometheusPublicURL: prometheusPublicUrl,
 		GrafanaInfo: &module_io.GrafanaInfo{
 			PublicURL: grafanaPublicUrl,
+			DashboardURL: grafanaDashboardUrl,
 			User: grafanaUser,
 			Password: grafanaPassword,
 		},

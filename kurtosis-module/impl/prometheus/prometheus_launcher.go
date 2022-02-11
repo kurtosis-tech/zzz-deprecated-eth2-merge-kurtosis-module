@@ -95,9 +95,12 @@ func getContainerConfigSupplier(
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithCmdOverride([]string{
+			//You can check all the cli flags starting the container and going to the flags section
+			//in Prometheus admin page "{{prometheusPublicURL}}/flags" section
 			"--config.file=" + configFileSharedPath.GetAbsPathOnServiceContainer(),
 			"--storage.tsdb.path=/prometheus",
-			"--storage.tsdb.retention=5d",
+			"--storage.tsdb.retention.time=1d",
+			"--storage.tsdb.retention.size=512MB",
 			"--storage.tsdb.wal-compression",
 			"--web.console.libraries=/etc/prometheus/console_libraries",
 			"--web.console.templates=/etc/prometheus/consoles",
