@@ -1,7 +1,8 @@
 # TBD
+### Changes
+* Suggest users store their module parameters in a file, so they're easier to work with
 
 # 0.4.4
-
 ### Changes
 * Upped the Lodestar wait-for-availability time to 60s
 * Updated flags for Kiln testnet compatibility
