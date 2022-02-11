@@ -52,6 +52,7 @@ func LaunchParticipantNetwork(
 	prelaunchDataGeneratorCtx *prelaunch_data_generator.PrelaunchDataGeneratorContext,
 	networkParams *module_io.NetworkParams,
 	allParticipantSpecs []*module_io.ParticipantParams,
+	globalLogLevel module_io.GlobalClientLogLevel,
 	shouldWaitForMining bool,
 ) (
 	resultParticipants []*Participant,
@@ -134,7 +135,9 @@ func LaunchParticipantNetwork(
 				elClientServiceId,
 				participantSpec.ELClientImage,
 				participantSpec.ELClientLogLevel,
+				globalLogLevel,
 				elClientContextForBootElClients,
+				participantSpec.ELExtraParams,
 			)
 		} else {
 			bootElClientCtx := allElClientContexts[bootParticipantIndex]
@@ -143,7 +146,9 @@ func LaunchParticipantNetwork(
 				elClientServiceId,
 				participantSpec.ELClientImage,
 				participantSpec.ELClientLogLevel,
+				globalLogLevel,
 				bootElClientCtx,
+				participantSpec.ELExtraParams,
 			)
 		}
 		if elClientLaunchErr != nil {
@@ -247,9 +252,12 @@ func LaunchParticipantNetwork(
 				clClientServiceId,
 				participantSpec.CLClientImage,
 				participantSpec.CLClientLogLevel,
+				globalLogLevel,
 				clClientContextForBootClClients,
 				elClientCtx,
 				newClNodeValidatorKeystores,
+				participantSpec.BeaconExtraParams,
+				participantSpec.ValidatorExtraParams,
 			)
 		} else {
 			bootClClientCtx := allClClientContexts[bootParticipantIndex]
@@ -258,9 +266,12 @@ func LaunchParticipantNetwork(
 				clClientServiceId,
 				participantSpec.CLClientImage,
 				participantSpec.CLClientLogLevel,
+				globalLogLevel,
 				bootClClientCtx,
 				elClientCtx,
 				newClNodeValidatorKeystores,
+				participantSpec.BeaconExtraParams,
+				participantSpec.ValidatorExtraParams,
 			)
 		}
 		if clClientLaunchErr != nil {

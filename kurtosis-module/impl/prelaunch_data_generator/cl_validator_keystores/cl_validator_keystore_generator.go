@@ -29,7 +29,7 @@ func GenerateCLValidatorKeystores(
 ) (
 	*GenerateKeystoresResult,
 	error,
-){
+) {
 	sharedDir := serviceCtx.GetSharedDirectory()
 	outputSharedDir := sharedDir.GetChildPath(fmt.Sprintf(
 		"%v%v",
@@ -46,7 +46,7 @@ func GenerateCLValidatorKeystores(
 		nodeKeystoresDirname := fmt.Sprintf("node-%v-keystores", i)
 		nodeOutputSharedPath := outputSharedDir.GetChildPath(nodeKeystoresDirname)
 		subcommandStr := fmt.Sprintf(
-			"%v keystores --prysm-pass %v --out-loc %v --source-mnemonic \"%v\" --source-min %v --source-max %v",
+			"%v keystores --insecure --prysm-pass %v --out-loc %v --source-mnemonic \"%v\" --source-min %v --source-max %v",
 			keystoresGenerationToolName,
 			prysmPassword,
 			nodeOutputSharedPath.GetAbsPathOnServiceContainer(),

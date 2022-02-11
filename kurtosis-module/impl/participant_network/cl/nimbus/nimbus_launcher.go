@@ -2,7 +2,7 @@ package nimbus
 
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io/participant_log_level"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	cl_client_rest_client2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
@@ -62,12 +62,12 @@ var usedPorts = map[string]*services.PortSpec{
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 	metricsPortID:         services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
 }
-var NimbusLogLevels = map[participant_log_level.ParticipantLogLevel]string{
-	participant_log_level.ParticipantLogLevel_Error: "ERROR",
-	participant_log_level.ParticipantLogLevel_Warn:  "WARN",
-	participant_log_level.ParticipantLogLevel_Info:  "INFO",
-	participant_log_level.ParticipantLogLevel_Debug: "DEBUG",
-	participant_log_level.ParticipantLogLevel_Trace: "TRACE",
+var nimbusLogLevels = map[module_io.GlobalClientLogLevel]string{
+	module_io.GlobalClientLogLevel_Error: "ERROR",
+	module_io.GlobalClientLogLevel_Warn:  "WARN",
+	module_io.GlobalClientLogLevel_Info:  "INFO",
+	module_io.GlobalClientLogLevel_Debug: "DEBUG",
+	module_io.GlobalClientLogLevel_Trace: "TRACE",
 }
 
 type NimbusLauncher struct {
@@ -86,11 +86,21 @@ func (launcher NimbusLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
-	logLevel string,
+	participantLogLevel string,
+	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	extraBeaconParams []string,
+	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
+
+	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, nimbusLogLevels)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+	}
+
+	extraParams := append(extraBeaconParams, extraValidatorParams...)
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		image,
 		bootnodeContext,
@@ -98,6 +108,7 @@ func (launcher NimbusLauncher) Launch(
 		logLevel,
 		nodeKeystoreDirpaths.NimbusKeysDirpath,
 		nodeKeystoreDirpaths.RawSecretsDirpath,
+		extraParams,
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
@@ -152,6 +163,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 	logLevel string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
@@ -245,6 +257,9 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			cmdArgs = append(cmdArgs, "--subscribe-all-subnets")
 		} else {
 			cmdArgs = append(cmdArgs, "--bootstrap-node=" + bootnodeContext.GetENR())
+		}
+		if len(extraParams) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
 		}
 		cmdStr := strings.Join(cmdArgs, " ")
 

@@ -76,6 +76,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		prelaunchDataGeneratorCtx,
 		networkParams,
 		paramsObj.Participants,
+		paramsObj.ClientLogLevel,
 		paramsObj.WaitForMining,
 	)
 	if err != nil {

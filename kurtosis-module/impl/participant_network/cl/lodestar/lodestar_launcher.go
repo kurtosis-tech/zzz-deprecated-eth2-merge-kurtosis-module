@@ -2,7 +2,7 @@ package lodestar
 
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io/participant_log_level"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
@@ -37,7 +37,7 @@ const (
 	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
 
 	maxNumHealthcheckRetries      = 30
-	timeBetweenHealthcheckRetries = 1 * time.Second
+	timeBetweenHealthcheckRetries = 2 * time.Second
 
 	beaconSuffixServiceId    = "beacon"
 	validatorSuffixServiceId = "validator"
@@ -51,12 +51,12 @@ var usedPorts = map[string]*services.PortSpec{
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
 	metricsPortID:      services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
 }
-var LodestarLogLevels = map[participant_log_level.ParticipantLogLevel]string{
-	participant_log_level.ParticipantLogLevel_Error: "error",
-	participant_log_level.ParticipantLogLevel_Warn:  "warn",
-	participant_log_level.ParticipantLogLevel_Info:  "info",
-	participant_log_level.ParticipantLogLevel_Debug: "debug",
-	participant_log_level.ParticipantLogLevel_Trace: "silly",
+var lodestarLogLevels = map[module_io.GlobalClientLogLevel]string{
+	module_io.GlobalClientLogLevel_Error: "error",
+	module_io.GlobalClientLogLevel_Warn:  "warn",
+	module_io.GlobalClientLogLevel_Info:  "info",
+	module_io.GlobalClientLogLevel_Debug: "debug",
+	module_io.GlobalClientLogLevel_Trace: "silly",
 }
 
 type LodestarClientLauncher struct {
@@ -72,19 +72,28 @@ func (launcher *LodestarClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
-	logLevel string,
+	participantLogLevel string,
+	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	extraBeaconParams []string,
+	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	beaconNodeServiceId := services.ServiceID(fmt.Sprintf("%v-%v", serviceId, beaconSuffixServiceId))
 	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-%v", serviceId, validatorSuffixServiceId))
+
+	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, lodestarLogLevels)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+	}
 
 	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(
 		image,
 		bootnodeContext,
 		elClientContext,
 		logLevel,
+		extraBeaconParams,
 	)
 	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfigSupplier)
 	if err != nil {
@@ -115,6 +124,7 @@ func (launcher *LodestarClientLauncher) Launch(
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
 		nodeKeystoreDirpaths.RawKeysDirpath,
 		nodeKeystoreDirpaths.LodestarSecretsDirpath,
+		extraValidatorParams,
 	)
 	_, err = enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
 	if err != nil {
@@ -149,6 +159,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
@@ -208,7 +219,10 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 		if bootnodeContext != nil {
-			cmdArgs = append(cmdArgs, "--network.discv5.bootEnrs=" + bootnodeContext.GetENR())
+			cmdArgs = append(cmdArgs, "--network.discv5.bootEnrs="+bootnodeContext.GetENR())
+		}
+		if len(extraParams) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
@@ -231,6 +245,7 @@ func getValidatorContainerConfigSupplier(
 	genesisConfigYmlFilepathOnModuleContainer string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
@@ -254,6 +269,9 @@ func getValidatorContainerConfigSupplier(
 			"--server=" + beaconEndpoint,
 			"--keystoresDir=" + validatorKeysDirpathOnModuleContainer,
 			"--secretsDir=" + validatorSecretsDirpathOnModuleContainer,
+		}
+		if len(cmdArgs) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(

@@ -1,6 +1,6 @@
 package module_io
 
-import "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io/participant_log_level"
+import "github.com/kurtosis-tech/stacktrace"
 
 const (
 	// If these values are provided for the EL/CL images, then the client type-specific default image will be used
@@ -8,9 +8,6 @@ const (
 	useDefaultClImageKeyword = ""
 
 	unspecifiedLogLevel                 = ""
-	unspecifiedGlobalParticipanLogLevel = ""
-	defaultELClientParticipantLogLevel  = participant_log_level.ParticipantLogLevel_Debug
-	defaultCLClientParticipantLogLevel  = participant_log_level.ParticipantLogLevel_Debug
 )
 
 var defaultElImages = map[ParticipantELClientType]string{
@@ -54,8 +51,8 @@ func GetDefaultExecuteParams() *ExecuteParams {
 				ELClientImage:    useDefaultElImageKeyword,
 				ELClientLogLevel: unspecifiedLogLevel,
 				CLClientType:     ParticipantCLClientType_Nimbus,
-				CLClientLogLevel: unspecifiedLogLevel,
 				CLClientImage:    useDefaultClImageKeyword,
+				CLClientLogLevel: unspecifiedLogLevel,
 			},
 		},
 		Network: &NetworkParams{
@@ -71,9 +68,29 @@ func GetDefaultExecuteParams() *ExecuteParams {
 		},
 		WaitForMining:       true,
 		WaitForFinalization: false,
-		ClientLogLevel:      unspecifiedGlobalParticipanLogLevel,
+		ClientLogLevel:      GlobalClientLogLevel_Info,
 	}
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+}
+
+// Gets the string of the log level that the client should log at:
+//  - If the participant-specific log level string is present, use that
+//  - If the participant-specific log level string is empty, use the global default
+func GetClientLogLevelStrOrDefault(participantLogLevel string, globalLogLevel GlobalClientLogLevel, clientLogLevels map[GlobalClientLogLevel]string) (string, error) {
+
+	var (
+		logLevel = participantLogLevel
+		found bool
+	)
+
+	if logLevel == unspecifiedLogLevel {
+		logLevel, found = clientLogLevels[globalLogLevel]
+		if !found {
+			return "", stacktrace.NewError("No participant log level defined for global client log level '%v'; this is a bug in the module", globalLogLevel)
+		}
+	}
+
+	return logLevel, nil
 }

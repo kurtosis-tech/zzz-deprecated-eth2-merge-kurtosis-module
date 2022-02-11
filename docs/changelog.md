@@ -1,8 +1,22 @@
 # TBD
+###Features
+* Add `Prometheus` datasource and `Grafana` service to show the network's dashboard
+
+# 0.4.4
+### Changes
+* Upped the Lodestar wait-for-availability time to 60s
+* Updated flags for Kiln testnet compatibility
+* Switches key generation to use insecure mode, making key generation extremely fast
+
+# 0.4.3
 ### Features
 * Add extra debug logging to EL REST client, for debugging any issues
 * Add new module's params `elLogLevel` and `clLogLevel` to configure a specific EL and CL client's log level
-* Add `Prometheus` datasource and `Grafana` service to show the network's dashboard
+* Added the `elExtraParams`, `beaconExtraParams`, and `validatorExtraParams` properties to a participant to allow for overriding participant commands
+
+### Changes
+* Set config values to `BELLATRIX_` rather than `MERGE_`
+* Set `ETH1_FOLLOW_DISTANCE` to 30
 
 ### Fixes
 * Use emptystring for Besu ENR, as there's no way to get it right now without the logs

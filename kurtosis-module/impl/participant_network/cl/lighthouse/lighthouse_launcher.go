@@ -2,7 +2,7 @@ package lighthouse
 
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io/participant_log_level"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
@@ -63,12 +63,12 @@ var validatorUsedPorts = map[string]*services.PortSpec{
 	validatorHttpPortID: services.NewPortSpec(validatorHttpPortNum, services.PortProtocol_TCP),
 	validatorMetricsPortID: services.NewPortSpec(validatorMetricsPortNum, services.PortProtocol_TCP),
 }
-var LighthouseLogLevels = map[participant_log_level.ParticipantLogLevel]string{
-	participant_log_level.ParticipantLogLevel_Error: "error",
-	participant_log_level.ParticipantLogLevel_Warn:  "warn",
-	participant_log_level.ParticipantLogLevel_Info:  "info",
-	participant_log_level.ParticipantLogLevel_Debug: "debug",
-	participant_log_level.ParticipantLogLevel_Trace: "trace",
+var lighthouseLogLevels = map[module_io.GlobalClientLogLevel]string{
+	module_io.GlobalClientLogLevel_Error: "error",
+	module_io.GlobalClientLogLevel_Warn:  "warn",
+	module_io.GlobalClientLogLevel_Info:  "info",
+	module_io.GlobalClientLogLevel_Debug: "debug",
+	module_io.GlobalClientLogLevel_Trace: "trace",
 }
 
 type LighthouseCLClientLauncher struct {
@@ -84,16 +84,30 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
-	logLevel string,
+	participantLogLevel string,
+	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	extraBeaconParams []string,
+	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
 	beaconNodeServiceId := services.ServiceID(fmt.Sprintf("%v-%v", serviceId, beaconSuffixServiceId))
 	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-%v", serviceId, validatorSuffixServiceId))
 
+	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, lighthouseLogLevels)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
+	}
+
 	// Launch Beacon node
-	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(image, bootnodeContext, elClientContext, logLevel)
+	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(
+		image,
+		bootnodeContext,
+		elClientContext,
+		logLevel,
+		extraBeaconParams,
+	)
 	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse Beacon node with service ID '%v'", beaconNodeServiceId)
@@ -118,6 +132,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 		beaconHttpUrl,
 		nodeKeystoreDirpaths.RawKeysDirpath,
 		nodeKeystoreDirpaths.RawSecretsDirpath,
+		extraValidatorParams,
 	)
 	validatorServiceCtx, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
 	if err != nil {
@@ -166,6 +181,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 	bootClClientCtx *cl.CLClientContext,
 	elClientCtx *el.ELClientContext,
 	logLevel string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
@@ -234,6 +250,9 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 		if bootClClientCtx != nil {
 			cmdArgs = append(cmdArgs, "--boot-nodes="+bootClClientCtx.GetENR())
 		}
+		if len(extraParams) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
+		}
 
 		containerConfig := services.NewContainerConfigBuilder(
 			image,
@@ -252,6 +271,7 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 	beaconClientHttpUrl string,
 	validatorKeysDirpathOnModuleContainer string,
 	validatorSecretsDirpathOnModuleContainer string,
+	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
@@ -310,6 +330,9 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 			"--metrics-allow-origin=*",
 			fmt.Sprintf("--metrics-port=%v", validatorMetricsPortNum),
 			// ^^^^^^^^^^^^^^^^^^^ PROMETHEUS CONFIG ^^^^^^^^^^^^^^^^^^^^^
+		}
+		if len(extraParams) > 0 {
+			cmdArgs = append(cmdArgs, extraParams...)
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
