@@ -16,10 +16,6 @@ import (
 )
 
 const (
-	clientName = "lighthouse"
-	beaconNodeName = clientName + "-beacon"
-	validatorNodeName = clientName + "-validator"
-
 	lighthouseBinaryCommand = "lighthouse"
 
 	// ---------------------------------- Beacon client -------------------------------------
@@ -54,6 +50,9 @@ const (
 	metricsPath = "/metrics"
 
 	grafanaDashboardConfigFilename = "lighthouse.json"
+
+	beaconSuffixServiceId    = "beacon"
+	validatorSuffixServiceId = "validator"
 )
 
 var beaconUsedPorts = map[string]*services.PortSpec{
@@ -92,8 +91,8 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	elClientContext *el.ELClientContext,
 	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
-	beaconNodeServiceId := services.ServiceID(fmt.Sprintf("%v-beacon", serviceId))
-	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-validator", serviceId))
+	beaconNodeServiceId := services.ServiceID(fmt.Sprintf("%v-%v", serviceId, beaconSuffixServiceId))
+	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-%v", serviceId, validatorSuffixServiceId))
 
 	// Launch Beacon node
 	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(image, bootnodeContext, elClientContext, logLevel)
@@ -146,8 +145,8 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	}
 	validatorMetricsUrl := fmt.Sprintf("%v:%v", validatorServiceCtx.GetPrivateIPAddress(), validatorMetricsPort.GetNumber())
 
-	beaconNodeMetricsInfo := cl.NewCLNodeMetricsInfo(beaconNodeName, metricsPath, beaconMetricsUrl)
-	validatorNodeMetricsInfo := cl.NewCLNodeMetricsInfo(validatorNodeName, metricsPath, validatorMetricsUrl)
+	beaconNodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(beaconNodeServiceId), metricsPath, beaconMetricsUrl)
+	validatorNodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(validatorNodeServiceId), metricsPath, validatorMetricsUrl)
 	clNodesMetricsInfo := []*cl.CLNodeMetricsInfo{beaconNodeMetricsInfo, validatorNodeMetricsInfo}
 
 	metricsInfo := cl.NewCLMetricsInfo(grafanaDashboardConfigFilename, clNodesMetricsInfo)

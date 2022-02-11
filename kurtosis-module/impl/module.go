@@ -9,8 +9,10 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prometheus"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/transaction_spammer"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
@@ -65,7 +67,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Info("Successfully created prelaunch data generator")
 
 	logrus.Infof("Adding %v participants logging at level '%v'...", numParticipants, paramsObj.ClientLogLevel)
-	participants, _, err := participant_network.LaunchParticipantNetwork(
+	participants, clGenesisUnixTimestamp, err := participant_network.LaunchParticipantNetwork(
 		enclaveCtx,
 		prelaunchDataGeneratorCtx,
 		networkParams,
@@ -87,7 +89,6 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 	logrus.Infof("Successfully added %v participants", numParticipants)
 
-	/*
 	logrus.Info("Launching transaction spammer...")
 	if err := transaction_spammer.LaunchTransanctionSpammer(
 		enclaveCtx,
@@ -113,7 +114,6 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	time.Sleep(durationUntilClGenesis)
 	logrus.Info("CL genesis has occurred")
 
-	 */
 
 	/*logrus.Info("Launching forkmon...")
 	forkmonConfigTemplate, err := static_files.ParseTemplate(static_files.ForkmonConfigTemplateFilepath)

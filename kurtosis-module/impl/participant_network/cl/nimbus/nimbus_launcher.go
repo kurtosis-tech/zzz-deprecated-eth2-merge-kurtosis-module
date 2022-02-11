@@ -16,8 +16,6 @@ import (
 )
 
 const (
-	clientName = "nimbus"
-	beaconNodeName = clientName + "-beacon"
 
 	// Port IDs
 	tcpDiscoveryPortID = "tcp-discovery"
@@ -131,7 +129,7 @@ func (launcher NimbusLauncher) Launch(
 	}
 	metricsUrl := fmt.Sprintf("%v:%v", serviceCtx.GetPrivateIPAddress(), metricsPort.GetNumber())
 
-	nodeMetricsInfo := cl.NewCLNodeMetricsInfo(beaconNodeName, metricsPath, metricsUrl)
+	nodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(serviceId), metricsPath, metricsUrl)
 	clNodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
 
 	metricsInfo := cl.NewCLMetricsInfo(grafanaDashboardConfigFilename, clNodesMetricsInfo)
