@@ -59,8 +59,6 @@ const (
 	minPeers = 1
 
 	metricsPath = "/metrics"
-
-	grafanaDashboardConfigFilename = "teku.json"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -135,15 +133,13 @@ func (launcher *TekuCLClientLauncher) Launch(
 	metricsUrl := fmt.Sprintf("%v:%v", serviceCtx.GetPrivateIPAddress(), metricsPort.GetNumber())
 
 	nodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(serviceId), metricsPath, metricsUrl)
-	clNodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
-
-	metricsInfo := cl.NewCLMetricsInfo(grafanaDashboardConfigFilename, clNodesMetricsInfo)
+	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
 
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
 		serviceCtx.GetPrivateIPAddress(),
 		httpPortNum,
-		metricsInfo,
+		nodesMetricsInfo,
 		restClient,
 	)
 

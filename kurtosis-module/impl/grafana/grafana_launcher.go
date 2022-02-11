@@ -9,7 +9,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"os"
-	"path"
 	"text/template"
 )
 
@@ -20,15 +19,14 @@ const (
 	httpPortId = "http"
 	httpPortNumber uint16 = 3000
 
+	configDirectoriesPermission = 0755
+
 	datasourcesConfigDirpathInShareDir = "datasources"
-
-	dashboardsConfigDirpahtInShareDir = "dashboards"
-
 	datasourceConfigFileNameInShareDir = "datasource.yml"
 
-	dashboardsConfigFilenameInShareDir = "dashboards.yml"
-
-	configDirectoriesPermission = 0755
+	dashboardsConfigDirpahtInShareDir          = "dashboards"
+	dashboardProvidersConfigFilenameInShareDir = "dashboard-providers.yml"
+	grafanaDashboardConfigFilename             = "dashboard.json"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -107,22 +105,14 @@ func getContainerConfigSupplier(
 			DashboardsDirpath: dashboardsConfigSharedPath.GetAbsPathOnServiceContainer(),
 		}
 
-		dashboardsConfigFileSharedPath := dashboardsConfigSharedPath.GetChildPath(dashboardsConfigFilenameInShareDir)
+		dashboardsConfigFileSharedPath := dashboardsConfigSharedPath.GetChildPath(dashboardProvidersConfigFilenameInShareDir)
 
 		if err := service_launch_utils.FillTemplateToSharedPath(dashboardConfigTemplate, dashboardTemplateData, dashboardsConfigFileSharedPath); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred filling the config file template")
 		}
 
-		for _, clClientCtx := range clClientContexts {
-			clClientMetricsInfo := clClientCtx.GetMetricsInfo()
-			if clClientMetricsInfo != nil {
-				grafanaDashboardConfigFilename := clClientMetricsInfo.GetGrafanaDashboardConfigFilename()
-				if grafanaDashboardConfigFilename != "" {
-					if err := copyGrafanaDashboardConfigFileToSharedDir(grafanaDashboardConfigFilename, dashboardsConfigSharedPath); err != nil {
-						return nil, stacktrace.Propagate(err, "An error occurred copying grafana-dashboard-config file into the shared directory")
-					}
-				}
-			}
+		if err := copyGrafanaDashboardConfigFileToSharedDir(dashboardsConfigSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying grafana-dashboard-config file into the shared directory '%v'", dashboardsConfigSharedPath.GetAbsPathOnServiceContainer())
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
@@ -140,11 +130,10 @@ func getContainerConfigSupplier(
 }
 
 func copyGrafanaDashboardConfigFileToSharedDir(
-		grafanaDashboardConfigFilename string,
 		dashboardsConfigSharedPath *services.SharedPath,
 	) error {
 
-	grafanaDashboardConfigFilepathInModuleContainer := path.Join(static_files.GrafanaDashboardsConfigDirpath, grafanaDashboardConfigFilename)
+	grafanaDashboardConfigFilepathInModuleContainer := static_files.GrafanaDashboardConfigFilepath
 
 	grafanaDashboardConfigSharedPath := dashboardsConfigSharedPath.GetChildPath(grafanaDashboardConfigFilename)
 

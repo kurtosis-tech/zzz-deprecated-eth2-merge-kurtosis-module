@@ -4,5 +4,11 @@ package module_io
 type ExecuteResponse struct {
 	ForkmonPublicURL string	`json:"forkmonUrl"`
 	PrometheusPublicURL string `json:"prometheusUrl"`
-	GrafanaPublicURL string `json:"grafanaUrl"`
+	GrafanaInfo *GrafanaInfo `json:"grafana"`
+}
+
+type GrafanaInfo struct {
+	PublicURL string `json:"Url"`
+	User string `json:"User"`
+	Password string `json:"Password"`
 }

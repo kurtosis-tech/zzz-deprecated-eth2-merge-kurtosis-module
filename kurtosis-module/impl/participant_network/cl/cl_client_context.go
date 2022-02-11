@@ -6,12 +6,12 @@ type CLClientContext struct {
 	enr         string
 	ipAddr      string
 	httpPortNum uint16
-	metricsInfo *CLClientMetricsInfo
+	nodesMetricsInfo []*CLNodeMetricsInfo
 	restClient *cl_client_rest_client.CLClientRESTClient
 }
 
-func NewCLClientContext(enr string, ipAddr string, httpPortNum uint16, metricsInfo *CLClientMetricsInfo, restClient *cl_client_rest_client.CLClientRESTClient) *CLClientContext {
-	return &CLClientContext{enr: enr, ipAddr: ipAddr, httpPortNum: httpPortNum, metricsInfo: metricsInfo, restClient: restClient}
+func NewCLClientContext(enr string, ipAddr string, httpPortNum uint16, nodesMetricsInfo []*CLNodeMetricsInfo, restClient *cl_client_rest_client.CLClientRESTClient) *CLClientContext {
+	return &CLClientContext{enr: enr, ipAddr: ipAddr, httpPortNum: httpPortNum, nodesMetricsInfo: nodesMetricsInfo, restClient: restClient}
 }
 
 func (ctx *CLClientContext) GetENR() string {
@@ -30,6 +30,6 @@ func (ctx *CLClientContext) GetRESTClient() *cl_client_rest_client.CLClientRESTC
 	return ctx.restClient
 }
 
-func (ctx *CLClientContext) GetMetricsInfo() *CLClientMetricsInfo {
-	return ctx.metricsInfo
+func (ctx *CLClientContext) GetNodesMetricsInfo() []*CLNodeMetricsInfo {
+	return ctx.nodesMetricsInfo
 }

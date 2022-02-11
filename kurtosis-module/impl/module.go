@@ -2,6 +2,7 @@ package impl
 
 import (
 	"encoding/json"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/forkmon"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/grafana"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network"
@@ -33,6 +34,9 @@ const (
 	// The number of extra epochs beyond the first-epoch-where-finalization-is-possible that we'll wait for the network to finalize
 	finalizedEpochTolerance = uint64(0)
 	timeBetweenFinalizedEpochChecks = 5 * time.Second
+
+	grafanaUser = "admin"
+	grafanaPassword = "admin"
 )
 
 
@@ -115,7 +119,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Info("CL genesis has occurred")
 
 
-	/*logrus.Info("Launching forkmon...")
+	logrus.Info("Launching forkmon...")
 	forkmonConfigTemplate, err := static_files.ParseTemplate(static_files.ForkmonConfigTemplateFilepath)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing forkmon config template file '%v'", static_files.ForkmonConfigTemplateFilepath)
@@ -132,8 +136,6 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		return "", stacktrace.Propagate(err, "An error occurred launching forkmon service")
 	}
 	logrus.Infof("Successfully launched forkmon at '%v'", forkmonPublicUrl)
-	*/
-
 
 	logrus.Info("Launching prometheus...")
 	prometheusConfigTemplate, err := static_files.ParseTemplate(static_files.PrometheusConfigTemplateFilepath)
@@ -150,27 +152,15 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 	logrus.Infof("Successfully launched prometheus at '%v'", prometheusPublicUrl)
 
-
-	if paramsObj.WaitForFinalization {
-		logrus.Info("Waiting for the first finalized epoch...")
-		// TODO Make sure that ALL Beacon clients have finalized, not just the first one!!!
-		firstClClientCtx := allClClientContexts[0]
-		firstClClientRestClient := firstClClientCtx.GetRESTClient()
-		if err := waitUntilFirstFinalizedEpoch(firstClClientRestClient, networkParams.SecondsPerSlot, networkParams.SlotsPerEpoch); err != nil {
-			return "", stacktrace.Propagate(err, "An error occurred waiting until the first finalized epoch occurred")
-		}
-		logrus.Info("First finalized epoch occurred successfully")
-	}
-
 	logrus.Info("Launching grafana...")
 	grafanaDatasourceConfigTemplate, err := static_files.ParseTemplate(static_files.GrafanaDatasourceConfigTemplateFilepath)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred parsing grafana-datasource-config-template file '%v'", static_files.PrometheusConfigTemplateFilepath)
 	}
 
-	grafanaDashboardsConfigTemplate, err := static_files.ParseTemplate(static_files.GrafanaDashboardsConfigTemplateFilepath)
+	grafanaDashboardsConfigTemplate, err := static_files.ParseTemplate(static_files.GrafanaDashboardProvidersConfigTemplateFilepath)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred parsing grafana-dashboards-config-template file '%v'", static_files.GrafanaDashboardsConfigTemplateFilepath)
+		return "", stacktrace.Propagate(err, "An error occurred parsing grafana-dashboards-config-template file '%v'", static_files.GrafanaDashboardProvidersConfigTemplateFilepath)
 	}
 
 	grafanaPublicUrl, err := grafana.LaunchGrafana(
@@ -185,10 +175,25 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 	logrus.Infof("Successfully launched grafana at '%v'", grafanaPublicUrl)
 
+	if paramsObj.WaitForFinalization {
+		logrus.Info("Waiting for the first finalized epoch...")
+		// TODO Make sure that ALL Beacon clients have finalized, not just the first one!!!
+		firstClClientCtx := allClClientContexts[0]
+		firstClClientRestClient := firstClClientCtx.GetRESTClient()
+		if err := waitUntilFirstFinalizedEpoch(firstClClientRestClient, networkParams.SecondsPerSlot, networkParams.SlotsPerEpoch); err != nil {
+			return "", stacktrace.Propagate(err, "An error occurred waiting until the first finalized epoch occurred")
+		}
+		logrus.Info("First finalized epoch occurred successfully")
+	}
+
 	responseObj := &module_io.ExecuteResponse{
-		//ForkmonPublicURL: forkmonPublicUrl,
+		ForkmonPublicURL: forkmonPublicUrl,
 		PrometheusPublicURL: prometheusPublicUrl,
-		GrafanaPublicURL: grafanaPublicUrl,
+		GrafanaInfo: &module_io.GrafanaInfo{
+			PublicURL: grafanaPublicUrl,
+			User: grafanaUser,
+			Password: grafanaPassword,
+		},
 	}
 	responseStr, err := json.MarshalIndent(responseObj, responseJsonLinePrefixStr, responseJsonLineIndentStr)
 	if err != nil {

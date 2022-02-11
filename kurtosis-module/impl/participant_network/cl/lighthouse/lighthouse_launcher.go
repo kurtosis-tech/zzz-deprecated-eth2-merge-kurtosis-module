@@ -49,8 +49,6 @@ const (
 
 	metricsPath = "/metrics"
 
-	grafanaDashboardConfigFilename = "lighthouse.json"
-
 	beaconSuffixServiceId    = "beacon"
 	validatorSuffixServiceId = "validator"
 )
@@ -147,15 +145,13 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 
 	beaconNodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(beaconNodeServiceId), metricsPath, beaconMetricsUrl)
 	validatorNodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(validatorNodeServiceId), metricsPath, validatorMetricsUrl)
-	clNodesMetricsInfo := []*cl.CLNodeMetricsInfo{beaconNodeMetricsInfo, validatorNodeMetricsInfo}
-
-	metricsInfo := cl.NewCLMetricsInfo(grafanaDashboardConfigFilename, clNodesMetricsInfo)
+	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{beaconNodeMetricsInfo, validatorNodeMetricsInfo}
 
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		beaconHttpPortNum,
-		metricsInfo,
+		nodesMetricsInfo,
 		beaconRestClient,
 	)
 

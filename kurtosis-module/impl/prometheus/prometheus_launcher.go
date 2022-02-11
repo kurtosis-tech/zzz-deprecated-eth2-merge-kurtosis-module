@@ -12,9 +12,9 @@ import (
 
 const (
 	serviceID = "prometheus"
-	imageName = "prom/prometheus:latest"//TODO I'm not sure if we should use latest version or ping an specific version instead
+	imageName = "prom/prometheus:latest" //TODO I'm not sure if we should use latest version or ping an specific version instead
 
-	httpPortId = "http"
+	httpPortId            = "http"
 	httpPortNumber uint16 = 9090
 
 	// The filepath, relative to the root of the shared dir, where we'll generate the config file
@@ -77,11 +77,8 @@ func getContainerConfigSupplier(
 ) {
 	allCLNodesMetricsInfo := []*cl.CLNodeMetricsInfo{}
 	for _, clClientCtx := range clClientContexts {
-		clClientMetricsInfo := clClientCtx.GetMetricsInfo()
-		if clClientMetricsInfo != nil {
-			if clClientMetricsInfo.GetClNodesMetricsInfo() != nil {
-				allCLNodesMetricsInfo = append(allCLNodesMetricsInfo, clClientMetricsInfo.GetClNodesMetricsInfo()...)
-			}
+		if clClientCtx.GetNodesMetricsInfo() != nil {
+			allCLNodesMetricsInfo = append(allCLNodesMetricsInfo, clClientCtx.GetNodesMetricsInfo()...)
 		}
 	}
 
@@ -100,6 +97,8 @@ func getContainerConfigSupplier(
 		).WithCmdOverride([]string{
 			"--config.file=" + configFileSharedPath.GetAbsPathOnServiceContainer(),
 			"--storage.tsdb.path=/prometheus",
+			"--storage.tsdb.retention=5d",
+			"--storage.tsdb.wal-compression",
 			"--web.console.libraries=/etc/prometheus/console_libraries",
 			"--web.console.templates=/etc/prometheus/consoles",
 			"--web.enable-lifecycle",

@@ -43,8 +43,6 @@ const (
 	validatorSuffixServiceId = "validator"
 
 	metricsPath = "/metrics"
-
-	grafanaDashboardConfigFilename = "lodestar.json"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -130,15 +128,13 @@ func (launcher *LodestarClientLauncher) Launch(
 	metricsUrl := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), metricsPort.GetNumber())
 
 	nodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(serviceId), metricsPath, metricsUrl)
-	clNodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
-
-	metricsInfo := cl.NewCLMetricsInfo(grafanaDashboardConfigFilename, clNodesMetricsInfo)
+	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
 
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		httpPortNum,
-		metricsInfo,
+		nodesMetricsInfo,
 		beaconRestClient,
 	)
 

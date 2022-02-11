@@ -2,6 +2,7 @@
 ### Features
 * Add extra debug logging to EL REST client, for debugging any issues
 * Add new module's params `elLogLevel` and `clLogLevel` to configure a specific EL and CL client's log level
+* Add `Prometheus` datasource and `Grafana` service to show the network's dashboard
 
 ### Fixes
 * Use emptystring for Besu ENR, as there's no way to get it right now without the logs

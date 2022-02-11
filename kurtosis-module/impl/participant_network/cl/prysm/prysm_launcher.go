@@ -57,8 +57,6 @@ const (
 	minPeers = 1
 
 	metricsPath = "/metrics"
-
-	grafanaDashboardConfigFilename = "prysm.json"
 )
 
 var beaconNodeUsedPorts = map[string]*services.PortSpec{
@@ -180,15 +178,13 @@ func (launcher *PrysmCLClientLauncher) Launch(
 
 	beaconNodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(beaconNodeServiceId), metricsPath, beaconMetricsUrl)
 	validatorNodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(validatorNodeServiceId), metricsPath, validatorMetricsUrl)
-	clNodesMetricsInfo := []*cl.CLNodeMetricsInfo{beaconNodeMetricsInfo, validatorNodeMetricsInfo}
-
-	metricsInfo := cl.NewCLMetricsInfo(grafanaDashboardConfigFilename, clNodesMetricsInfo)
+	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{beaconNodeMetricsInfo, validatorNodeMetricsInfo}
 
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		httpPortNum,
-		metricsInfo,
+		nodesMetricsInfo,
 		beaconRestClient,
 	)
 

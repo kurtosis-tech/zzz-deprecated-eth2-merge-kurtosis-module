@@ -13,8 +13,8 @@ const (
 	// Geth + CL genesis generation
 	genesisGenerationConfigDirpath = staticFilesDirpath + "/genesis-generation-config"
 
-	elGenesisGenerationConfigDirpath                = genesisGenerationConfigDirpath + "/el"
-	ELGenesisGenerationConfigTemplateFilepath       = elGenesisGenerationConfigDirpath + "/genesis-config.yaml.tmpl"
+	elGenesisGenerationConfigDirpath          = genesisGenerationConfigDirpath + "/el"
+	ELGenesisGenerationConfigTemplateFilepath = elGenesisGenerationConfigDirpath + "/genesis-config.yaml.tmpl"
 
 	clGenesisGenerationConfigDirpath             = genesisGenerationConfigDirpath + "/cl"
 	CLGenesisGenerationConfigTemplateFilepath    = clGenesisGenerationConfigDirpath + "/config.yaml.tmpl"
@@ -27,10 +27,11 @@ const (
 	PrometheusConfigTemplateFilepath = staticFilesDirpath + "/prometheus-config/prometheus.yml.tmpl"
 
 	//Grafana config
-	grafanaConfigDirpath                    = "/grafana-config"
-	GrafanaDatasourceConfigTemplateFilepath = staticFilesDirpath + grafanaConfigDirpath + "/datasource.yml.tmpl"
-	GrafanaDashboardsConfigDirpath          = staticFilesDirpath + grafanaConfigDirpath + "/dashboards"
-	GrafanaDashboardsConfigTemplateFilepath = GrafanaDashboardsConfigDirpath + "/dashboards.yml.tmpl"
+	grafanaConfigDirpath                            = "/grafana-config"
+	GrafanaDatasourceConfigTemplateFilepath         = staticFilesDirpath + grafanaConfigDirpath + "/datasource.yml.tmpl"
+	GrafanaDashboardsConfigDirpath                  = staticFilesDirpath + grafanaConfigDirpath + "/dashboards"
+	GrafanaDashboardProvidersConfigTemplateFilepath = GrafanaDashboardsConfigDirpath + "/dashboard-providers.yml.tmpl"
+	GrafanaDashboardConfigFilepath = GrafanaDashboardsConfigDirpath + "/dashboard.json"
 )
 
 func ParseTemplate(filepath string) (*template.Template, error) {
