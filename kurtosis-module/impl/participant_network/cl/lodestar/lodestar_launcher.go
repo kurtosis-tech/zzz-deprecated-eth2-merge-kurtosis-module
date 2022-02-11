@@ -35,7 +35,7 @@ const (
 	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
 
 	maxNumHealthcheckRetries      = 30
-	timeBetweenHealthcheckRetries = 1 * time.Second
+	timeBetweenHealthcheckRetries = 2 * time.Second
 
 	beaconSuffixServiceId    = "beacon"
 	validatorSuffixServiceId = "validator"
@@ -200,7 +200,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			"--network.subscribeAllSubnets=true",
 		}
 		if bootnodeContext != nil {
-			cmdArgs = append(cmdArgs, "--network.discv5.bootEnrs=" + bootnodeContext.GetENR())
+			cmdArgs = append(cmdArgs, "--network.discv5.bootEnrs="+bootnodeContext.GetENR())
 		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)
