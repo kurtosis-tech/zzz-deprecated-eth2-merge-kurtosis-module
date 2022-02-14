@@ -225,6 +225,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 
 		cmdArgs := []string{
 			"--accept-terms-of-use=true", //it's mandatory in order to run the node
+			"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
 			"--datadir=" + consensusDataDirpathOnServiceContainer,
 			"--chain-config-file=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--genesis-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
