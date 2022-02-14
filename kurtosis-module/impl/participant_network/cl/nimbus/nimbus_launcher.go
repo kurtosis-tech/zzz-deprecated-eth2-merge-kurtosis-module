@@ -36,7 +36,7 @@ const (
 
 	// The entrypoint the image normally starts with (we need to override the entrypoint to create the
 	//  consensus data directory on the image before it starts)
-	defaultImageEntrypoint = "/home/user/nimbus-eth2/build/beacon_node"
+	defaultImageEntrypoint = "/home/user/nimbus-eth2/build/nimbus_beacon_node"
 
 	validatorKeysDirpathRelToSharedDirRoot    = "validator-keys"
 	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
