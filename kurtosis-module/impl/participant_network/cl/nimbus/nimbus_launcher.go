@@ -36,27 +36,28 @@ const (
 
 	// The entrypoint the image normally starts with (we need to override the entrypoint to create the
 	//  consensus data directory on the image before it starts)
-	defaultImageEntrypoint = "/home/user/nimbus-eth2/build/nimbus_beacon_node"
+	defaultImageEntrypoint = "/home/user/nimbus-eth2/build/beacon_node"
 
-	validatorKeysDirpathRelToSharedDirRoot = "validator-keys"
+	validatorKeysDirpathRelToSharedDirRoot    = "validator-keys"
 	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
-	validatorSecretsDirPerms = 0600	// If we don't set these when we copy, Nimbus will burn a bunch of time doing it for us
+	validatorSecretsDirPerms                  = 0600 // If we don't set these when we copy, Nimbus will burn a bunch of time doing it for us
 
 	// Nimbus needs write access to the validator keys/secrets directories, and b/c the module container runs as root
 	//  while the Nimbus container does not, we can't just point the Nimbus binary to the paths in the shared dir because
 	//  it won't be able to open them. To get around this, we copy the validator keys/secrets to a path inside the Nimbus
 	//  container that is owned by the container's user
-	validatorKeysDirpathOnServiceContainer = "$HOME/validator-keys"
+	validatorKeysDirpathOnServiceContainer    = "$HOME/validator-keys"
 	validatorSecretsDirpathOnServiceContainer = "$HOME/validator-secrets"
 
-	maxNumHealthcheckRetries = 15
+	maxNumHealthcheckRetries      = 15
 	timeBetweenHealthcheckRetries = 1 * time.Second
 )
+
 var usedPorts = map[string]*services.PortSpec{
 	tcpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
-	metricsPortID:         services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
+	metricsPortID:      services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
 }
 var nimbusLogLevels = map[module_io.GlobalClientLogLevel]string{
 	module_io.GlobalClientLogLevel_Error: "ERROR",
@@ -240,7 +241,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			// See explanation there
 			cmdArgs = append(cmdArgs, "--subscribe-all-subnets")
 		} else {
-			cmdArgs = append(cmdArgs, "--bootstrap-node=" + bootnodeContext.GetENR())
+			cmdArgs = append(cmdArgs, "--bootstrap-node="+bootnodeContext.GetENR())
 		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)

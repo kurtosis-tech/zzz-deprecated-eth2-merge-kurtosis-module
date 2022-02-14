@@ -21,7 +21,7 @@ import (
 
 const (
 	imageSeparatorDelimiter = ","
-	expectedNumImages = 2
+	expectedNumImages       = 2
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 
@@ -49,7 +49,7 @@ const (
 	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
 
 	maxNumHealthcheckRetries      = 20
-	timeBetweenHealthcheckRetries = 1 * time.Second
+	timeBetweenHealthcheckRetries = 2 * time.Second
 
 	beaconSuffixServiceId    = "beacon"
 	validatorSuffixServiceId = "validator"
@@ -225,7 +225,6 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 
 		cmdArgs := []string{
 			"--accept-terms-of-use=true", //it's mandatory in order to run the node
-			"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
 			"--datadir=" + consensusDataDirpathOnServiceContainer,
 			"--chain-config-file=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--genesis-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
@@ -245,7 +244,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--subscribe-all-subnets=true",
 		}
 		if bootnodeContext != nil {
-			cmdArgs = append(cmdArgs, "--bootstrap-node=" + bootnodeContext.GetENR())
+			cmdArgs = append(cmdArgs, "--bootstrap-node="+bootnodeContext.GetENR())
 		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)
