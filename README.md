@@ -13,15 +13,23 @@ This is a [Kurtosis module][module-docs] that will:
 1. [Install Docker if you haven't done so already][docker-installation]
 1. [Install the Kurtosis CLI, or upgrade it to the latest version if it's already installed][kurtosis-cli-installation]
 1. Ensure your Docker engine is running:
-    ```
+    ```bash
     docker image ls
     ```
-1. Execute the module:
-    ```
-    kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module --execute-params '{}'
+1. Create a file in your home directory `eth2-module-params.json` with the following contents:
+
+    ```javascript
+    {
+        "logLevel": "info",
+    }
     ```
 
-To configure the module behaviour, provide a non-empty JSON object to the `--execute-params` flag. The JSON schema that can be passed in is as follows with the defaults provided (though note that the `//` comments are for explanation purposes and aren't valid JSON so need to be removed):
+1. Execute the module, passing in the params from the file:
+    ```bash
+    kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module --execute-params "$(cat ~/eth2-module-params.json)"
+    ```
+
+To configure the module behaviour, you can modify your `eth2-module-params.json` file. The full JSON schema that can be passed in is as follows with the defaults provided (though note that the `//` comments are for explanation purposes and aren't valid JSON so need to be removed):
 
 ```javascript
 {

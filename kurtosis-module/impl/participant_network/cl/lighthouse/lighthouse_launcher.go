@@ -23,8 +23,8 @@ const (
 	beaconConfigDataDirpathRelToSharedDirRoot = "config-data"
 
 	// Port IDs
-	beaconTcpDiscoveryPortID = "tcp-discovery"
-	beaconUdpDiscoveryPortID = "udp-discovery"
+	beaconTcpDiscoveryPortID = "tcpDiscovery"
+	beaconUdpDiscoveryPortID = "udpDiscovery"
 	beaconHttpPortID         = "http"
 
 	// Port nums

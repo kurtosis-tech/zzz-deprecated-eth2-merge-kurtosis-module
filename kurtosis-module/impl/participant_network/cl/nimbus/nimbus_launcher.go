@@ -17,8 +17,8 @@ import (
 
 const (
 	// Port IDs
-	tcpDiscoveryPortID = "tcp-discovery"
-	udpDiscoveryPortID = "udp-discovery"
+	tcpDiscoveryPortID = "tcpDiscovery"
+	udpDiscoveryPortID = "udpDiscovery"
 	httpPortID         = "http"
 	metricsPortID      = "metrics"
 
