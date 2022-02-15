@@ -26,8 +26,8 @@ const (
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 
 	// Port IDs
-	tcpDiscoveryPortID        = "tcp-discovery"
-	udpDiscoveryPortID        = "udp-discovery"
+	tcpDiscoveryPortID        = "tcpDiscovery"
+	udpDiscoveryPortID        = "udpDiscovery"
 	rpcPortID                 = "rpc"
 	httpPortID                = "http"
 	beaconMonitoringPortID    = "beacon-monitoring"
