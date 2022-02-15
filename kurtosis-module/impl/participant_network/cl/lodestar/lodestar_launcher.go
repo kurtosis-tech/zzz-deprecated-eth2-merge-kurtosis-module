@@ -26,10 +26,12 @@ const (
 	tcpDiscoveryPortID = "tcpDiscovery"
 	udpDiscoveryPortID = "udpDiscovery"
 	httpPortID         = "http"
+	metricsPortID 	   = "metrics"
 
 	// Port nums
 	discoveryPortNum uint16 = 9000
 	httpPortNum             = 4000
+	metricsPortNum   uint16 = 8008
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
@@ -39,13 +41,15 @@ const (
 
 	beaconSuffixServiceId    = "beacon"
 	validatorSuffixServiceId = "validator"
+
+	metricsPath = "/metrics"
 )
 
 var usedPorts = map[string]*services.PortSpec{
-	// TODO Add metrics port
 	tcpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
+	metricsPortID:      services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
 }
 var lodestarLogLevels = map[module_io.GlobalClientLogLevel]string{
 	module_io.GlobalClientLogLevel_Error: "error",
@@ -76,8 +80,8 @@ func (launcher *LodestarClientLauncher) Launch(
 	extraBeaconParams []string,
 	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
-	beaconServiceId := serviceId + "-" + beaconSuffixServiceId
-	validatorServiceId := serviceId + "-" + validatorSuffixServiceId
+	beaconNodeServiceId := services.ServiceID(fmt.Sprintf("%v-%v", serviceId, beaconSuffixServiceId))
+	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-%v", serviceId, validatorSuffixServiceId))
 
 	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, lodestarLogLevels)
 	if err != nil {
@@ -91,7 +95,7 @@ func (launcher *LodestarClientLauncher) Launch(
 		logLevel,
 		extraBeaconParams,
 	)
-	beaconServiceCtx, err := enclaveCtx.AddService(beaconServiceId, beaconContainerConfigSupplier)
+	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lodestar CL beacon client with service ID '%v'", serviceId)
 	}
@@ -114,7 +118,7 @@ func (launcher *LodestarClientLauncher) Launch(
 	beaconHttpUrl := fmt.Sprintf("http://%v:%v", beaconServiceCtx.GetPrivateIPAddress(), httpPortNum)
 
 	validatorContainerConfigSupplier := getValidatorContainerConfigSupplier(
-		validatorServiceId,
+		validatorNodeServiceId,
 		logLevel,
 		beaconHttpUrl,
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
@@ -122,15 +126,25 @@ func (launcher *LodestarClientLauncher) Launch(
 		nodeKeystoreDirpaths.LodestarSecretsDirpath,
 		extraValidatorParams,
 	)
-	_, err = enclaveCtx.AddService(validatorServiceId, validatorContainerConfigSupplier)
+	_, err = enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lodestar CL validator client with service ID '%v'", serviceId)
 	}
+
+	metricsPort, found := beaconServiceCtx.GetPrivatePorts()[metricsPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Lodestar service to have port with ID '%v', but none was found", metricsPortID)
+	}
+	metricsUrl := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), metricsPort.GetNumber())
+
+	nodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(serviceId), metricsPath, metricsUrl)
+	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
 
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		nodesMetricsInfo,
 		beaconRestClient,
 	)
 
@@ -198,6 +212,11 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			fmt.Sprintf("--enr.udp=%v", discoveryPortNum),
 			// Set per Pari's recommendation to reduce noise in the logs
 			"--network.subscribeAllSubnets=true",
+			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
+			"--metrics.enabled",
+			"--metrics.listenAddr=" + privateIpAddr,
+			fmt.Sprintf("--metrics.serverPort=%v", metricsPortNum),
+			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--network.discv5.bootEnrs="+bootnodeContext.GetENR())

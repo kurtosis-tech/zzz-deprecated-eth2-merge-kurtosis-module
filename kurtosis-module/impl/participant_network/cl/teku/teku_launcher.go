@@ -29,15 +29,17 @@ const (
 	tcpDiscoveryPortID = "tcpDiscovery"
 	udpDiscoveryPortID = "udpDiscovery"
 	httpPortID         = "http"
+	metricsPortID      = "metrics"
 
 	// Port nums
 	discoveryPortNum uint16 = 9000
 	httpPortNum             = 4000
+	metricsPortNum   uint16 = 8008
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
-	genesisSszRelFilepathInSharedDir = "genesis.ssz"
+	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
 
-	validatorKeysDirpathRelToSharedDirRoot = "validator-keys"
+	validatorKeysDirpathRelToSharedDirRoot    = "validator-keys"
 	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
 
 	// 1) The Teku container runs as the "teku" user
@@ -47,20 +49,23 @@ const (
 	//  the shared directory, it does so as 'root'. When Teku tries to consum the same files, it will get a failure because it
 	//  doesn't have permission to write to the 'validator-secrets' directory.
 	// To get around this, we copy the files AGAIN from
-	destValidatorKeysDirpathInServiceContainer = "$HOME/validator-keys"
+	destValidatorKeysDirpathInServiceContainer    = "$HOME/validator-keys"
 	destValidatorSecretsDirpathInServiceContainer = "$HOME/validator-secrets"
 
 	// Teku nodes take ~35s to bring their HTTP server up
-	maxNumHealthcheckRetries = 60
+	maxNumHealthcheckRetries      = 60
 	timeBetweenHealthcheckRetries = 1 * time.Second
 
 	minPeers = 1
+
+	metricsPath = "/metrics"
 )
+
 var usedPorts = map[string]*services.PortSpec{
-	// TODO Add metrics port
 	tcpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
+	metricsPortID:      services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
 }
 var tekuLogLevels = map[module_io.GlobalClientLogLevel]string{
 	module_io.GlobalClientLogLevel_Error: "ERROR",
@@ -72,8 +77,8 @@ var tekuLogLevels = map[module_io.GlobalClientLogLevel]string{
 
 type TekuCLClientLauncher struct {
 	genesisConfigYmlFilepathOnModuleContainer string
-	genesisSszFilepathOnModuleContainer string
-	expectedNumBeaconNodes uint32
+	genesisSszFilepathOnModuleContainer       string
+	expectedNumBeaconNodes                    uint32
 }
 
 func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, expectedNumBeaconNodes uint32) *TekuCLClientLauncher {
@@ -132,10 +137,20 @@ func (launcher *TekuCLClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the new Teku node's identity, which is necessary to retrieve its ENR")
 	}
 
+	metricsPort, found := serviceCtx.GetPrivatePorts()[metricsPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Teku service to have port with ID '%v', but none was found", metricsPortID)
+	}
+	metricsUrl := fmt.Sprintf("%v:%v", serviceCtx.GetPrivateIPAddress(), metricsPort.GetNumber())
+
+	nodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(serviceId), metricsPath, metricsUrl)
+	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
+
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
 		serviceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		nodesMetricsInfo,
 		restClient,
 	)
 
@@ -234,9 +249,14 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 				destValidatorSecretsDirpathInServiceContainer,
 			),
 			"--Xvalidators-proposer-default-fee-recipient=" + validatingRewardsAccount,
+			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
+			"--metrics-enabled",
+			"--metrics-interface=" + privateIpAddr,
+			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
+			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 		if bootnodeContext != nil {
-			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes=" + bootnodeContext.GetENR())
+			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes="+bootnodeContext.GetENR())
 		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)

@@ -2,7 +2,9 @@ package impl
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/forkmon"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/grafana"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
@@ -10,6 +12,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prometheus"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/transaction_spammer"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
@@ -32,6 +35,10 @@ const (
 	// The number of extra epochs beyond the first-epoch-where-finalization-is-possible that we'll wait for the network to finalize
 	finalizedEpochTolerance = uint64(0)
 	timeBetweenFinalizedEpochChecks = 5 * time.Second
+
+	grafanaUser = "admin"
+	grafanaPassword = "admin"
+	grafanaDashboardPathUrl = "d/QdTOwy-nz/eth2-merge-kurtosis-module-dashboard?orgId=1"
 )
 
 
@@ -51,6 +58,20 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	networkParams := paramsObj.Network
 	numParticipants := uint32(len(paramsObj.Participants))
 	logrus.Info("Successfully deserialized execute params")
+
+	// Parse templates early, so that any errors are caught before we do the stuff that takes a long time
+	grafanaDatasourceConfigTemplate, err := static_files.ParseTemplate(static_files.GrafanaDatasourceConfigTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing Grafana datasource config template file '%v'", static_files.PrometheusConfigTemplateFilepath)
+	}
+	grafanaDashboardsConfigTemplate, err := static_files.ParseTemplate(static_files.GrafanaDashboardProvidersConfigTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing Grafana dashboards config template file '%v'", static_files.GrafanaDashboardProvidersConfigTemplateFilepath)
+	}
+	prometheusConfigTemplate, err := static_files.ParseTemplate(static_files.PrometheusConfigTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing prometheus config template file '%v'", static_files.PrometheusConfigTemplateFilepath)
+	}
 
 	logrus.Info("Creating prelaunch data generator...")
 	prelaunchDataGeneratorCtx, err := prelaunch_data_generator.LaunchPrelaunchDataGenerator(
@@ -100,6 +121,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 	logrus.Info("Successfully launched transaction spammer")
 
+
 	logrus.Info("Waiting until CL genesis occurs to add forkmon...")
 	// We need to wait until the CL genesis has been reached to launch Forkmon because it has a bug (as of 2022-01-18) where
 	//  if a CL ndoe's getHealth endpoint returns a non-200 error code, Forkmon will mark the node as failed and will never revisit it
@@ -112,6 +134,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	durationUntilClGenesis := time.Duration(int64(secondsRemainingUntilClGenesis)) * time.Second
 	time.Sleep(durationUntilClGenesis)
 	logrus.Info("CL genesis has occurred")
+
 
 	logrus.Info("Launching forkmon...")
 	forkmonConfigTemplate, err := static_files.ParseTemplate(static_files.ForkmonConfigTemplateFilepath)
@@ -126,7 +149,34 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		networkParams.SecondsPerSlot,
 		networkParams.SlotsPerEpoch,
 	)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred launching forkmon service")
+	}
 	logrus.Infof("Successfully launched forkmon at '%v'", forkmonPublicUrl)
+
+	logrus.Info("Launching prometheus...")
+	prometheusPublicUrl, prometheusPrivateUrl, err := prometheus.LaunchPrometheus(
+		enclaveCtx,
+		prometheusConfigTemplate,
+		allClClientContexts,
+    )
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred launching prometheus service")
+	}
+	logrus.Infof("Successfully launched Prometheus at '%v'", prometheusPublicUrl)
+
+	logrus.Info("Launching grafana...")
+	grafanaPublicUrl, err := grafana.LaunchGrafana(
+		enclaveCtx,
+		grafanaDatasourceConfigTemplate,
+		grafanaDashboardsConfigTemplate,
+		prometheusPrivateUrl,
+	)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred launching Grafana")
+	}
+	grafanaDashboardUrl := fmt.Sprintf("%v/%v", grafanaPublicUrl, grafanaDashboardPathUrl)
+	logrus.Infof("Successfully launched Grafana at '%v'", grafanaPublicUrl)
 
 	if paramsObj.WaitForFinalization {
 		logrus.Info("Waiting for the first finalized epoch...")
@@ -141,6 +191,13 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 
 	responseObj := &module_io.ExecuteResponse{
 		ForkmonPublicURL: forkmonPublicUrl,
+		PrometheusPublicURL: prometheusPublicUrl,
+		GrafanaInfo: &module_io.GrafanaInfo{
+			PublicURL: grafanaPublicUrl,
+			DashboardURL: grafanaDashboardUrl,
+			User: grafanaUser,
+			Password: grafanaPassword,
+		},
 	}
 	responseStr, err := json.MarshalIndent(responseObj, responseJsonLinePrefixStr, responseJsonLineIndentStr)
 	if err != nil {
