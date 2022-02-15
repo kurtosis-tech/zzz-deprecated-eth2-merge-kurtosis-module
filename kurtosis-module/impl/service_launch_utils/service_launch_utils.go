@@ -12,7 +12,7 @@ func FillTemplateToSharedPath(tmpl *template.Template, data interface{}, destina
 	destFilepath := destination.GetAbsPathOnThisContainer()
 	destFp, err := os.Create(destFilepath)
 	if err != nil {
-		return stacktrace.Propagate(err, "An error occurred opening filepath '%v' on the module container for writing the Geth genesis config YAML", destFilepath)
+		return stacktrace.Propagate(err, "An error occurred creating file with filepath '%v' on the module container", destFilepath)
 	}
 	if err := tmpl.Execute(destFp, data); err != nil {
 		return stacktrace.Propagate(err, "An error occurred filling the template to destination '%v'", destFilepath)

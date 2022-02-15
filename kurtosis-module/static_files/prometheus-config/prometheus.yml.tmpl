@@ -1,0 +1,12 @@
+global:
+  scrape_interval:     15s # By default, scrape targets every 15 seconds.
+
+# A scrape configuration containing exactly one endpoint to scrape:
+# Here it's Prometheus itself.
+scrape_configs:
+   {{ range $clNode := .CLNodesMetricsInfo }}
+   - job_name: '{{ $clNode.GetName }}'
+     metrics_path: {{ $clNode.GetPath }}
+     static_configs:
+       - targets: ['{{ $clNode.GetURL }}']
+   {{ end }}
