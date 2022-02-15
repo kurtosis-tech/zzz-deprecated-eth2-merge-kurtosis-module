@@ -42,8 +42,8 @@ const (
 	validatorKeysRelDirpathInSharedDir    = "validator-keys"
 	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
 
-	validatorHttpPortID    = "validator-http"
-	validatorMetricsPortID = "validator-metrics"
+	validatorHttpPortID    = "http"
+	validatorMetricsPortID = "metrics"
 	validatorHttpPortNum   = 5042
 	validatorMetricsPortNum   = 5064
 

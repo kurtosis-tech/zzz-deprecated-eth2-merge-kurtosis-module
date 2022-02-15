@@ -59,6 +59,20 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	numParticipants := uint32(len(paramsObj.Participants))
 	logrus.Info("Successfully deserialized execute params")
 
+	// Parse templates early, so that any errors are caught before we do the stuff that takes a long time
+	grafanaDatasourceConfigTemplate, err := static_files.ParseTemplate(static_files.GrafanaDatasourceConfigTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing Grafana datasource config template file '%v'", static_files.PrometheusConfigTemplateFilepath)
+	}
+	grafanaDashboardsConfigTemplate, err := static_files.ParseTemplate(static_files.GrafanaDashboardProvidersConfigTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing Grafana dashboards config template file '%v'", static_files.GrafanaDashboardProvidersConfigTemplateFilepath)
+	}
+	prometheusConfigTemplate, err := static_files.ParseTemplate(static_files.PrometheusConfigTemplateFilepath)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred parsing prometheus config template file '%v'", static_files.PrometheusConfigTemplateFilepath)
+	}
+
 	logrus.Info("Creating prelaunch data generator...")
 	prelaunchDataGeneratorCtx, err := prelaunch_data_generator.LaunchPrelaunchDataGenerator(
 		enclaveCtx,
@@ -141,10 +155,6 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Infof("Successfully launched forkmon at '%v'", forkmonPublicUrl)
 
 	logrus.Info("Launching prometheus...")
-	prometheusConfigTemplate, err := static_files.ParseTemplate(static_files.PrometheusConfigTemplateFilepath)
-	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred parsing prometheus config template file '%v'", static_files.PrometheusConfigTemplateFilepath)
-	}
 	prometheusPublicUrl, prometheusPrivateUrl, err := prometheus.LaunchPrometheus(
 		enclaveCtx,
 		prometheusConfigTemplate,
@@ -153,33 +163,20 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching prometheus service")
 	}
-	logrus.Infof("Successfully launched prometheus at '%v'", prometheusPublicUrl)
+	logrus.Infof("Successfully launched Prometheus at '%v'", prometheusPublicUrl)
 
 	logrus.Info("Launching grafana...")
-	grafanaDatasourceConfigTemplate, err := static_files.ParseTemplate(static_files.GrafanaDatasourceConfigTemplateFilepath)
-	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred parsing grafana-datasource-config-template file '%v'", static_files.PrometheusConfigTemplateFilepath)
-	}
-
-	grafanaDashboardsConfigTemplate, err := static_files.ParseTemplate(static_files.GrafanaDashboardProvidersConfigTemplateFilepath)
-	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred parsing grafana-dashboards-config-template file '%v'", static_files.GrafanaDashboardProvidersConfigTemplateFilepath)
-	}
-
 	grafanaPublicUrl, err := grafana.LaunchGrafana(
 		enclaveCtx,
 		grafanaDatasourceConfigTemplate,
 		grafanaDashboardsConfigTemplate,
 		prometheusPrivateUrl,
-		allClClientContexts,
 	)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred launching grafana service")
+		return "", stacktrace.Propagate(err, "An error occurred launching Grafana")
 	}
-
 	grafanaDashboardUrl := fmt.Sprintf("%v/%v", grafanaPublicUrl, grafanaDashboardPathUrl)
-
-	logrus.Infof("Successfully launched grafana at '%v'", grafanaPublicUrl)
+	logrus.Infof("Successfully launched Grafana at '%v'", grafanaPublicUrl)
 
 	if paramsObj.WaitForFinalization {
 		logrus.Info("Waiting for the first finalized epoch...")
