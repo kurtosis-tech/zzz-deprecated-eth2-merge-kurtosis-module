@@ -1,6 +1,13 @@
 # TBD
 ###Features
-* Add `Prometheus` datasource and `Grafana` service to show the network's dashboard
+* Add Prometheus with a Grafana dashboard to show the network's state
+
+# 0.4.5
+### Changes
+* Suggest users store their module parameters in a file, so they're easier to work with
+
+### Fixes
+* Fix port IDs for Kurtosis 0.10.0
 
 # 0.4.4
 ### Changes
