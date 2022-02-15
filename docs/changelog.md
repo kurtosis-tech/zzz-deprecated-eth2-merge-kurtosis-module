@@ -2,6 +2,9 @@
 ### Changes
 * Suggest users store their module parameters in a file, so they're easier to work with
 
+### Fixes
+* Fix port IDs for Kurtosis 0.10.0
+
 # 0.4.4
 ### Changes
 * Upped the Lodestar wait-for-availability time to 60s
