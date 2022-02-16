@@ -29,8 +29,8 @@ const (
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
-	tcpDiscoveryPortId = "tcp-discovery"
-	udpDiscoveryPortId = "udp-discovery"
+	tcpDiscoveryPortId = "tcpDiscovery"
+	udpDiscoveryPortId = "udpDiscovery"
 
 	getNodeInfoMaxRetries         = 20
 	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond

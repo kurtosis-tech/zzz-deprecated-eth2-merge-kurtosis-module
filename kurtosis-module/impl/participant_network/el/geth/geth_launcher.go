@@ -25,8 +25,8 @@ const (
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
-	tcpDiscoveryPortId = "tcp-discovery"
-	udpDiscoveryPortId = "udp-discovery"
+	tcpDiscoveryPortId = "tcpDiscovery"
+	udpDiscoveryPortId = "udpDiscovery"
 
 	// NOTE: This can't be 0x00000....000
 	// See: https://github.com/ethereum/go-ethereum/issues/19547

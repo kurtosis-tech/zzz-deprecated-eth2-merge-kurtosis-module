@@ -26,12 +26,12 @@ const (
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 
 	// Port IDs
-	tcpDiscoveryPortID        = "tcp-discovery"
-	udpDiscoveryPortID        = "udp-discovery"
+	tcpDiscoveryPortID        = "tcpDiscovery"
+	udpDiscoveryPortID        = "udpDiscovery"
 	rpcPortID                 = "rpc"
 	httpPortID                = "http"
-	beaconMonitoringPortID    = "beacon-monitoring"
-	validatorMonitoringPortID = "validator-monitoring"
+	beaconMonitoringPortID    = "monitoring"
+	validatorMonitoringPortID = "monitoring"
 
 	// Port nums
 	discoveryTCPPortNum        uint16 = 13000
@@ -55,6 +55,8 @@ const (
 	validatorSuffixServiceId = "validator"
 
 	minPeers = 1
+
+	metricsPath = "/metrics"
 )
 
 var beaconNodeUsedPorts = map[string]*services.PortSpec{
@@ -118,8 +120,8 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		return nil, stacktrace.NewError("An empty Prysm validator image was provided")
 	}
 
-	beaconServiceId := serviceId + "-" + beaconSuffixServiceId
-	validatorServiceId := serviceId + "-" + validatorSuffixServiceId
+	beaconNodeServiceId := services.ServiceID(fmt.Sprintf("%v-%v", serviceId, beaconSuffixServiceId))
+	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-%v", serviceId, validatorSuffixServiceId))
 
 	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, prysmLogLevels)
 	if err != nil {
@@ -135,7 +137,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		launcher.genesisSszFilepathOnModuleContainer,
 		extraBeaconParams,
 	)
-	beaconServiceCtx, err := enclaveCtx.AddService(beaconServiceId, beaconContainerConfigSupplier)
+	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Prysm CL beacon client with service ID '%v'", serviceId)
 	}
@@ -159,7 +161,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 	beaconHTTPEndpoint := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), httpPortNum)
 	validatorContainerConfigSupplier := launcher.getValidatorContainerConfigSupplier(
 		validatorImage,
-		validatorServiceId,
+		validatorNodeServiceId,
 		logLevel,
 		beaconRPCEndpoint,
 		beaconHTTPEndpoint,
@@ -167,15 +169,32 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		nodeKeystoreDirpaths.PrysmDirpath,
 		extraValidatorParams,
 	)
-	_, err = enclaveCtx.AddService(validatorServiceId, validatorContainerConfigSupplier)
+	validatorServiceCtx, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Prysm CL validator client with service ID '%v'", serviceId)
 	}
+
+	beaconMonitoringPort, found := beaconServiceCtx.GetPrivatePorts()[beaconMonitoringPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Prysm Beacon service to have port with ID '%v', but none was found", beaconMonitoringPortID)
+	}
+	beaconMetricsUrl := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), beaconMonitoringPort.GetNumber())
+
+	validatorMonitoringPort, found := validatorServiceCtx.GetPrivatePorts()[validatorMonitoringPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Prysm Validator service to have port with ID '%v', but none was found", validatorMonitoringPortID)
+	}
+	validatorMetricsUrl := fmt.Sprintf("%v:%v", validatorServiceCtx.GetPrivateIPAddress(), validatorMonitoringPort.GetNumber())
+
+	beaconNodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(beaconNodeServiceId), metricsPath, beaconMetricsUrl)
+	validatorNodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(validatorNodeServiceId), metricsPath, validatorMetricsUrl)
+	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{beaconNodeMetricsInfo, validatorNodeMetricsInfo}
 
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		nodesMetricsInfo,
 		beaconRestClient,
 	)
 
@@ -244,6 +263,11 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--verbosity=" + logLevel,
 			// Set per Pari's recommendation to reduce noise
 			"--subscribe-all-subnets=true",
+			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
+			"--disable-monitoring=false",
+			"--monitoring-host=" + privateIpAddr,
+			fmt.Sprintf("--monitoring-port=%v", beaconMonitoringPortNum),
+			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--bootstrap-node="+bootnodeContext.GetENR())
@@ -322,6 +346,11 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
 			"--verbosity=" + logLevel,
+			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
+			"--disable-monitoring=false",
+			"--monitoring-host=" + privateIpAddr,
+			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
+			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)
