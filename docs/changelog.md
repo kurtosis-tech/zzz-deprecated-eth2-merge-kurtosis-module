@@ -1,7 +1,9 @@
 # TBD
+### Changes
+* Remove restriction that Prysm can't be a boot node, as it seems to be working now
 
 # 0.4.6
-###Features
+### Features
 * Add Prometheus with a Grafana dashboard to show the network's state
 
 # 0.4.5
