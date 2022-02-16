@@ -189,7 +189,7 @@ func LaunchParticipantNetwork(
 	// Set the genesis timestamp in the future so we don't start running slots until all the CL nodes are up
 	clGenesisTimestamp := uint64(time.Now().Unix()) +
 		uint64(clGenesisDataGenerationTime.Seconds()) +
-		uint64(numParticipants)*uint64(clNodeStartupTime.Seconds()+300)
+		uint64(numParticipants)*uint64(clNodeStartupTime.Seconds())
 	clGenesisData, err := prelaunchDataGeneratorCtx.GenerateCLGenesisData(
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
