@@ -35,9 +35,9 @@ const (
 	httpPortNum             = 4000
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
-	genesisSszRelFilepathInSharedDir = "genesis.ssz"
+	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
 
-	validatorKeysDirpathRelToSharedDirRoot = "validator-keys"
+	validatorKeysDirpathRelToSharedDirRoot    = "validator-keys"
 	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
 
 	// 1) The Teku container runs as the "teku" user
@@ -47,15 +47,16 @@ const (
 	//  the shared directory, it does so as 'root'. When Teku tries to consum the same files, it will get a failure because it
 	//  doesn't have permission to write to the 'validator-secrets' directory.
 	// To get around this, we copy the files AGAIN from
-	destValidatorKeysDirpathInServiceContainer = "$HOME/validator-keys"
+	destValidatorKeysDirpathInServiceContainer    = "$HOME/validator-keys"
 	destValidatorSecretsDirpathInServiceContainer = "$HOME/validator-secrets"
 
 	// Teku nodes take ~35s to bring their HTTP server up
-	maxNumHealthcheckRetries = 60
-	timeBetweenHealthcheckRetries = 1 * time.Second
+	maxNumHealthcheckRetries      = 100
+	timeBetweenHealthcheckRetries = 2 * time.Second
 
 	minPeers = 1
 )
+
 var usedPorts = map[string]*services.PortSpec{
 	// TODO Add metrics port
 	tcpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
@@ -72,8 +73,8 @@ var tekuLogLevels = map[module_io.GlobalClientLogLevel]string{
 
 type TekuCLClientLauncher struct {
 	genesisConfigYmlFilepathOnModuleContainer string
-	genesisSszFilepathOnModuleContainer string
-	expectedNumBeaconNodes uint32
+	genesisSszFilepathOnModuleContainer       string
+	expectedNumBeaconNodes                    uint32
 }
 
 func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, expectedNumBeaconNodes uint32) *TekuCLClientLauncher {
@@ -236,7 +237,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			"--Xvalidators-proposer-default-fee-recipient=" + validatingRewardsAccount,
 		}
 		if bootnodeContext != nil {
-			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes=" + bootnodeContext.GetENR())
+			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes="+bootnodeContext.GetENR())
 		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)
