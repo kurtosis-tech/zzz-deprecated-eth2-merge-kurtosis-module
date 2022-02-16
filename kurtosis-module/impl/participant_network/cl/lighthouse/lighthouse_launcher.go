@@ -20,36 +20,48 @@ const (
 
 	// ---------------------------------- Beacon client -------------------------------------
 	consensusDataDirpathOnBeaconServiceContainer = "/consensus-data"
-	beaconConfigDataDirpathRelToSharedDirRoot = "config-data"
+	beaconConfigDataDirpathRelToSharedDirRoot    = "config-data"
 
 	// Port IDs
-	beaconTcpDiscoveryPortID = "tcp-discovery"
-	beaconUdpDiscoveryPortID = "udp-discovery"
+	beaconTcpDiscoveryPortID = "tcpDiscovery"
+	beaconUdpDiscoveryPortID = "udpDiscovery"
 	beaconHttpPortID         = "http"
+	beaconMetricsPortID      = "metrics"
 
 	// Port nums
-	beaaconDiscoveryPortNum uint16 = 9000
-	beaconHttpPortNum              = 4000
+	beaconDiscoveryPortNum uint16 = 9000
+	beaconHttpPortNum      uint16 = 4000
+	beaconMetricsPortNum   uint16 = 5054
 
-	maxNumHealthcheckRetries = 10
+	maxNumHealthcheckRetries      = 10
 	timeBetweenHealthcheckRetries = 1 * time.Second
 
 	// ---------------------------------- Validator client -------------------------------------
 	validatorConfigDataDirpathRelToSharedDirRoot = "config-data"
 
-	validatorKeysRelDirpathInSharedDir = "validator-keys"
+	validatorKeysRelDirpathInSharedDir    = "validator-keys"
 	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
 
-	validatorHttpPortID = "http"
-	validatorHttpPortNum = 5042
+	validatorHttpPortID    = "http"
+	validatorMetricsPortID = "metrics"
+	validatorHttpPortNum   = 5042
+	validatorMetricsPortNum   = 5064
+
+	metricsPath = "/metrics"
+
+	beaconSuffixServiceId    = "beacon"
+	validatorSuffixServiceId = "validator"
 )
+
 var beaconUsedPorts = map[string]*services.PortSpec{
-	beaconTcpDiscoveryPortID: services.NewPortSpec(beaaconDiscoveryPortNum, services.PortProtocol_TCP),
-	beaconUdpDiscoveryPortID: services.NewPortSpec(beaaconDiscoveryPortNum, services.PortProtocol_UDP),
+	beaconTcpDiscoveryPortID: services.NewPortSpec(beaconDiscoveryPortNum, services.PortProtocol_TCP),
+	beaconUdpDiscoveryPortID: services.NewPortSpec(beaconDiscoveryPortNum, services.PortProtocol_UDP),
 	beaconHttpPortID:         services.NewPortSpec(beaconHttpPortNum, services.PortProtocol_TCP),
+	beaconMetricsPortID:      services.NewPortSpec(beaconMetricsPortNum, services.PortProtocol_TCP),
 }
 var validatorUsedPorts = map[string]*services.PortSpec{
 	validatorHttpPortID: services.NewPortSpec(validatorHttpPortNum, services.PortProtocol_TCP),
+	validatorMetricsPortID: services.NewPortSpec(validatorMetricsPortNum, services.PortProtocol_TCP),
 }
 var lighthouseLogLevels = map[module_io.GlobalClientLogLevel]string{
 	module_io.GlobalClientLogLevel_Error: "error",
@@ -80,8 +92,8 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	extraBeaconParams []string,
 	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
-	beaconNodeServiceId := services.ServiceID(fmt.Sprintf("%v-beacon", serviceId))
-	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-validator", serviceId))
+	beaconNodeServiceId := services.ServiceID(fmt.Sprintf("%v-%v", serviceId, beaconSuffixServiceId))
+	validatorNodeServiceId := services.ServiceID(fmt.Sprintf("%v-%v", serviceId, validatorSuffixServiceId))
 
 	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, lighthouseLogLevels)
 	if err != nil {
@@ -122,7 +134,8 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 		nodeKeystoreDirpaths.RawSecretsDirpath,
 		extraValidatorParams,
 	)
-	if _, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier); err != nil {
+	validatorServiceCtx, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
+	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse validator node with service ID '%v'", validatorNodeServiceId)
 	}
 
@@ -133,10 +146,27 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the new Lighthouse Beacon node's identity, which is necessary to retrieve its ENR")
 	}
 
+	beaconMetricsPort, found := beaconServiceCtx.GetPrivatePorts()[beaconMetricsPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Lighthouse Beacon service to have port with ID '%v', but none was found", beaconMetricsPortID)
+	}
+	beaconMetricsUrl := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), beaconMetricsPort.GetNumber())
+
+	validatorMetricsPort, found := validatorServiceCtx.GetPrivatePorts()[validatorMetricsPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Lighthouse Validator service to have port with ID '%v', but none was found", validatorMetricsPortID)
+	}
+	validatorMetricsUrl := fmt.Sprintf("%v:%v", validatorServiceCtx.GetPrivateIPAddress(), validatorMetricsPort.GetNumber())
+
+	beaconNodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(beaconNodeServiceId), metricsPath, beaconMetricsUrl)
+	validatorNodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(validatorNodeServiceId), metricsPath, validatorMetricsUrl)
+	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{beaconNodeMetricsInfo, validatorNodeMetricsInfo}
+
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		beaconHttpPortNum,
+		nodesMetricsInfo,
 		beaconRestClient,
 	)
 
@@ -180,8 +210,8 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 		//  have with a network running in Kurtosis.
 		//    "--disable-enr-auto-update",
 		//    "--enr-address=" + externalIpAddress,
-		//    fmt.Sprintf("--enr-udp-port=%v", beaaconDiscoveryPortNum),
-		//    fmt.Sprintf("--enr-tcp-port=%v", beaaconDiscoveryPortNum),
+		//    fmt.Sprintf("--enr-udp-port=%v", beaconDiscoveryPortNum),
+		//    fmt.Sprintf("--enr-tcp-port=%v", beaconDiscoveryPortNum),
 		cmdArgs := []string{
 			lighthouseBinaryCommand,
 			"beacon_node",
@@ -192,11 +222,11 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			// vvvvvvvvvvvvvvvvvvv REMOVE THESE WHEN CONNECTING TO EXTERNAL NET vvvvvvvvvvvvvvvvvvvvv
 			"--disable-enr-auto-update",
 			"--enr-address=" + privateIpAddr,
-			fmt.Sprintf("--enr-udp-port=%v", beaaconDiscoveryPortNum),
-			fmt.Sprintf("--enr-tcp-port=%v", beaaconDiscoveryPortNum),
+			fmt.Sprintf("--enr-udp-port=%v", beaconDiscoveryPortNum),
+			fmt.Sprintf("--enr-tcp-port=%v", beaconDiscoveryPortNum),
 			// ^^^^^^^^^^^^^^^^^^^ REMOVE THESE WHEN CONNECTING TO EXTERNAL NET ^^^^^^^^^^^^^^^^^^^^^
 			"--listen-address=0.0.0.0",
-			fmt.Sprintf("--port=%v", beaaconDiscoveryPortNum), // NOTE: Remove for connecting to external net!
+			fmt.Sprintf("--port=%v", beaconDiscoveryPortNum), // NOTE: Remove for connecting to external net!
 			"--http",
 			"--http-address=0.0.0.0",
 			fmt.Sprintf("--http-port=%v", beaconHttpPortNum),
@@ -210,9 +240,15 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--eth1-endpoints=" + elClientRpcUrlStr,
 			// Set per Paris' recommendation to reduce noise in the logs
 			"--subscribe-all-subnets",
+			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
+			"--metrics",
+			"--metrics-address=" + privateIpAddr,
+			"--metrics-allow-origin=*",
+			fmt.Sprintf("--metrics-port=%v", beaconMetricsPortNum),
+			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 		if bootClClientCtx != nil {
-			cmdArgs = append(cmdArgs, "--boot-nodes=" + bootClClientCtx.GetENR())
+			cmdArgs = append(cmdArgs, "--boot-nodes="+bootClClientCtx.GetENR())
 		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)
@@ -288,6 +324,12 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 			fmt.Sprintf("--http-port=%v", validatorHttpPortNum),
 			"--beacon-nodes=" + beaconClientHttpUrl,
 			"--enable-doppelganger-protection=false",
+			// vvvvvvvvvvvvvvvvvvv PROMETHEUS CONFIG vvvvvvvvvvvvvvvvvvvvv
+			"--metrics",
+			"--metrics-address=" + privateIpAddr,
+			"--metrics-allow-origin=*",
+			fmt.Sprintf("--metrics-port=%v", validatorMetricsPortNum),
+			// ^^^^^^^^^^^^^^^^^^^ PROMETHEUS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)

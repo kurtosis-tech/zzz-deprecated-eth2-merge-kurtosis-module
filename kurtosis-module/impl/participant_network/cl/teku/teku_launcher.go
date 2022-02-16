@@ -26,13 +26,15 @@ const (
 	validatingRewardsAccount = "0x0000000000000000000000000000000000000001"
 
 	// Port IDs
-	tcpDiscoveryPortID = "tcp-discovery"
-	udpDiscoveryPortID = "udp-discovery"
+	tcpDiscoveryPortID = "tcpDiscovery"
+	udpDiscoveryPortID = "udpDiscovery"
 	httpPortID         = "http"
+	metricsPortID      = "metrics"
 
 	// Port nums
 	discoveryPortNum uint16 = 9000
 	httpPortNum             = 4000
+	metricsPortNum   uint16 = 8008
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
@@ -55,13 +57,15 @@ const (
 	timeBetweenHealthcheckRetries = 2 * time.Second
 
 	minPeers = 1
+
+	metricsPath = "/metrics"
 )
 
 var usedPorts = map[string]*services.PortSpec{
-	// TODO Add metrics port
 	tcpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
+	metricsPortID:      services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
 }
 var tekuLogLevels = map[module_io.GlobalClientLogLevel]string{
 	module_io.GlobalClientLogLevel_Error: "ERROR",
@@ -133,10 +137,20 @@ func (launcher *TekuCLClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the new Teku node's identity, which is necessary to retrieve its ENR")
 	}
 
+	metricsPort, found := serviceCtx.GetPrivatePorts()[metricsPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Teku service to have port with ID '%v', but none was found", metricsPortID)
+	}
+	metricsUrl := fmt.Sprintf("%v:%v", serviceCtx.GetPrivateIPAddress(), metricsPort.GetNumber())
+
+	nodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(serviceId), metricsPath, metricsUrl)
+	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
+
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
 		serviceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		nodesMetricsInfo,
 		restClient,
 	)
 
@@ -235,6 +249,11 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 				destValidatorSecretsDirpathInServiceContainer,
 			),
 			"--Xvalidators-proposer-default-fee-recipient=" + validatingRewardsAccount,
+			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
+			"--metrics-enabled",
+			"--metrics-interface=" + privateIpAddr,
+			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
+			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes="+bootnodeContext.GetENR())
