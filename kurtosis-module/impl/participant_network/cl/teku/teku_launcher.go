@@ -89,7 +89,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
 	image string,
-// TODO move to launcher param
+	// TODO move to launcher param
 	participantLogLevel string,
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
