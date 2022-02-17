@@ -2,12 +2,15 @@ Ethereum 2 Merge Module
 =======================
 This is a [Kurtosis module][module-docs] that will:
 
+1. Generate EL & CL genesis information using [this genesis generator](https://github.com/skylenet/ethereum-genesis-generator)
 1. Spin up a network of mining Eth1 clients
 1. Spin up a network of Eth2 Beacon/validator clients
 1. Add [a transaction spammer](https://github.com/kurtosis-tech/tx-fuzz) that will repeatedly send transactions to the network
 1. Launch [a consensus monitor](https://github.com/ralexstokes/ethereum_consensus_monitor) instance attached to the network
 1. Perform the merge
 1. Optionally block until the Beacon nodes finalize an epoch (i.e. finalized_epoch > 0 and finalized_epoch = current_epoch - 3)
+
+For much more detailed information about how the merge works in Ethereum testnets, see [this document](https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F).
 
 ### Quickstart
 1. [Install Docker if you haven't done so already][docker-installation]
