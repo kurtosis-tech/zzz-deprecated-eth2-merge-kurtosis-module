@@ -20,7 +20,7 @@ This is a [Kurtosis module][module-docs] that will:
 
     ```javascript
     {
-        "logLevel": "info",
+        "logLevel": "info"
     }
     ```
 
