@@ -1,4 +1,10 @@
 # TBD
+### Features
+* The CI job will now `enclave dump` its results for debugging purposes
+* Added extra links in the README to give users extra information on running the module
+
+### Changes
+* The default client when no parameters are supplied is now Lighthouse (was Nimbus)
 
 ### Changes
 * Adds `subscribe` to `nethermind`

@@ -50,7 +50,7 @@ func GetDefaultExecuteParams() *ExecuteParams {
 				ELClientType:     ParticipantELClientType_Geth,
 				ELClientImage:    useDefaultElImageKeyword,
 				ELClientLogLevel: unspecifiedLogLevel,
-				CLClientType:     ParticipantCLClientType_Nimbus,
+				CLClientType:     ParticipantCLClientType_Lighthouse,
 				CLClientImage:    useDefaultClImageKeyword,
 				CLClientLogLevel: unspecifiedLogLevel,
 			},
