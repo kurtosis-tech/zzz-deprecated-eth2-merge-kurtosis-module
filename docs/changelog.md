@@ -1,4 +1,6 @@
 # TBD
+
+# 0.4.7
 ### Features
 * The CI job will now `enclave dump` its results for debugging purposes
 * Added extra links in the README to give users extra information on running the module
