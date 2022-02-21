@@ -53,8 +53,8 @@ const (
 	destValidatorSecretsDirpathInServiceContainer = "$HOME/validator-secrets"
 
 	// Teku nodes take ~35s to bring their HTTP server up
-	maxNumHealthcheckRetries      = 60
-	timeBetweenHealthcheckRetries = 1 * time.Second
+	maxNumHealthcheckRetries      = 100
+	timeBetweenHealthcheckRetries = 2 * time.Second
 
 	minPeers = 1
 

@@ -1,5 +1,18 @@
 # TBD
 
+# 0.4.7
+### Features
+* The CI job will now `enclave dump` its results for debugging purposes
+* Added extra links in the README to give users extra information on running the module
+
+### Changes
+* The default client when no parameters are supplied is now Lighthouse (was Nimbus)
+
+### Changes
+* Adds `subscribe` to `nethermind`
+* Changes wait times for `geth`
+* Adds EL flag for `prysm`
+
 # 0.4.6
 ###Features
 * Add Prometheus with a Grafana dashboard to show the network's state
