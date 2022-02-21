@@ -64,8 +64,8 @@ jobs:
           kurtosis enclave dump eth2 <<pipeline.parameters.enclave-dump-dirname>>
           zip -r "<<pipeline.parameters.enclave-dump-dirname>>.zip" "<<pipeline.parameters.enclave-dump-dirname>>"
       - store_artifacts:
-          path: /tmp/<<pipeline.parameters.eth2-enclave-dump>>.zip
-          destination: <<pipeline.parameters.eth2-enclave-dump>>.zip
+          path: /tmp/<<pipeline.parameters.enclave-dump-dirname>>.zip
+          destination: <<pipeline.parameters.enclave-dump-dirname>>.zip
 
       # Finally, fail the job if the testsuite failed
       - run: "! [ -f /tmp/testsuite-failed ]"
