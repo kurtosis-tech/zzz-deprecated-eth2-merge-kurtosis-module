@@ -1,5 +1,10 @@
 # TBD
 
+### Changes
+* Adds `subscribe` to `nethermind`
+* Changes wait times for `geth`
+* Adds EL flag for `prysm`
+
 # 0.4.6
 ###Features
 * Add Prometheus with a Grafana dashboard to show the network's state
