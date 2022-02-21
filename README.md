@@ -32,6 +32,10 @@ For much more detailed information about how the merge works in Ethereum testnet
     kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module --execute-params "$(cat ~/eth2-module-params.json)"
     ```
 
+### Management
+Kurtosis will create a new enclave to house the services of the Ethereum network. [This page][using-the-cli] contains documentation for managing the created enclave & viewing detailed information about it.
+
+### Configuration
 To configure the module behaviour, you can modify your `eth2-module-params.json` file. The full JSON schema that can be passed in is as follows with the defaults provided (though note that the `//` comments are for explanation purposes and aren't valid JSON so need to be removed):
 
 ```javascript
@@ -142,9 +146,6 @@ To configure the module behaviour, you can modify your `eth2-module-params.json`
     "logLevel": "info"
 }
 ```
-
-### Management
-Kurtosis will create a new enclave to house the services of the Ethereum network. [This page][using-the-cli] contains documentation for managing the created enclave & viewing detailed information about it.
 
 <!-- Only links below here -->
 [docker-installation]: https://docs.docker.com/get-docker/
