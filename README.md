@@ -2,12 +2,15 @@ Ethereum 2 Merge Module
 =======================
 This is a [Kurtosis module][module-docs] that will:
 
+1. Generate EL & CL genesis information using [this genesis generator](https://github.com/skylenet/ethereum-genesis-generator)
 1. Spin up a network of mining Eth1 clients
 1. Spin up a network of Eth2 Beacon/validator clients
 1. Add [a transaction spammer](https://github.com/kurtosis-tech/tx-fuzz) that will repeatedly send transactions to the network
 1. Launch [a consensus monitor](https://github.com/ralexstokes/ethereum_consensus_monitor) instance attached to the network
 1. Perform the merge
 1. Optionally block until the Beacon nodes finalize an epoch (i.e. finalized_epoch > 0 and finalized_epoch = current_epoch - 3)
+
+For much more detailed information about how the merge works in Ethereum testnets, see [this document](https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F).
 
 ### Quickstart
 1. [Install Docker if you haven't done so already][docker-installation]
@@ -29,6 +32,10 @@ This is a [Kurtosis module][module-docs] that will:
     kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module --execute-params "$(cat ~/eth2-module-params.json)"
     ```
 
+### Management
+Kurtosis will create a new enclave to house the services of the Ethereum network. [This page][using-the-cli] contains documentation for managing the created enclave & viewing detailed information about it.
+
+### Configuration
 To configure the module behaviour, you can modify your `eth2-module-params.json` file. The full JSON schema that can be passed in is as follows with the defaults provided (though note that the `//` comments are for explanation purposes and aren't valid JSON so need to be removed):
 
 ```javascript
@@ -59,7 +66,7 @@ To configure the module behaviour, you can modify your `eth2-module-params.json`
 
             // The type of CL client that should be started
             // Valid values are "nimbus", "lighthouse", "lodestar", "teku", and "prysm"
-            "clType": "nimbus",
+            "clType": "lighthouse",
 
             // The Docker image that should be used for the EL client; leave blank to use the default for the client type
             // Defaults by client (note that Prysm is different in that it requires two images - a Beacon and a validator - separated by a comma):
@@ -139,9 +146,6 @@ To configure the module behaviour, you can modify your `eth2-module-params.json`
     "logLevel": "info"
 }
 ```
-
-### Management
-Kurtosis will create a new enclave to house the services of the Ethereum network. [This page][using-the-cli] contains documentation for managing the created enclave & viewing detailed information about it.
 
 <!-- Only links below here -->
 [docker-installation]: https://docs.docker.com/get-docker/
