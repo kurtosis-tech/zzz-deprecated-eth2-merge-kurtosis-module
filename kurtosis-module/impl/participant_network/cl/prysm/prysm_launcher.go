@@ -21,7 +21,7 @@ import (
 
 const (
 	imageSeparatorDelimiter = ","
-	expectedNumImages = 2
+	expectedNumImages       = 2
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 
@@ -48,8 +48,8 @@ const (
 	validatorKeysRelDirpathInSharedDir    = "validator-keys"
 	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
 
-	maxNumHealthcheckRetries      = 20
-	timeBetweenHealthcheckRetries = 1 * time.Second
+	maxNumHealthcheckRetries      = 100
+	timeBetweenHealthcheckRetries = 5 * time.Second
 
 	beaconSuffixServiceId    = "beacon"
 	validatorSuffixServiceId = "validator"
@@ -249,6 +249,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--chain-config-file=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--genesis-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
 			"--http-web3provider=" + elClientRpcUrlStr,
+			"--execution-provider=" + elClientRpcUrlStr,
 			"--http-modules=prysm,eth",
 			"--rpc-host=" + privateIpAddr,
 			fmt.Sprintf("--rpc-port=%v", rpcPortNum),
@@ -269,7 +270,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
 		if bootnodeContext != nil {
-			cmdArgs = append(cmdArgs, "--bootstrap-node=" + bootnodeContext.GetENR())
+			cmdArgs = append(cmdArgs, "--bootstrap-node="+bootnodeContext.GetENR())
 		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)

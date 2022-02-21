@@ -44,9 +44,9 @@ const (
 
 	gethKeysRelDirpathInSharedDir = "geth-keys"
 
-	expectedSecondsForGethInit                              = 5
+	expectedSecondsForGethInit                              = 10
 	expectedSecondsPerKeyImport                             = 8
-	expectedSecondsAfterNodeStartUntilHttpServerIsAvailable = 10
+	expectedSecondsAfterNodeStartUntilHttpServerIsAvailable = 20
 	getNodeInfoTimeBetweenRetries                           = 1 * time.Second
 
 	gethAccountPassword      = "password"          // Password that the Geth accounts will be locked with
