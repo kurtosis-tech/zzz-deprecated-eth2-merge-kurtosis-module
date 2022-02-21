@@ -63,11 +63,11 @@ To configure the module behaviour, you can modify your `eth2-module-params.json`
 
             // The Docker image that should be used for the EL client; leave blank to use the default for the client type
             // Defaults by client (note that Prysm is different in that it requires two images - a Beacon and a validator - separated by a comma):
-            // - lighthouse: sigp/lighthouse:latest-unstable",
-            // - teku: consensys/teku:latest",
-            // - nimbus: statusim/nimbus-eth2:amd64-latest",
-            // - prysm: prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest",
-            // - lodestar: chainsafe/lodestar:next",
+            // - lighthouse: sigp/lighthouse:latest-unstable
+            // - teku: consensys/teku:latest
+            // - nimbus: statusim/nimbus-eth2:amd64-latest
+            // - prysm: prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest
+            // - lodestar: chainsafe/lodestar:next
             "clImage": "",
 
 
