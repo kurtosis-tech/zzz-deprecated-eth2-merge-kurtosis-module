@@ -1,4 +1,6 @@
 # TBD
+### Features
+* The CI job will now `enclave dump` its results for debugging purposes
 
 # 0.4.6
 ###Features
