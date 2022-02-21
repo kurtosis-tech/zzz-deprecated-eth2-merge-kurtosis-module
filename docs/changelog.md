@@ -2,6 +2,9 @@
 ### Features
 * The CI job will now `enclave dump` its results for debugging purposes
 
+### Changes
+* The default client when no parameters are supplied is now Lighthouse (was Nimbus)
+
 # 0.4.6
 ###Features
 * Add Prometheus with a Grafana dashboard to show the network's state
