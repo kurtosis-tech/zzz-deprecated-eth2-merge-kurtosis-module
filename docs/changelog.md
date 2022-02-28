@@ -1,5 +1,7 @@
 # TBD
 
+# 0.4.8
+
 ### Changes
 * Adding participation panel to grafana dashboard
 
