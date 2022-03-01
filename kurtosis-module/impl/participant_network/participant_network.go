@@ -181,6 +181,8 @@ func LaunchParticipantNetwork(
 			logrus.Infof("EL client %v has begun mining", idx)
 		}
 		logrus.Infof("All EL clients have started mining")
+	} else {
+		logrus.Infof("The wait-for-mining flag was set to true which means we're skipping waiting for the EL clients to start mining; this will speed up the launch but the Beacon nodes likely won't work properly!")
 	}
 
 	// We create the CL genesis data after the EL network is ready so that the CL genesis timestamp will be close
