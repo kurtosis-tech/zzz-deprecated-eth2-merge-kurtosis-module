@@ -50,7 +50,7 @@ func NewEth2KurtosisModule() *Eth2KurtosisModule {
 }
 
 func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
-	logrus.Info("Deserializing the following execute params:\n%v", serializedParams)
+	logrus.Infof("Deserializing the following execute params:\n%v", serializedParams)
 	paramsObj, err := module_io.DeserializeAndValidateParams(serializedParams)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred deserializing & validating the params")
