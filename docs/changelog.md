@@ -1,8 +1,9 @@
 # TBD
+### Features
+* Print an extra log message when the wait-for-mining flag is set to false
 
 # 0.4.8
-
-### Changes
+### Features
 * Adding participation panel to grafana dashboard
 
 # 0.4.7
