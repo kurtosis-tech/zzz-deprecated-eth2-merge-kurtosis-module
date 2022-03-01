@@ -1,6 +1,10 @@
 # TBD
 ### Features
 * Print an extra log message when the wait-for-mining flag is set to false
+* Log the module's parameters it receives for debugging purposes
+
+### Fixes
+* Fixed an issue where Lodestar wasn't properly using the `clImage` param
 
 # 0.4.8
 ### Features
