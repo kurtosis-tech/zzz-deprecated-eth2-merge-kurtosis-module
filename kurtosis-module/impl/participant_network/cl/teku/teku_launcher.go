@@ -252,6 +252,8 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics-enabled",
 			"--metrics-interface=" + privateIpAddr,
+			"--metrics-host-allowlist='*'",
+			"--metrics-categories=BEACON,PROCESS,LIBP2P,JVM,NETWORK,PROCESS",
 			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
 			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
