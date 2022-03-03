@@ -1,4 +1,6 @@
 # TBD
+### Features
+* Prysm can now be a boot node, as https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/37 seems to be fixed from the Prysm side
 
 # 0.4.9
 ### Features
