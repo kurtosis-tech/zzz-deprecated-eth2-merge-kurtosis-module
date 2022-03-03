@@ -2,6 +2,7 @@ Ethereum 2 Merge Module
 =======================
 This is a [Kurtosis module][module-docs] that will:
 
+1. Generate EL & CL genesis information using [this genesis generator](https://github.com/skylenet/ethereum-genesis-generator)
 1. Spin up a network of mining Eth1 clients
 1. Spin up a network of Eth2 Beacon/validator clients
 1. Add [a transaction spammer](https://github.com/kurtosis-tech/tx-fuzz) that will repeatedly send transactions to the network
@@ -9,19 +10,33 @@ This is a [Kurtosis module][module-docs] that will:
 1. Perform the merge
 1. Optionally block until the Beacon nodes finalize an epoch (i.e. finalized_epoch > 0 and finalized_epoch = current_epoch - 3)
 
+For much more detailed information about how the merge works in Ethereum testnets, see [this document](https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F).
+
 ### Quickstart
 1. [Install Docker if you haven't done so already][docker-installation]
 1. [Install the Kurtosis CLI, or upgrade it to the latest version if it's already installed][kurtosis-cli-installation]
 1. Ensure your Docker engine is running:
-    ```
+    ```bash
     docker image ls
     ```
-1. Execute the module:
-    ```
-    kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module --execute-params '{}'
+1. Create a file in your home directory `eth2-module-params.json` with the following contents:
+
+    ```javascript
+    {
+        "logLevel": "info",
+    }
     ```
 
-To configure the module behaviour, provide a non-empty JSON object to the `--execute-params` flag. The JSON schema that can be passed in is as follows with the defaults provided (though note that the `//` comments are for explanation purposes and aren't valid JSON so need to be removed):
+1. Execute the module, passing in the params from the file:
+    ```bash
+    kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module --execute-params "$(cat ~/eth2-module-params.json)"
+    ```
+
+### Management
+Kurtosis will create a new enclave to house the services of the Ethereum network. [This page][using-the-cli] contains documentation for managing the created enclave & viewing detailed information about it.
+
+### Configuration
+To configure the module behaviour, you can modify your `eth2-module-params.json` file. The full JSON schema that can be passed in is as follows with the defaults provided (though note that the `//` comments are for explanation purposes and aren't valid JSON so need to be removed):
 
 ```javascript
 {
@@ -51,15 +66,15 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
 
             // The type of CL client that should be started
             // Valid values are "nimbus", "lighthouse", "lodestar", "teku", and "prysm"
-            "clType": "nimbus",
+            "clType": "lighthouse",
 
             // The Docker image that should be used for the EL client; leave blank to use the default for the client type
             // Defaults by client (note that Prysm is different in that it requires two images - a Beacon and a validator - separated by a comma):
-            // - lighthouse: sigp/lighthouse:latest-unstable",
-            // - teku: consensys/teku:latest",
-            // - nimbus: statusim/nimbus-eth2:amd64-latest",
-            // - prysm: prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest",
-            // - lodestar: chainsafe/lodestar:next",
+            // - lighthouse: sigp/lighthouse:latest-unstable
+            // - teku: consensys/teku:latest
+            // - nimbus: statusim/nimbus-eth2:amd64-latest
+            // - prysm: prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest
+            // - lodestar: chainsafe/lodestar:next
             "clImage": "",
 
 
@@ -131,9 +146,6 @@ To configure the module behaviour, provide a non-empty JSON object to the `--exe
     "logLevel": "info"
 }
 ```
-
-### Management
-Kurtosis will create a new enclave to house the services of the Ethereum network. [This page][using-the-cli] contains documentation for managing the created enclave & viewing detailed information about it.
 
 <!-- Only links below here -->
 [docker-installation]: https://docs.docker.com/get-docker/

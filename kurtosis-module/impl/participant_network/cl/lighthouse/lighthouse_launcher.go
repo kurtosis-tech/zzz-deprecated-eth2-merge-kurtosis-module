@@ -23,10 +23,10 @@ const (
 	beaconConfigDataDirpathRelToSharedDirRoot    = "config-data"
 
 	// Port IDs
-	beaconTcpDiscoveryPortID = "tcp-discovery"
-	beaconUdpDiscoveryPortID = "udp-discovery"
-	beaconHttpPortID         = "beacon-http"
-	beaconMetricsPortID      = "beacon-metrics"
+	beaconTcpDiscoveryPortID = "tcpDiscovery"
+	beaconUdpDiscoveryPortID = "udpDiscovery"
+	beaconHttpPortID         = "http"
+	beaconMetricsPortID      = "metrics"
 
 	// Port nums
 	beaconDiscoveryPortNum uint16 = 9000
@@ -42,8 +42,8 @@ const (
 	validatorKeysRelDirpathInSharedDir    = "validator-keys"
 	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
 
-	validatorHttpPortID    = "validator-http"
-	validatorMetricsPortID = "validator-metrics"
+	validatorHttpPortID    = "http"
+	validatorMetricsPortID = "metrics"
 	validatorHttpPortNum   = 5042
 	validatorMetricsPortNum   = 5064
 

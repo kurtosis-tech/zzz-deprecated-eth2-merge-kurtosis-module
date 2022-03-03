@@ -29,8 +29,8 @@ const (
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
-	tcpDiscoveryPortId = "tcp-discovery"
-	udpDiscoveryPortId = "udp-discovery"
+	tcpDiscoveryPortId = "tcpDiscovery"
+	udpDiscoveryPortId = "udpDiscovery"
 
 	getNodeInfoMaxRetries         = 20
 	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
@@ -132,7 +132,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			"--Init.WebSocketsEnabled=true",
 			"--Init.DiagnosticMode=None",
 			"--JsonRpc.Enabled=true",
-			"--JsonRpc.EnabledModules=net,eth,consensus,engine,admin",
+			"--JsonRpc.EnabledModules=net,eth,consensus,engine,subscribe,web3,admin",
 			"--JsonRpc.Host=0.0.0.0",
 			// TODO Set Eth isMining?
 			fmt.Sprintf("--JsonRpc.Port=%v", rpcPortNum),

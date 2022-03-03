@@ -16,15 +16,11 @@ import (
 )
 
 const (
-	imageName = "chainsafe/lodestar:next"
-	// TODO Uncomment this when we're ready to use the BELLATRIX_ config values
-	// imageName = "g11tech/lodestar:355ef6"
-
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 
 	// Port IDs
-	tcpDiscoveryPortID = "tcp-discovery"
-	udpDiscoveryPortID = "udp-discovery"
+	tcpDiscoveryPortID = "tcpDiscovery"
+	udpDiscoveryPortID = "udpDiscovery"
 	httpPortID         = "http"
 	metricsPortID 	   = "metrics"
 
@@ -119,6 +115,7 @@ func (launcher *LodestarClientLauncher) Launch(
 
 	validatorContainerConfigSupplier := getValidatorContainerConfigSupplier(
 		validatorNodeServiceId,
+		image,
 		logLevel,
 		beaconHttpUrl,
 		launcher.genesisConfigYmlFilepathOnModuleContainer,
@@ -226,7 +223,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
-			imageName,
+			image,
 		).WithUsedPorts(
 			usedPorts,
 		).WithCmdOverride(
@@ -240,6 +237,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 
 func getValidatorContainerConfigSupplier(
 	serviceId services.ServiceID,
+	image string,
 	logLevel string,
 	beaconEndpoint string,
 	genesisConfigYmlFilepathOnModuleContainer string,
@@ -275,7 +273,7 @@ func getValidatorContainerConfigSupplier(
 		}
 
 		containerConfig := services.NewContainerConfigBuilder(
-			imageName,
+			image,
 		).WithUsedPorts(
 			usedPorts,
 		).WithCmdOverride(

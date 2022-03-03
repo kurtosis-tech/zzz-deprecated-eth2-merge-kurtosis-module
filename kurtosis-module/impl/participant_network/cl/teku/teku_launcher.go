@@ -26,8 +26,8 @@ const (
 	validatingRewardsAccount = "0x0000000000000000000000000000000000000001"
 
 	// Port IDs
-	tcpDiscoveryPortID = "tcp-discovery"
-	udpDiscoveryPortID = "udp-discovery"
+	tcpDiscoveryPortID = "tcpDiscovery"
+	udpDiscoveryPortID = "udpDiscovery"
 	httpPortID         = "http"
 	metricsPortID      = "metrics"
 
@@ -53,8 +53,8 @@ const (
 	destValidatorSecretsDirpathInServiceContainer = "$HOME/validator-secrets"
 
 	// Teku nodes take ~35s to bring their HTTP server up
-	maxNumHealthcheckRetries      = 60
-	timeBetweenHealthcheckRetries = 1 * time.Second
+	maxNumHealthcheckRetries      = 100
+	timeBetweenHealthcheckRetries = 2 * time.Second
 
 	minPeers = 1
 

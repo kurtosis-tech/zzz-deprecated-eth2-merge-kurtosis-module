@@ -1,6 +1,40 @@
 # TBD
+
+# 0.4.9
+### Features
+* Print an extra log message when the wait-for-mining flag is set to false
+* Log the module's parameters it receives for debugging purposes
+
+### Fixes
+* Fixed an issue where Lodestar wasn't properly using the `clImage` param
+
+# 0.4.8
+### Features
+* Adding participation panel to grafana dashboard
+
+# 0.4.7
+### Features
+* The CI job will now `enclave dump` its results for debugging purposes
+* Added extra links in the README to give users extra information on running the module
+
+### Changes
+* The default client when no parameters are supplied is now Lighthouse (was Nimbus)
+
+### Changes
+* Adds `subscribe` to `nethermind`
+* Changes wait times for `geth`
+* Adds EL flag for `prysm`
+
+# 0.4.6
 ###Features
-* Add `Prometheus` datasource and `Grafana` service to show the network's dashboard
+* Add Prometheus with a Grafana dashboard to show the network's state
+
+# 0.4.5
+### Changes
+* Suggest users store their module parameters in a file, so they're easier to work with
+
+### Fixes
+* Fix port IDs for Kurtosis 0.10.0
 
 # 0.4.4
 ### Changes

@@ -2,7 +2,6 @@ package grafana
 
 import (
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
@@ -27,6 +26,8 @@ const (
 	dashboardsConfigDirpahtInShareDir          = "dashboards"
 	dashboardProvidersConfigFilenameInShareDir = "dashboard-providers.yml"
 	grafanaDashboardConfigFilename             = "dashboard.json"
+
+	configDirpathEnvVar = "GF_PATHS_PROVISIONING"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -45,10 +46,9 @@ func LaunchGrafana(
 	enclaveCtx *enclaves.EnclaveContext,
 	datasourceConfigTemplate *template.Template,
 	dashboardConfigTemplate *template.Template,
-	prometheusUrl string,
-	clClientContexts []*cl.CLClientContext,
+	prometheusPrivateUrl string,
 ) (string, error) {
-	containerConfigSupplier, err := getContainerConfigSupplier(datasourceConfigTemplate, dashboardConfigTemplate, prometheusUrl, clClientContexts)
+	containerConfigSupplier, err := getContainerConfigSupplier(datasourceConfigTemplate, dashboardConfigTemplate, prometheusPrivateUrl)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred getting the container config supplier")
 	}
@@ -74,8 +74,7 @@ func LaunchGrafana(
 func getContainerConfigSupplier(
 	datasourceConfigTemplate *template.Template,
 	dashboardConfigTemplate *template.Template,
-	prometheusUrl string,
-	clClientContexts []*cl.CLClientContext,
+	prometheusPrivateUrl string,
 	) (func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error), error,
 ) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
@@ -94,7 +93,7 @@ func getContainerConfigSupplier(
 		datasourceConfigFileSharedPath := datasourcesConfigSharedPath.GetChildPath(datasourceConfigFileNameInShareDir)
 
 		datasourceTemplateData := datasourceConfigTemplateData{
-			PrometheusURL: prometheusUrl,
+			PrometheusURL: prometheusPrivateUrl,
 		}
 
 		if err := service_launch_utils.FillTemplateToSharedPath(datasourceConfigTemplate, datasourceTemplateData, datasourceConfigFileSharedPath); err != nil {
@@ -120,7 +119,7 @@ func getContainerConfigSupplier(
 		).WithUsedPorts(
 			usedPorts,
 		).WithEnvironmentVariableOverrides(map[string]string{
-			"GF_PATHS_PROVISIONING": sharedDir.GetAbsPathOnServiceContainer(),
+			configDirpathEnvVar: sharedDir.GetAbsPathOnServiceContainer(),
 		}).Build()
 
 		return containerConfig, nil

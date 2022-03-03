@@ -31,8 +31,8 @@ const (
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
-	tcpDiscoveryPortId = "tcp-discovery"
-	udpDiscoveryPortId = "udp-discovery"
+	tcpDiscoveryPortId = "tcpDiscovery"
+	udpDiscoveryPortId = "udpDiscovery"
 
 	getNodeInfoMaxRetries         = 20
 	getNodeInfoTimeBetweenRetries = 1 * time.Second
@@ -144,12 +144,12 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 			"--rpc-http-enabled=true",
 			"--rpc-http-host=0.0.0.0",
 			fmt.Sprintf("--rpc-http-port=%v", rpcPortNum),
-			"--rpc-http-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,EXECUTION",
+			"--rpc-http-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL",
 			"--rpc-http-cors-origins=*",
 			"--rpc-ws-enabled=true",
 			"--rpc-ws-host=0.0.0.0",
 			fmt.Sprintf("--rpc-ws-port=%v", wsPortNum),
-			"--rpc-ws-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,EXECUTION",
+			"--rpc-ws-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL",
 			"--p2p-enabled=true",
 			"--p2p-host=" + privateIpAddr,
 			fmt.Sprintf("--p2p-port=%v", discoveryPortNum),

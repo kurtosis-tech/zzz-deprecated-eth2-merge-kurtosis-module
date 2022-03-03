@@ -1,4 +1,5 @@
 package participant_network
+
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
@@ -31,7 +32,7 @@ const (
 	// The more nodes, the longer DAG generation takes so the longer we have to wait for a node to become available
 	// TODO MAKE THIS CONFIGURABLE BASED ON ESTIMATED TIME-TO-DAG-GENERATION
 	elClientMineWaiterMaxNumRetriesPerNode = uint32(120)
-	elClientMineWaiterTimeBetweenRetries = 5 * time.Second
+	elClientMineWaiterTimeBetweenRetries   = 5 * time.Second
 
 	// The time that the CL genesis generation step takes to complete, based off what we've seen
 	clGenesisDataGenerationTime = 2 * time.Minute
@@ -180,6 +181,8 @@ func LaunchParticipantNetwork(
 			logrus.Infof("EL client %v has begun mining", idx)
 		}
 		logrus.Infof("All EL clients have started mining")
+	} else {
+		logrus.Infof("The wait-for-mining flag was set to true which means we're skipping waiting for the EL clients to start mining; this will speed up the launch but the Beacon nodes likely won't work properly!")
 	}
 
 	// We create the CL genesis data after the EL network is ready so that the CL genesis timestamp will be close
@@ -188,7 +191,7 @@ func LaunchParticipantNetwork(
 	// Set the genesis timestamp in the future so we don't start running slots until all the CL nodes are up
 	clGenesisTimestamp := uint64(time.Now().Unix()) +
 		uint64(clGenesisDataGenerationTime.Seconds()) +
-		uint64(numParticipants) * uint64(clNodeStartupTime.Seconds())
+		uint64(numParticipants)*uint64(clNodeStartupTime.Seconds())
 	clGenesisData, err := prelaunchDataGeneratorCtx.GenerateCLGenesisData(
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
@@ -296,7 +299,7 @@ func LaunchParticipantNetwork(
 			clClientType,
 			elClientCtx,
 			clClientCtx,
-		 )
+		)
 		allParticipants = append(allParticipants, participant)
 	}
 

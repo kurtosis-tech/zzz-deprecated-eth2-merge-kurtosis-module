@@ -25,8 +25,8 @@ const (
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
-	tcpDiscoveryPortId = "tcp-discovery"
-	udpDiscoveryPortId = "udp-discovery"
+	tcpDiscoveryPortId = "tcpDiscovery"
+	udpDiscoveryPortId = "udpDiscovery"
 
 	// NOTE: This can't be 0x00000....000
 	// See: https://github.com/ethereum/go-ethereum/issues/19547
@@ -44,9 +44,9 @@ const (
 
 	gethKeysRelDirpathInSharedDir = "geth-keys"
 
-	expectedSecondsForGethInit                              = 5
+	expectedSecondsForGethInit                              = 10
 	expectedSecondsPerKeyImport                             = 8
-	expectedSecondsAfterNodeStartUntilHttpServerIsAvailable = 10
+	expectedSecondsAfterNodeStartUntilHttpServerIsAvailable = 20
 	getNodeInfoTimeBetweenRetries                           = 1 * time.Second
 
 	gethAccountPassword      = "password"          // Password that the Geth accounts will be locked with
