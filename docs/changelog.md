@@ -1,4 +1,7 @@
 # TBD
+### Fixes
+* Fixed metrics config in Teku CL container config
+
 ### Features
 * Prysm can now be a boot node, as https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/37 seems to be fixed from the Prysm side
 
