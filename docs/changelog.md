@@ -1,4 +1,6 @@
 # TBD
+
+# 0.4.10
 ### Fixes
 * Fixed metrics config in Teku CL container config
 
