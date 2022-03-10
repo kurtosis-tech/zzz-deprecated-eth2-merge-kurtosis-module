@@ -25,6 +25,7 @@ const (
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
+	enginePortNum    uint16 = 8551
 
 	// Port IDs
 	rpcPortId          = "rpc"
@@ -98,6 +99,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 		wsPortNum,
+		enginePortNum,
 		miningWaiter,
 	)
 

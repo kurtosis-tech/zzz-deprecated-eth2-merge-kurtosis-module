@@ -1,4 +1,5 @@
 package besu
+
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
@@ -27,6 +28,7 @@ const (
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
+	enginePortNum    uint16 = 8551
 
 	// Port IDs
 	rpcPortId          = "rpc"
@@ -37,6 +39,7 @@ const (
 	getNodeInfoMaxRetries         = 20
 	getNodeInfoTimeBetweenRetries = 1 * time.Second
 )
+
 var usedPorts = map[string]*services.PortSpec{
 	rpcPortId:          services.NewPortSpec(rpcPortNum, services.PortProtocol_TCP),
 	wsPortId:           services.NewPortSpec(wsPortNum, services.PortProtocol_TCP),
@@ -55,7 +58,7 @@ var besuLogLevels = map[module_io.GlobalClientLogLevel]string{
 
 type BesuELClientLauncher struct {
 	genesisJsonFilepathOnModuleContainer string
-	networkId string
+	networkId                            string
 }
 
 func NewBesuELClientLauncher(genesisJsonFilepathOnModuleContainer string, networkId string) *BesuELClientLauncher {
@@ -107,12 +110,12 @@ func (launcher *BesuELClientLauncher) Launch(
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 		wsPortNum,
+		enginePortNum,
 		miningWaiter,
 	)
 
 	return result, nil
 }
-
 
 // ====================================================================================================
 //                                       Private Helper Methods
@@ -157,7 +160,7 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 		if bootnodeContext != nil {
 			launchNodeCmdArgs = append(
 				launchNodeCmdArgs,
-				"--bootnodes=" + bootnodeContext.GetEnode(),
+				"--bootnodes="+bootnodeContext.GetEnode(),
 			)
 		}
 		if len(extraParams) > 0 {
