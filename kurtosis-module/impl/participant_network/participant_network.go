@@ -105,15 +105,18 @@ func LaunchParticipantNetwork(
 	elClientLaunchers := map[module_io.ParticipantELClientType]el.ELClientLauncher{
 		module_io.ParticipantELClientType_Geth: geth.NewGethELClientLauncher(
 			elGenesisData.GetGethGenesisJsonFilepath(),
+			elGenesisData.GetJWTSecretFilepath(),
 			genesis_consts.PrefundedAccounts,
 			networkParams.NetworkID,
 		),
 		module_io.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
 			elGenesisData.GetNethermindGenesisJsonFilepath(),
+			// TODO Pass in JWT secret filepath??
 			networkParams.TotalTerminalDifficulty,
 		),
 		module_io.ParticipantELClientType_Besu: besu.NewBesuELClientLauncher(
 			elGenesisData.GetBesuGenesisJsonFilepath(),
+			// TODO Pass in JWT secret filepath??
 			networkParams.NetworkID,
 		),
 	}
