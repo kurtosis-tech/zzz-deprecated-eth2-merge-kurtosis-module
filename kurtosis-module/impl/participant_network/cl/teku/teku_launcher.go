@@ -38,6 +38,7 @@ const (
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
+	sharedJWTSecretRelFilepath             = "jwtsecret"
 
 	validatorKeysDirpathRelToSharedDirRoot    = "validator-keys"
 	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
@@ -191,6 +192,11 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			)
 		}
 
+		JWTSecretRelFilepath := sharedDir.GetChildPath(sharedJWTSecretRelFilepath)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisSszFilepathOnModuleContainer, JWTSecretRelFilepath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.genesisSszFilepathOnModuleContainer, sharedJWTSecretRelFilepath)
+		}
+
 		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
 		if err := recursive_copy.Copy(
 			validatorKeysDirpathOnModuleContainer,
@@ -212,6 +218,13 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			elClientContext.GetIPAddress(),
 			elClientContext.GetRPCPortNum(),
 		)
+
+		executionClientRpcUrlStr := fmt.Sprintf(
+			"http://%v:%v",
+			elClientContext.GetIPAddress(),
+			elClientContext.GetEnginePortNum(),
+		)
+
 		cmdArgs := []string{
 			"cp",
 			"-R",
@@ -235,7 +248,6 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			"--p2p-subscribe-all-subnets-enabled=true",
 			fmt.Sprintf("--p2p-peer-lower-bound=%v", minPeers),
 			"--eth1-endpoints=" + elClientRpcUrlStr,
-			"--Xee-endpoint=" + elClientRpcUrlStr,
 			"--p2p-advertised-ip=" + privateIpAddr,
 			"--rest-api-enabled=true",
 			"--rest-api-docs-enabled=true",
@@ -248,6 +260,8 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 				destValidatorKeysDirpathInServiceContainer,
 				destValidatorSecretsDirpathInServiceContainer,
 			),
+			fmt.Sprintf("--ee-jwt-secret-file=%v", JWTSecretRelFilepath.GetAbsPathOnServiceContainer()),
+			"--ee-endpoint=" + executionClientRpcUrlStr,
 			"--Xvalidators-proposer-default-fee-recipient=" + validatingRewardsAccount,
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics-enabled",
