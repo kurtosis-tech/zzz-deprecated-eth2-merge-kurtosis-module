@@ -21,6 +21,7 @@ const (
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
+	enginePortNum    uint16 = 8551
 
 	// Port IDs
 	rpcPortId          = "rpc"
@@ -37,6 +38,7 @@ const (
 
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
 	sharedGenesisJsonRelFilepath = "genesis.json"
+	sharedJWTSecretRelFilepath   = "jwtsecret"
 
 	// The dirpath of the execution data directory on the client container
 	executionDataDirpathOnClientContainer = "/execution-data"
@@ -123,6 +125,7 @@ func (launcher *GethELClientLauncher) Launch(
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 		wsPortNum,
+		enginePortNum,
 		miningWaiter,
 	)
 
@@ -144,6 +147,11 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModuleContainer, genesisJsonSharedPath); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedGenesisJsonRelFilepath)
+		}
+
+		JWTSecretRelFilepath := sharedDir.GetChildPath(sharedJWTSecretRelFilepath)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModuleContainer, JWTSecretRelFilepath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedJWTSecretRelFilepath)
 		}
 
 		gethKeysDirSharedPath := sharedDir.GetChildPath(gethKeysRelDirpathInSharedDir)
@@ -206,6 +214,8 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--allow-insecure-unlock",
 			"--nat=extip:" + privateIpAddr,
 			"--verbosity=" + verbosityLevel,
+			fmt.Sprintf("--authrpc.port=%v", enginePortNum),
+			fmt.Sprintf("--authrpc.jwtsecret=%v", JWTSecretRelFilepath.GetAbsPathOnServiceContainer()),
 		}
 		if bootnodeContext != nil {
 			launchNodeCmdArgs = append(
