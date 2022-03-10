@@ -23,7 +23,7 @@ For much more detailed information about how the merge works in Ethereum testnet
 
     ```javascript
     {
-        "logLevel": "info",
+        "logLevel": "info"
     }
     ```
 
