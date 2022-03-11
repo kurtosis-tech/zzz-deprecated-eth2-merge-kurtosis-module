@@ -211,10 +211,10 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			elClientCtx.GetRPCPortNum(),
 		)
 
-		executionClientRpcUrlStr := fmt.Sprintf(
+		elClientEngineRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientCtx.GetIPAddress(),
-			elClientCtx.GetEnginePortNum(),
+			elClientCtx.GetEngineRPCPortNum(),
 		)
 
 		configDataDirpathOnService := configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer()
@@ -250,7 +250,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			//   https://github.com/sigp/lighthouse/blob/7c88f582d955537f7ffff9b2c879dcf5bf80ce13/scripts/local_testnet/beacon_node.sh
 			// and the option says it's "useful for testing in smaller networks" (unclear what happens in larger networks)
 			"--disable-packet-filter",
-			"--execution-endpoints=" + executionClientRpcUrlStr,
+			"--execution-endpoints=" + elClientEngineRpcUrlStr,
 			"--eth1-endpoints=" + elClientRpcUrlStr,
 			"--jwt-secrets=" + jwtSecretSharedPath.GetAbsPathOnServiceContainer(),
 			// Set per Paris' recommendation to reduce noise in the logs

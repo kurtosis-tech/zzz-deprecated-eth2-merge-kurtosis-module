@@ -116,7 +116,7 @@ func LaunchParticipantNetwork(
 		),
 		module_io.ParticipantELClientType_Besu: besu.NewBesuELClientLauncher(
 			elGenesisData.GetBesuGenesisJsonFilepath(),
-			// TODO Pass in JWT secret filepath??
+			elGenesisData.GetJWTSecretFilepath(),
 			networkParams.NetworkID,
 		),
 	}
@@ -216,21 +216,26 @@ func LaunchParticipantNetwork(
 		module_io.ParticipantCLClientType_Teku: teku.NewTekuCLClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
+			clGenesisData.GetJWTSecretFilepath(),
 			numParticipants,
 		),
 		module_io.ParticipantCLClientType_Nimbus: nimbus.NewNimbusLauncher(
 			clGenesisData.GetParentDirpath(),
+			clGenesisData.GetJWTSecretFilepath(),
 		),
 		module_io.ParticipantCLClientType_Lodestar: lodestar.NewLodestarClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
+			clGenesisData.GetJWTSecretFilepath(),
 		),
 		module_io.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
 			clGenesisData.GetParentDirpath(),
+			clGenesisData.GetJWTSecretFilepath(),
 		),
 		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
+			clGenesisData.GetJWTSecretFilepath(),
 			clValidatorData.PrysmPassword,
 		),
 	}

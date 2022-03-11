@@ -220,10 +220,10 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			elClientContext.GetRPCPortNum(),
 		)
 
-		executionClientRpcUrlStr := fmt.Sprintf(
+		elClientEngineRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
-			elClientContext.GetEnginePortNum(),
+			elClientContext.GetEngineRPCPortNum(),
 		)
 
 		cmdArgs := []string{
@@ -262,7 +262,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 				destValidatorSecretsDirpathInServiceContainer,
 			),
 			fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
-			"--ee-endpoint=" + executionClientRpcUrlStr,
+			"--ee-endpoint=" + elClientEngineRpcUrlStr,
 			"--Xvalidators-proposer-default-fee-recipient=" + validatingRewardsAccount,
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics-enabled",
