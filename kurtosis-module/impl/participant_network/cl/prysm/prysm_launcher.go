@@ -81,11 +81,12 @@ var prysmLogLevels = map[module_io.GlobalClientLogLevel]string{
 type PrysmCLClientLauncher struct {
 	genesisConfigYmlFilepathOnModuleContainer string
 	genesisSszFilepathOnModuleContainer       string
+	jwtSecretFilepathOnModuleContainer        string
 	prysmPassword                             string
 }
 
-func NewPrysmCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, prysmPassword string) *PrysmCLClientLauncher {
-	return &PrysmCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, prysmPassword: prysmPassword}
+func NewPrysmCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string, prysmPassword string) *PrysmCLClientLauncher {
+	return &PrysmCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer, prysmPassword: prysmPassword}
 }
 
 func (launcher *PrysmCLClientLauncher) Launch(
@@ -263,6 +264,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--verbosity=" + logLevel,
 			// Set per Pari's recommendation to reduce noise
 			"--subscribe-all-subnets=true",
+			// TODO SOMETHING ABOUT JWT SECRET?
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--disable-monitoring=false",
 			"--monitoring-host=" + privateIpAddr,

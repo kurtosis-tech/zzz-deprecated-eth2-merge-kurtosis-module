@@ -246,6 +246,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--doppelganger-detection=false",
 			// Set per Pari's recommendation to reduce noise in the logs
 			"--subscribe-all-subnets=true",
+			// TODO SOMETHING ABOUT JWT SECRET
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics",
 			"--metrics-address=" + privateIpAddr,

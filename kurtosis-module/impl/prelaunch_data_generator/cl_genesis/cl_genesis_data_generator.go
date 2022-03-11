@@ -51,6 +51,7 @@ type clGenesisConfigTemplateData struct {
 func GenerateCLGenesisData(
 	genesisGenerationConfigYmlTemplate *template.Template,
 	genesisGenerationMnemonicsYmlTemplate *template.Template,
+	jwtSecretFilepathOnModuleContainer string,
 	serviceCtx *services.ServiceContext,
 	genesisUnixTimestamp uint64,
 	networkId string,
@@ -110,6 +111,7 @@ func GenerateCLGenesisData(
 	result, err := runClGenesisGeneration(
 		genesisGenerationConfigSharedFile,
 		genesisGenerationMnemonicsSharedFile,
+		jwtSecretFilepathOnModuleContainer,
 		genesisUnixTimestamp,
 		depositContractAddress,
 		serviceCtx,
@@ -148,6 +150,7 @@ func createGenesisGenerationConfig(
 func runClGenesisGeneration(
 	genesisGenerationConfigSharedFile *services.SharedPath,
 	genesisGenerationMnemonicsSharedFile *services.SharedPath,
+	jwtSecretFilepathOnModuleContainer string,
 	genesisTimestamp uint64,
 	depositContractAddress string,
 	serviceCtx *services.ServiceContext,
@@ -224,30 +227,12 @@ func runClGenesisGeneration(
 	}
 
 	jwtSecretSharedFile := outputSharedDir.GetChildPath(jwtSecretFilename)
-	jwtSecretGenerationCmdArgs := []string{
-		"bash",
-		"-c",
-		fmt.Sprintf(
-			"openssl rand -hex 32 | tr -d \"\\n\" > %v",
-			jwtSecretSharedFile.GetAbsPathOnServiceContainer(),
-		),
-	}
-
-	jwtSecretGenerationExitCode, jwtSecretGenerationOutput, err := serviceCtx.ExecCommand(jwtSecretGenerationCmdArgs)
-	if err != nil {
+	if err := service_launch_utils.CopyFileToSharedPath(jwtSecretFilepathOnModuleContainer, jwtSecretSharedFile); err != nil {
 		return nil, stacktrace.Propagate(
 			err,
-			"An error occurred executing command '%v' to generate the CL JWT secret",
-			strings.Join(clGenesisGenerationCmdArgs, " "),
-		)
-	}
-	if jwtSecretGenerationExitCode != successCommandExitCode {
-		return nil, stacktrace.NewError(
-			"Expected CL JWT secret generation command '%v' to return exit code '%v' but returned '%v' with the following logs:\n%v",
-			strings.Join(clGenesisGenerationCmdArgs, " "),
-			successCommandExitCode,
-			jwtSecretGenerationExitCode,
-			jwtSecretGenerationOutput,
+			"An error occurred copying JWT secret file from path '%v' to shared filepath '%v'",
+			jwtSecretFilepathOnModuleContainer,
+			jwtSecretSharedFile.GetAbsPathOnThisContainer(),
 		)
 	}
 
