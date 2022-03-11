@@ -348,6 +348,7 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
 			"--verbosity=" + logLevel,
+			// TODO SOMETHING ABOUT JWT
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--disable-monitoring=false",
 			"--monitoring-host=" + privateIpAddr,

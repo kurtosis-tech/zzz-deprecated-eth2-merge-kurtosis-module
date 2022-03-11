@@ -25,13 +25,16 @@ const (
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
-	enginePortNum    uint16 = 8551
+	engineRpcPortNum uint16 = 8550
+	engineWsPortNum    uint16 = 8551
 
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
 	tcpDiscoveryPortId = "tcpDiscovery"
 	udpDiscoveryPortId = "udpDiscovery"
+	engineRpcPortId = "engineRpc"
+	engineWsPortId = "engineWs"
 
 	getNodeInfoMaxRetries         = 20
 	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
@@ -42,6 +45,8 @@ var usedPorts = map[string]*services.PortSpec{
 	wsPortId:           services.NewPortSpec(wsPortNum, services.PortProtocol_TCP),
 	tcpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
+	engineRpcPortId: services.NewPortSpec(engineRpcPortNum, services.PortProtocol_TCP),
+	engineWsPortId: services.NewPortSpec(engineWsPortNum, services.PortProtocol_TCP),
 }
 var nethermindLogLevels = map[module_io.GlobalClientLogLevel]string{
 	module_io.GlobalClientLogLevel_Error: "ERROR",
@@ -99,7 +104,8 @@ func (launcher *NethermindELClientLauncher) Launch(
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 		wsPortNum,
-		enginePortNum,
+		engineRpcPortNum,
+		engineWsPortNum,
 		miningWaiter,
 	)
 
@@ -146,6 +152,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			"--Merge.Enabled=true",
 			fmt.Sprintf("--Merge.TerminalTotalDifficulty=%v", launcher.totalTerminalDifficulty),
 			"--Merge.FeeRecipient=" + miningRewardsAccount,
+			// TODO something about using the JWT secret?
 		}
 		if bootnodeCtx != nil {
 			commandArgs = append(
