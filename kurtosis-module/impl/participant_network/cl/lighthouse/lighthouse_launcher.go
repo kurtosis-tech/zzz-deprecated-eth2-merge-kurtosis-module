@@ -21,8 +21,8 @@ const (
 
 	// ---------------------------------- Beacon client -------------------------------------
 	consensusDataDirpathOnBeaconServiceContainer = "/consensus-data"
-	beaconConfigDataDirpathRelToSharedDirRoot    = "config-data"
-	sharedJWTSecretRelFilepath                   = "jwtsecret"
+	beaconConfigDataDirpathRelToSharedDirRoot = "config-data"
+	jwtSecretFilepathRelToSharedDirRoot       = "jwtsecret"
 
 	// Port IDs
 	beaconTcpDiscoveryPortID = "tcpDiscovery"
@@ -76,10 +76,11 @@ var lighthouseLogLevels = map[module_io.GlobalClientLogLevel]string{
 type LighthouseCLClientLauncher struct {
 	// The dirpath on the module container where the CL genesis config data directory exists
 	configDataDirpathOnModuleContainer string
+	jwtSecretFilepathOnModuleContainer string
 }
 
-func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string) *LighthouseCLClientLauncher {
-	return &LighthouseCLClientLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer}
+func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string) *LighthouseCLClientLauncher {
+	return &LighthouseCLClientLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer}
 }
 
 func (launcher *LighthouseCLClientLauncher) Launch(
@@ -199,9 +200,9 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			)
 		}
 
-		JWTSecretRelFilepath := sharedDir.GetChildPath(sharedJWTSecretRelFilepath)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.configDataDirpathOnModuleContainer, JWTSecretRelFilepath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.configDataDirpathOnModuleContainer, sharedJWTSecretRelFilepath)
+		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretFilepathRelToSharedDirRoot)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretFilepathRelToSharedDirRoot)
 		}
 
 		elClientRpcUrlStr := fmt.Sprintf(
@@ -251,7 +252,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--disable-packet-filter",
 			"--execution-endpoints=" + executionClientRpcUrlStr,
 			"--eth1-endpoints=" + elClientRpcUrlStr,
-			"--jwt-secrets=" + JWTSecretRelFilepath.GetAbsPathOnServiceContainer(),
+			"--jwt-secrets=" + jwtSecretSharedPath.GetAbsPathOnServiceContainer(),
 			// Set per Paris' recommendation to reduce noise in the logs
 			"--subscribe-all-subnets",
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv

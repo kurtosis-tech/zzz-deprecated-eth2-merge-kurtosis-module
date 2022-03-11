@@ -198,6 +198,7 @@ func LaunchParticipantNetwork(
 	clGenesisData, err := prelaunchDataGeneratorCtx.GenerateCLGenesisData(
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
+		elGenesisData.GetJWTSecretFilepath(),
 		clGenesisTimestamp,
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,

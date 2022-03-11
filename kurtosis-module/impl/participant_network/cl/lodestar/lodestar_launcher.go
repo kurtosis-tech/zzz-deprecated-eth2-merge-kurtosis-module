@@ -209,6 +209,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			fmt.Sprintf("--enr.udp=%v", discoveryPortNum),
 			// Set per Pari's recommendation to reduce noise in the logs
 			"--network.subscribeAllSubnets=true",
+			// TODO SOMETHING ABOUT JWT SECRET
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics.enabled",
 			"--metrics.listenAddr=" + privateIpAddr,
