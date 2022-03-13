@@ -190,10 +190,18 @@ func (launcher *PrysmCLClientLauncher) Launch(
 	validatorNodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(validatorNodeServiceId), metricsPath, validatorMetricsUrl)
 	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{beaconNodeMetricsInfo, validatorNodeMetricsInfo}
 
+	httpPublicPort, found := beaconServiceCtx.GetPublicPorts()[httpPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Prysm Beacon to have public port with ID '%v', but none was found", httpPortID)
+	}
+
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
+		nodeIdentity.PeerId,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		beaconServiceCtx.GetMaybePublicIPAddress(),
+		httpPublicPort.GetNumber(),
 		nodesMetricsInfo,
 		beaconRestClient,
 	)

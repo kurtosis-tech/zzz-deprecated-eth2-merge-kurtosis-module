@@ -103,6 +103,12 @@ To configure the module behaviour, you can modify your `eth2-module-params.json`
 	// The address of the staking contract address on the Eth1 chain
 	"depositContractAddress": "0x4242424242424242424242424242424242424242",
 
+    // Number of seconds to be added to the calculated genesis time for EL
+    "ElGenesisTimeAdditionalDelay": 0
+
+    // Number of seconds to be added to the calculated genesis time for CL
+    "ClGenesisTimeAdditionalDelay": 0
+
 	// Number of seconds per slot on the Beacon chain
 	"secondsPerSlot": 12,
 
@@ -126,6 +132,9 @@ To configure the module behaviour, you can modify your `eth2-module-params.json`
 	// The number of validator keys that each CL validator node should get
 	"numValidatorKeysPerNode": 64,
 
+    // The number of extra validator keys should be generated, useful to join the network from outside kurtosis
+	"numExtraValidatorKeys": 64,
+
 	// This mnemonic will a) be used to create keystores for all the types of validators that we have and b) be used to generate a CL genesis.ssz that has the children
 	//  validator keys already preregistered as validators
 	"preregisteredValidatorKeysMnemonic": "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
@@ -139,6 +148,9 @@ To configure the module behaviour, you can modify your `eth2-module-params.json`
 
     // If set, the module will block until a finalized epoch has occurred
     "waitForFinalization": false,
+
+    // If set, the module will block until a CL genesis has occurred
+    "waitForClGenesis": true,
 
     // The global log level that all clients should log at
     // Valid values are "error", "warn", "info", "debug", and "trace"

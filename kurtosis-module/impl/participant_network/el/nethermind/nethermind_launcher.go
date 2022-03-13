@@ -77,7 +77,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
+		return nil, stacktrace.Propagate(err, "An error occurred launching the Nethermind EL client with service ID '%v'", serviceId)
 	}
 
 	restClient := el_rest_client.NewELClientRESTClient(
@@ -90,6 +90,11 @@ func (launcher *NethermindELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the EL client to become available")
 	}
 
+	publicDiscoveryPortNum, found := serviceCtx.GetPublicPorts()[tcpDiscoveryPortId]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Nethermind EL client service to have public discovery port with ID '%v', but none was found", tcpDiscoveryPortId)
+	}
+
 	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
 		// TODO TODO TODO TODO Get Nethermind ENR, so that CL clients can connect to it!!!
@@ -97,6 +102,9 @@ func (launcher *NethermindELClientLauncher) Launch(
 		nodeInfo.Enode,
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
+		discoveryPortNum,
+		serviceCtx.GetMaybePublicIPAddress(),
+		publicDiscoveryPortNum.GetNumber(),
 		wsPortNum,
 		miningWaiter,
 	)

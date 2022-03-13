@@ -143,10 +143,18 @@ func (launcher NimbusLauncher) Launch(
 	nodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(serviceId), metricsPath, metricsUrl)
 	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
 
+	httpPublicPort, found := serviceCtx.GetPublicPorts()[httpPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Nimbus service to have public port with ID '%v', but none was found", httpPortID)
+	}
+
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
+		nodeIdentity.PeerId,
 		serviceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		serviceCtx.GetMaybePublicIPAddress(),
+		httpPublicPort.GetNumber(),
 		nodesMetricsInfo,
 		restClient,
 	)

@@ -58,16 +58,20 @@ func GetDefaultExecuteParams() *ExecuteParams {
 		Network: &NetworkParams{
 			NetworkID:                          "3151908",
 			DepositContractAddress:             "0x4242424242424242424242424242424242424242",
+			ClGenesisTimeAdditionalDelay:       0,
+			ElGenesisTimeAdditionalDelay:       0,
 			SecondsPerSlot:                     12,
 			SlotsPerEpoch:                      32,
 			AltairForkEpoch:                    1,
 			MergeForkEpoch:                     2,
 			TotalTerminalDifficulty:            100000000,
 			NumValidatorKeysPerNode:            64,
+			NumExtraValidatorKeys: 			    0,
 			PreregisteredValidatorKeysMnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete",
 		},
 		WaitForMining:       true,
 		WaitForFinalization: false,
+		WaitForClGenesis:    true,
 		ClientLogLevel:      GlobalClientLogLevel_Info,
 	}
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

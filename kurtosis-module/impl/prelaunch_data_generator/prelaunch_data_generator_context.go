@@ -42,12 +42,14 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateELGenesisData(
 func (ctx *PrelaunchDataGeneratorContext) GenerateCLValidatorData(
 	numValidatorNodes uint32,
 	numValidatorsPerNode uint32,
+	numExtraValidatorKeys uint32,
 ) (*cl_validator_keystores.GenerateKeystoresResult, error) {
 	result, err := cl_validator_keystores.GenerateCLValidatorKeystores(
 		ctx.serviceCtx,
 		ctx.preregisteredValidatorKeysMnemonic,
 		numValidatorNodes,
 		numValidatorsPerNode,
+		numExtraValidatorKeys,
 	)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred generating the CL client validator keystores")
@@ -64,11 +66,12 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateCLGenesisData(
 	mergeForkEpoch uint64,
 	numValidatorNodes uint32,
 	numValidatorsPerNode uint32,
+	numExtraValidatorKeys uint32,
 ) (
 	*cl_genesis.CLGenesisData,
 	error,
 ) {
-	numValidatorKeysToPreregister := numValidatorNodes * numValidatorsPerNode
+	numValidatorKeysToPreregister := (numValidatorNodes * numValidatorsPerNode) + numExtraValidatorKeys
 	result, err := cl_genesis.GenerateCLGenesisData(
 		genesisGenerationConfigYmlTemplate,
 		genesisGenerationMnemonicsYmlTemplate,

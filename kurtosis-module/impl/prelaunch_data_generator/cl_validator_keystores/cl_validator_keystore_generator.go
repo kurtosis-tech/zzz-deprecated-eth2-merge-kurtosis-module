@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	outputDirnamePrefix = "cl-validator-keystores-"
+	outputDirnamePrefix     = "cl-validator-keystores-"
+	outputDirExternalPrefix = "external-validator-keystores-"
 
 	// Prysm keystores are encrypted with a password
 	prysmPassword = "password"
@@ -26,6 +27,7 @@ func GenerateCLValidatorKeystores(
 	mnemonic string,
 	numNodes uint32,
 	numValidatorsPerNode uint32,
+	numExtraValidatorKeys uint32,
 ) (
 	*GenerateKeystoresResult,
 	error,
@@ -34,6 +36,12 @@ func GenerateCLValidatorKeystores(
 	outputSharedDir := sharedDir.GetChildPath(fmt.Sprintf(
 		"%v%v",
 		outputDirnamePrefix,
+		time.Now().Unix(),
+	))
+
+	outputExternalSharedDir := sharedDir.GetChildPath(fmt.Sprintf(
+		"%v%v",
+		outputDirExternalPrefix,
 		time.Now().Unix(),
 	))
 
@@ -62,6 +70,18 @@ func GenerateCLValidatorKeystores(
 		startIndex = stopIndex
 		stopIndex = stopIndex + numValidatorsPerNode
 	}
+
+	// generate extra validator append to allSubcommandStrs
+	subcommandStr := fmt.Sprintf(
+		"%v keystores --insecure --prysm-pass %v --out-loc %v --source-mnemonic \"%v\" --source-min %v --source-max %v",
+		keystoresGenerationToolName,
+		prysmPassword,
+		outputExternalSharedDir.GetAbsPathOnServiceContainer(),
+		mnemonic,
+		stopIndex,
+		stopIndex+numExtraValidatorKeys,
+	)
+	allSubcommandStrs = append(allSubcommandStrs, subcommandStr)
 
 	commandStr := strings.Join(allSubcommandStrs, " && ")
 

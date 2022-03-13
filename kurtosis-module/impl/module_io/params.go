@@ -89,6 +89,9 @@ type ExecuteParams struct {
 	// If set, the module will block until a finalized epoch has occurred
 	WaitForFinalization bool	`json:"waitForFinalization"`
 
+	// If set, the module will block until a CL genesis has occurred
+	WaitForClGenesis bool	`json:"waitForClGenesis"`
+
 	// The log level that the started clients should log at
 	ClientLogLevel GlobalClientLogLevel `json:"logLevel"`
 }
@@ -142,6 +145,12 @@ type NetworkParams struct {
 	// The address of the staking contract address on the Eth1 chain
 	DepositContractAddress string	`json:"depositContractAddress"`
 
+	// Number of seconds to be added to the calculated genesis time for CL
+	ClGenesisTimeAdditionalDelay uint32	`json:"clGenesisTimeAdditionalDelay"`
+
+	// Number of seconds to be added to the calculated genesis time for EL
+	ElGenesisTimeAdditionalDelay uint32	`json:"elGenesisTimeAdditionalDelay"`
+
 	// Number of seconds per slot on the Beacon chain
 	SecondsPerSlot uint32	`json:"secondsPerSlot"`
 
@@ -164,6 +173,9 @@ type NetworkParams struct {
 
 	// The number of validator keys that each CL validator node should get
 	NumValidatorKeysPerNode uint32	`json:"numValidatorKeysPerNode"`
+
+	// The number of additional validator keys we want to generate for external validators
+	NumExtraValidatorKeys uint32	`json:"numExtraValidatorKeys"`
 
 	// This menmonic will a) be used to create keystores for all the types of validators that we have and b) be used to generate a CL genesis.ssz that has the children
 	//  validator keys already preregistered as validators

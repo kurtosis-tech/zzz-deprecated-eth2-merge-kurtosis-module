@@ -146,10 +146,18 @@ func (launcher *TekuCLClientLauncher) Launch(
 	nodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(serviceId), metricsPath, metricsUrl)
 	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
 
+	httpPublicPort, found := serviceCtx.GetPublicPorts()[httpPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Teku service to have public port with ID '%v', but none was found", httpPortID)
+	}
+
 	result := cl.NewCLClientContext(
 		nodeIdentity.ENR,
+		nodeIdentity.PeerId,
 		serviceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		serviceCtx.GetMaybePublicIPAddress(),
+		httpPublicPort.GetNumber(),
 		nodesMetricsInfo,
 		restClient,
 	)
@@ -235,7 +243,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			"--p2p-subscribe-all-subnets-enabled=true",
 			fmt.Sprintf("--p2p-peer-lower-bound=%v", minPeers),
 			"--eth1-endpoints=" + elClientRpcUrlStr,
-			"--Xee-endpoint=" + elClientRpcUrlStr,
+			"--ee-endpoint=" + elClientRpcUrlStr,
 			"--p2p-advertised-ip=" + privateIpAddr,
 			"--rest-api-enabled=true",
 			"--rest-api-docs-enabled=true",
@@ -248,7 +256,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 				destValidatorKeysDirpathInServiceContainer,
 				destValidatorSecretsDirpathInServiceContainer,
 			),
-			"--Xvalidators-proposer-default-fee-recipient=" + validatingRewardsAccount,
+			"--validators-proposer-default-fee-recipient=" + validatingRewardsAccount,
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics-enabled",
 			"--metrics-interface=" + privateIpAddr,

@@ -6,6 +6,7 @@ type GetNodeIdentityResponse struct {
 
 type NodeIdentity struct {
 	ENR string `json:"enr"`
+	PeerId string `json:"peer_id"`
 }
 
 type GetBlockHeadersResponse struct {
