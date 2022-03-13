@@ -10,7 +10,7 @@ import (
 
 const (
 	outputDirnamePrefix     = "cl-validator-keystores-"
-	outputDirExternalPrefix = "external-validator-keystores-"
+	outputDirExtraPrefix    = "extra-validator-keystores-"
 
 	// Prysm keystores are encrypted with a password
 	prysmPassword = "password"
@@ -39,9 +39,9 @@ func GenerateCLValidatorKeystores(
 		time.Now().Unix(),
 	))
 
-	outputExternalSharedDir := sharedDir.GetChildPath(fmt.Sprintf(
+	outputExtraSharedDir := sharedDir.GetChildPath(fmt.Sprintf(
 		"%v%v",
-		outputDirExternalPrefix,
+		outputDirExtraPrefix,
 		time.Now().Unix(),
 	))
 
@@ -76,7 +76,7 @@ func GenerateCLValidatorKeystores(
 		"%v keystores --insecure --prysm-pass %v --out-loc %v --source-mnemonic \"%v\" --source-min %v --source-max %v",
 		keystoresGenerationToolName,
 		prysmPassword,
-		outputExternalSharedDir.GetAbsPathOnServiceContainer(),
+		outputExtraSharedDir.GetAbsPathOnServiceContainer(),
 		mnemonic,
 		stopIndex,
 		stopIndex+numExtraValidatorKeys,
