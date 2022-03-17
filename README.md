@@ -51,7 +51,7 @@ To configure the module behaviour, you can modify your `eth2-module-params.json`
             // Defaults by client:
             // - geth: parithoshj/geth:merge-f72c361"
             // - nethermind: nethermindeth/nethermind:kintsugi_0.5
-            // - besu: hyperledger/besu:merge
+            // - besu: hyperledger/besu
             "elImage": "",
 
             // The log level string that this participant's EL client should log at
