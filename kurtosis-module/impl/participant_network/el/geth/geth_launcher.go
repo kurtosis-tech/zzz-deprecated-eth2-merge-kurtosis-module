@@ -219,6 +219,8 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--nat=extip:" + privateIpAddr,
 			"--verbosity=" + verbosityLevel,
 			fmt.Sprintf("--authrpc.port=%v", engineRpcPortNum),
+			"--authrpc.host=0.0.0.0",
+			"--authrpc.vhosts=*",
 			fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
 		}
 		if bootnodeContext != nil {
