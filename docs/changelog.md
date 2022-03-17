@@ -1,4 +1,7 @@
 # TBD
+### Features
+* EL & CL genesis generation now creates a JWT key
+* Lighthouse, Teku, and Geth now consume the JWT key
 
 # 0.4.10
 ### Fixes

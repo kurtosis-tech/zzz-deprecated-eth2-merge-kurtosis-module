@@ -21,13 +21,15 @@ const (
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
-	enginePortNum    uint16 = 8551
+	engineRpcPortNum uint16 = 8551
 
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
 	tcpDiscoveryPortId = "tcpDiscovery"
 	udpDiscoveryPortId = "udpDiscovery"
+	engineRpcPortId    = "engineRpc"
+	engineWsPortId     = "engineWs"
 
 	// NOTE: This can't be 0x00000....000
 	// See: https://github.com/ethereum/go-ethereum/issues/19547
@@ -73,12 +75,13 @@ var verbosityLevels = map[module_io.GlobalClientLogLevel]string{
 
 type GethELClientLauncher struct {
 	genesisJsonFilepathOnModuleContainer string
+	jwtSecretFilepathOnModuleContainer   string
 	prefundedAccountInfo                 []*genesis_consts.PrefundedAccount
 	networkId                            string
 }
 
-func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *GethELClientLauncher {
-	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo, networkId: networkId}
+func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *GethELClientLauncher {
+	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo, networkId: networkId}
 }
 
 func (launcher *GethELClientLauncher) Launch(
@@ -126,7 +129,7 @@ func (launcher *GethELClientLauncher) Launch(
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 		wsPortNum,
-		enginePortNum,
+		engineRpcPortNum,
 		miningWaiter,
 	)
 
@@ -150,9 +153,9 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedGenesisJsonRelFilepath)
 		}
 
-		JWTSecretRelFilepath := sharedDir.GetChildPath(sharedJWTSecretRelFilepath)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModuleContainer, JWTSecretRelFilepath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedJWTSecretRelFilepath)
+		jwtSecretSharedPath := sharedDir.GetChildPath(sharedJWTSecretRelFilepath)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, sharedJWTSecretRelFilepath)
 		}
 
 		gethKeysDirSharedPath := sharedDir.GetChildPath(gethKeysRelDirpathInSharedDir)
@@ -215,8 +218,8 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--allow-insecure-unlock",
 			"--nat=extip:" + privateIpAddr,
 			"--verbosity=" + verbosityLevel,
-			fmt.Sprintf("--authrpc.port=%v", enginePortNum),
-			fmt.Sprintf("--authrpc.jwtsecret=%v", JWTSecretRelFilepath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--authrpc.port=%v", engineRpcPortNum),
+			fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
 		}
 		if bootnodeContext != nil {
 			launchNodeCmdArgs = append(
