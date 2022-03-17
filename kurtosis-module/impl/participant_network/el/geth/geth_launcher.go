@@ -30,7 +30,7 @@ const (
 	tcpDiscoveryPortId = "tcpDiscovery"
 	udpDiscoveryPortId = "udpDiscovery"
 	engineRpcPortId    = "engineRpc"
-	engineWsPortId    = "engineWs"
+	engineWsPortId     = "engineWs"
 
 	// NOTE: This can't be 0x00000....000
 	// See: https://github.com/ethereum/go-ethereum/issues/19547
@@ -64,7 +64,7 @@ var usedPorts = map[string]*services.PortSpec{
 	tcpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	engineRpcPortId:    services.NewPortSpec(engineRpcPortNum, services.PortProtocol_UDP),
-	engineWsPortId:    services.NewPortSpec(engineWsPortNum, services.PortProtocol_UDP),
+	engineWsPortId:     services.NewPortSpec(engineWsPortNum, services.PortProtocol_UDP),
 }
 var entrypointArgs = []string{"sh", "-c"}
 var verbosityLevels = map[module_io.GlobalClientLogLevel]string{
@@ -77,7 +77,7 @@ var verbosityLevels = map[module_io.GlobalClientLogLevel]string{
 
 type GethELClientLauncher struct {
 	genesisJsonFilepathOnModuleContainer string
-	jwtSecretFilepathOnModuleContainer string
+	jwtSecretFilepathOnModuleContainer   string
 	prefundedAccountInfo                 []*genesis_consts.PrefundedAccount
 	networkId                            string
 }
@@ -157,7 +157,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 		}
 
 		jwtSecretSharedPath := sharedDir.GetChildPath(sharedJWTSecretRelFilepath)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, genesisJsonSharedPath); err != nil {
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, sharedJWTSecretRelFilepath)
 		}
 
