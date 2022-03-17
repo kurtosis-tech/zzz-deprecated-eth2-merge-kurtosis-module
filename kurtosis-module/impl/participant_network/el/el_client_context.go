@@ -12,7 +12,6 @@ type ELClientContext struct {
 
 func NewELClientContext(enr string, enode string, ipAddr string, rpcPortNum uint16, wsPortNum uint16, engineRpcPortNum uint16, miningWaiter ELClientMiningWaiter) *ELClientContext {
 	return &ELClientContext{enr: enr, enode: enode, ipAddr: ipAddr, rpcPortNum: rpcPortNum, wsPortNum: wsPortNum, engineRpcPortNum: engineRpcPortNum, miningWaiter: miningWaiter}
-
 }
 
 func (ctx *ELClientContext) GetENR() string {
