@@ -21,6 +21,8 @@ const (
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
 	sharedGenesisJsonRelFilepath = "genesis.json"
 
+	jwtSecretRelFilepath = "jwtsecret"
+
 	// NOTE: This can't be 0x00000....000
 	// See: https://github.com/ethereum/go-ethereum/issues/19547
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
@@ -28,13 +30,15 @@ const (
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
-	enginePortNum    uint16 = 8551
+	engineRpcPortNum uint16 = 8550
 
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
 	tcpDiscoveryPortId = "tcpDiscovery"
 	udpDiscoveryPortId = "udpDiscovery"
+	engineRpcPortId    = "engineRpc"
+	engineWsPortId     = "engineWs"
 
 	getNodeInfoMaxRetries         = 20
 	getNodeInfoTimeBetweenRetries = 1 * time.Second
@@ -46,6 +50,7 @@ var usedPorts = map[string]*services.PortSpec{
 	tcpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	// TODO Remove if there's no UDP discovery port?????
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
+	engineRpcPortId:    services.NewPortSpec(engineRpcPortNum, services.PortProtocol_TCP),
 }
 var entrypointArgs = []string{"sh", "-c"}
 var besuLogLevels = map[module_io.GlobalClientLogLevel]string{
@@ -58,11 +63,12 @@ var besuLogLevels = map[module_io.GlobalClientLogLevel]string{
 
 type BesuELClientLauncher struct {
 	genesisJsonFilepathOnModuleContainer string
+	jwtSecretFilepathOnModuleContainer   string
 	networkId                            string
 }
 
-func NewBesuELClientLauncher(genesisJsonFilepathOnModuleContainer string, networkId string) *BesuELClientLauncher {
-	return &BesuELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, networkId: networkId}
+func NewBesuELClientLauncher(genesisJsonFilepathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string, networkId string) *BesuELClientLauncher {
+	return &BesuELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer, networkId: networkId}
 }
 
 func (launcher *BesuELClientLauncher) Launch(
@@ -110,7 +116,7 @@ func (launcher *BesuELClientLauncher) Launch(
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 		wsPortNum,
-		enginePortNum,
+		engineRpcPortNum,
 		miningWaiter,
 	)
 
@@ -132,6 +138,11 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModuleContainer, genesisJsonSharedPath); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedGenesisJsonRelFilepath)
+		}
+
+		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretRelFilepath)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepath)
 		}
 
 		launchNodeCmdArgs := []string{
@@ -156,6 +167,11 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 			"--p2p-enabled=true",
 			"--p2p-host=" + privateIpAddr,
 			fmt.Sprintf("--p2p-port=%v", discoveryPortNum),
+			"--engine-jwt-enabled=true",
+			fmt.Sprintf("--engine-jwt-secret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			"--engine-host-allowlist=*",
+			fmt.Sprintf("--engine-rpc-http-port=%v", engineRpcPortNum),
+			fmt.Sprintf("--engine-rpc-ws-port=%v", engineRpcPortNum),
 		}
 		if bootnodeContext != nil {
 			launchNodeCmdArgs = append(

@@ -105,15 +105,18 @@ func LaunchParticipantNetwork(
 	elClientLaunchers := map[module_io.ParticipantELClientType]el.ELClientLauncher{
 		module_io.ParticipantELClientType_Geth: geth.NewGethELClientLauncher(
 			elGenesisData.GetGethGenesisJsonFilepath(),
+			elGenesisData.GetJWTSecretFilepath(),
 			genesis_consts.PrefundedAccounts,
 			networkParams.NetworkID,
 		),
 		module_io.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
 			elGenesisData.GetNethermindGenesisJsonFilepath(),
+			elGenesisData.GetJWTSecretFilepath(),
 			networkParams.TotalTerminalDifficulty,
 		),
 		module_io.ParticipantELClientType_Besu: besu.NewBesuELClientLauncher(
 			elGenesisData.GetBesuGenesisJsonFilepath(),
+			elGenesisData.GetJWTSecretFilepath(),
 			networkParams.NetworkID,
 		),
 	}
@@ -195,6 +198,7 @@ func LaunchParticipantNetwork(
 	clGenesisData, err := prelaunchDataGeneratorCtx.GenerateCLGenesisData(
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
+		elGenesisData.GetJWTSecretFilepath(),
 		clGenesisTimestamp,
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,
@@ -212,21 +216,26 @@ func LaunchParticipantNetwork(
 		module_io.ParticipantCLClientType_Teku: teku.NewTekuCLClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
+			clGenesisData.GetJWTSecretFilepath(),
 			numParticipants,
 		),
 		module_io.ParticipantCLClientType_Nimbus: nimbus.NewNimbusLauncher(
 			clGenesisData.GetParentDirpath(),
+			clGenesisData.GetJWTSecretFilepath(),
 		),
 		module_io.ParticipantCLClientType_Lodestar: lodestar.NewLodestarClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
+			clGenesisData.GetJWTSecretFilepath(),
 		),
 		module_io.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
 			clGenesisData.GetParentDirpath(),
+			clGenesisData.GetJWTSecretFilepath(),
 		),
 		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
+			clGenesisData.GetJWTSecretFilepath(),
 			clValidatorData.PrysmPassword,
 		),
 	}
