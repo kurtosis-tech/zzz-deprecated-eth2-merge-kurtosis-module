@@ -19,25 +19,25 @@ const (
 
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
 	sharedNethermindGenesisJsonRelFilepath = "nethermind_genesis.json"
+	sharedJWTSecretRelFilepath             = "jwtsecret"
 
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
 
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
-	engineRpcPortNum uint16 = 8550
-	engineWsPortNum    uint16 = 8551
+	engineRpcPortNum uint16 = 8551
 
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
 	tcpDiscoveryPortId = "tcpDiscovery"
 	udpDiscoveryPortId = "udpDiscovery"
-	engineRpcPortId = "engineRpc"
-	engineWsPortId = "engineWs"
+	engineRpcPortId    = "engineRpc"
+	engineWsPortId     = "engineWs"
 
-	getNodeInfoMaxRetries         = 20
-	getNodeInfoTimeBetweenRetries = 500 * time.Millisecond
+	getNodeInfoMaxRetries         = 30
+	getNodeInfoTimeBetweenRetries = 1 * time.Second
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -45,8 +45,7 @@ var usedPorts = map[string]*services.PortSpec{
 	wsPortId:           services.NewPortSpec(wsPortNum, services.PortProtocol_TCP),
 	tcpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
-	engineRpcPortId: services.NewPortSpec(engineRpcPortNum, services.PortProtocol_TCP),
-	engineWsPortId: services.NewPortSpec(engineWsPortNum, services.PortProtocol_TCP),
+	engineRpcPortId:    services.NewPortSpec(engineRpcPortNum, services.PortProtocol_TCP),
 }
 var nethermindLogLevels = map[module_io.GlobalClientLogLevel]string{
 	module_io.GlobalClientLogLevel_Error: "ERROR",
@@ -57,12 +56,13 @@ var nethermindLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type NethermindELClientLauncher struct {
-	genesisJsonFilepathOnModule string
-	totalTerminalDifficulty     uint64
+	genesisJsonFilepathOnModule        string
+	jwtSecretFilepathOnModuleContainer string
+	totalTerminalDifficulty            uint64
 }
 
-func NewNethermindELClientLauncher(genesisJsonFilepathOnModule string, totalTerminalDifficulty uint64) *NethermindELClientLauncher {
-	return &NethermindELClientLauncher{genesisJsonFilepathOnModule: genesisJsonFilepathOnModule, totalTerminalDifficulty: totalTerminalDifficulty}
+func NewNethermindELClientLauncher(genesisJsonFilepathOnModule string, jwtSecretFilepathOnModuleContainer string, totalTerminalDifficulty uint64) *NethermindELClientLauncher {
+	return &NethermindELClientLauncher{genesisJsonFilepathOnModule: genesisJsonFilepathOnModule, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer, totalTerminalDifficulty: totalTerminalDifficulty}
 }
 
 func (launcher *NethermindELClientLauncher) Launch(
@@ -105,7 +105,6 @@ func (launcher *NethermindELClientLauncher) Launch(
 		rpcPortNum,
 		wsPortNum,
 		engineRpcPortNum,
-		engineWsPortNum,
 		miningWaiter,
 	)
 
@@ -132,6 +131,11 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			)
 		}
 
+		jwtSecretSharedPath := sharedDir.GetChildPath(sharedJWTSecretRelFilepath)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, sharedJWTSecretRelFilepath)
+		}
+
 		commandArgs := []string{
 			"--config=kiln",
 			"--log=" + logLevel,
@@ -140,7 +144,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			"--Init.WebSocketsEnabled=true",
 			"--Init.DiagnosticMode=None",
 			"--JsonRpc.Enabled=true",
-			"--JsonRpc.EnabledModules=net,eth,consensus,engine,subscribe,web3,admin",
+			"--JsonRpc.EnabledModules=net,eth,consensus,subscribe,web3,admin",
 			"--JsonRpc.Host=0.0.0.0",
 			// TODO Set Eth isMining?
 			fmt.Sprintf("--JsonRpc.Port=%v", rpcPortNum),
@@ -152,7 +156,8 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			"--Merge.Enabled=true",
 			fmt.Sprintf("--Merge.TerminalTotalDifficulty=%v", launcher.totalTerminalDifficulty),
 			"--Merge.FeeRecipient=" + miningRewardsAccount,
-			// TODO something about using the JWT secret?
+			fmt.Sprintf("--JsonRpc.JwtSecretFile==%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--JsonRpc.AdditionalRpcUrls=http://localhost:%v|http;ws|net;eth;subscribe;engine;web3;client", engineRpcPortNum),
 		}
 		if bootnodeCtx != nil {
 			commandArgs = append(

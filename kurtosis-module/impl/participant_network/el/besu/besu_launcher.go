@@ -31,7 +31,6 @@ const (
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
 	engineRpcPortNum uint16 = 8550
-	engineWsPortNum  uint16 = 8551
 
 	// Port IDs
 	rpcPortId          = "rpc"
@@ -39,7 +38,7 @@ const (
 	tcpDiscoveryPortId = "tcpDiscovery"
 	udpDiscoveryPortId = "udpDiscovery"
 	engineRpcPortId    = "engineRpc"
-	engineWsPortId    = "engineWs"
+	engineWsPortId     = "engineWs"
 
 	getNodeInfoMaxRetries         = 20
 	getNodeInfoTimeBetweenRetries = 1 * time.Second
@@ -52,7 +51,6 @@ var usedPorts = map[string]*services.PortSpec{
 	// TODO Remove if there's no UDP discovery port?????
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	engineRpcPortId:    services.NewPortSpec(engineRpcPortNum, services.PortProtocol_TCP),
-	engineWsPortId:    services.NewPortSpec(engineWsPortNum, services.PortProtocol_TCP),
 }
 var entrypointArgs = []string{"sh", "-c"}
 var besuLogLevels = map[module_io.GlobalClientLogLevel]string{
@@ -119,7 +117,6 @@ func (launcher *BesuELClientLauncher) Launch(
 		rpcPortNum,
 		wsPortNum,
 		engineRpcPortNum,
-		engineWsPortNum,
 		miningWaiter,
 	)
 
@@ -174,7 +171,7 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--engine-jwt-secret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
 			"--engine-host-allowlist=*",
 			fmt.Sprintf("--engine-rpc-http-port=%v", engineRpcPortNum),
-			fmt.Sprintf("--engine-rpc-ws-port=%v", engineWsPortNum),
+			fmt.Sprintf("--engine-rpc-ws-port=%v", engineRpcPortNum),
 		}
 		if bootnodeContext != nil {
 			launchNodeCmdArgs = append(

@@ -1,18 +1,17 @@
 package el
 
 type ELClientContext struct {
-	enr           string
-	enode         string
-	ipAddr        string
-	rpcPortNum    uint16
-	wsPortNum     uint16
+	enr              string
+	enode            string
+	ipAddr           string
+	rpcPortNum       uint16
+	wsPortNum        uint16
 	engineRpcPortNum uint16
-	engineWsPortNum  uint16
-	miningWaiter  ELClientMiningWaiter
+	miningWaiter     ELClientMiningWaiter
 }
 
-func NewELClientContext(enr string, enode string, ipAddr string, rpcPortNum uint16, wsPortNum uint16, engineRpcPortNum uint16, engineWsPortNum uint16, miningWaiter ELClientMiningWaiter) *ELClientContext {
-	return &ELClientContext{enr: enr, enode: enode, ipAddr: ipAddr, rpcPortNum: rpcPortNum, wsPortNum: wsPortNum, engineRpcPortNum: engineRpcPortNum, engineWsPortNum: engineWsPortNum, miningWaiter: miningWaiter}
+func NewELClientContext(enr string, enode string, ipAddr string, rpcPortNum uint16, wsPortNum uint16, engineRpcPortNum uint16, miningWaiter ELClientMiningWaiter) *ELClientContext {
+	return &ELClientContext{enr: enr, enode: enode, ipAddr: ipAddr, rpcPortNum: rpcPortNum, wsPortNum: wsPortNum, engineRpcPortNum: engineRpcPortNum, miningWaiter: miningWaiter}
 }
 
 func (ctx *ELClientContext) GetENR() string {
@@ -32,9 +31,6 @@ func (ctx *ELClientContext) GetWSPortNum() uint16 {
 }
 func (ctx *ELClientContext) GetEngineRPCPortNum() uint16 {
 	return ctx.engineRpcPortNum
-}
-func (ctx *ELClientContext) GetEngineWSPortNum() uint16 {
-	return ctx.engineWsPortNum
 }
 func (ctx *ELClientContext) GetMiningWaiter() ELClientMiningWaiter {
 	return ctx.miningWaiter
