@@ -157,7 +157,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 		}
 
 		jwtSecretSharedPath := sharedDir.GetChildPath(sharedJWTSecretRelFilepath)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, genesisJsonSharedPath); err != nil {
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, sharedJWTSecretRelFilepath)
 		}
 
