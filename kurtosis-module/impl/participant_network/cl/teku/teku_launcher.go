@@ -37,6 +37,7 @@ const (
 	metricsPortNum   uint16 = 8008
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
+
 	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
 	jwtSecretRelFilepathInSharedDir        = "jwtsecret"
 
