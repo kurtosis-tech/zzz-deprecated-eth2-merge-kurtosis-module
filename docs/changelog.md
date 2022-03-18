@@ -1,5 +1,8 @@
 # TBD
 ### Features
+* Added a `Developing` section to the docs
+* Added a link in the README to the source code where default params are defined
+
 * EL & CL genesis generation now creates a JWT key
 * Lighthouse, Teku, and Geth now consume the JWT key
 
