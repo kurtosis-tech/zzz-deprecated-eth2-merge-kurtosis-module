@@ -38,6 +38,7 @@ Kurtosis will create a new enclave to house the services of the Ethereum network
 ### Configuration
 To configure the module behaviour, you can modify your `eth2-module-params.json` file. The full JSON schema that can be passed in is as follows with the defaults ([from here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/develop/kurtosis-module/impl/module_io/default_params.go) provided (though note that the `//` comments are for explanation purposes and aren't valid JSON so need to be removed):
 
+You can find the latest Kiln compatible docker images here: https://notes.ethereum.org/@launchpad/kiln
 ```javascript
 {
     // Specification of the participants in the network
@@ -49,9 +50,9 @@ To configure the module behaviour, you can modify your `eth2-module-params.json`
 
             // The Docker image that should be used for the EL client; leave blank to use the default for the client type
             // Defaults by client:
-            // - geth: parithoshj/geth:merge-f72c361"
-            // - nethermind: nethermindeth/nethermind:kintsugi_0.5
-            // - besu: hyperledger/besu:merge
+            // - geth: parithoshj/geth:merge-b951e9c"
+            // - nethermind: nethermindeth/nethermind:kiln_0.8
+            // - besu: hyperledger/besu:22.1.3-SNAPSHOT
             "elImage": "",
 
             // The log level string that this participant's EL client should log at
@@ -72,8 +73,8 @@ To configure the module behaviour, you can modify your `eth2-module-params.json`
             // Defaults by client (note that Prysm is different in that it requires two images - a Beacon and a validator - separated by a comma):
             // - lighthouse: sigp/lighthouse:latest-unstable
             // - teku: consensys/teku:latest
-            // - nimbus: statusim/nimbus-eth2:amd64-latest
-            // - prysm: prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest
+            // - nimbus: parithoshj/nimbus:merge-a35c5f8
+            // - prysm: gcr.io/prysmaticlabs/prysm/beacon-chain:kiln-3ea8b7,gcr.io/prysmaticlabs/prysm/validator:kiln-ee1ee6
             // - lodestar: chainsafe/lodestar:next
             "clImage": "",
 
