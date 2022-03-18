@@ -157,7 +157,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--Merge.TerminalTotalDifficulty=%v", launcher.totalTerminalDifficulty),
 			"--Merge.FeeRecipient=" + miningRewardsAccount,
 			fmt.Sprintf("--JsonRpc.JwtSecretFile==%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
-			fmt.Sprintf("--JsonRpc.AdditionalRpcUrls=http://localhost:%v|http;ws|net;eth;subscribe;engine;web3;client", engineRpcPortNum),
+			fmt.Sprintf("--JsonRpc.AdditionalRpcUrls=[\"http://0.0.0.0:%v|http;ws|net;eth;subscribe;engine;web3;client\"]", engineRpcPortNum),
 		}
 		if bootnodeCtx != nil {
 			commandArgs = append(
