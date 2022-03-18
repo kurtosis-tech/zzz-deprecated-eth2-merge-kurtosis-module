@@ -37,8 +37,9 @@ const (
 	metricsPortNum   uint16 = 8008
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
-	genesisSszRelFilepathInSharedDir = "genesis.ssz"
-	jwtSecretRelFilepathInSharedDir  = "jwtsecret"
+
+	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
+	jwtSecretRelFilepathInSharedDir        = "jwtsecret"
 
 	validatorKeysDirpathRelToSharedDirRoot    = "validator-keys"
 	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
@@ -263,7 +264,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			),
 			fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
 			"--ee-endpoint=" + elClientEngineRpcUrlStr,
-			"--Xvalidators-proposer-default-fee-recipient=" + validatingRewardsAccount,
+			"--validators-proposer-default-fee-recipient=" + validatingRewardsAccount,
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics-enabled",
 			"--metrics-interface=" + privateIpAddr,
