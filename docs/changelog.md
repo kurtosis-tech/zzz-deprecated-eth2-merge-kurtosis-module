@@ -4,7 +4,7 @@
 * Added a link in the README to the source code where default params are defined
 
 * EL & CL genesis generation now creates a JWT key
-* Lighthouse, Teku, and Geth, Nethermind now consume the JWT key
+* Lighthouse, Teku, and Geth, Nethermind, Besu now consume the JWT key
 
 # 0.4.10
 ### Fixes
