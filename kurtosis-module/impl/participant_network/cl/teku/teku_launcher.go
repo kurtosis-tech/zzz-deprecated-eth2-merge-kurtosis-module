@@ -23,7 +23,7 @@ const (
 	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
 
 	// TODO Get rid of this being hardcoded; should be shared
-	validatingRewardsAccount = "0x0000000000000000000000000000000000000001"
+	validatingRewardsAccount = "0x0000000000000000000000000000000000000000"
 
 	// Port IDs
 	tcpDiscoveryPortID = "tcpDiscovery"
@@ -38,8 +38,8 @@ const (
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 
-	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
-	jwtSecretRelFilepathInSharedDir        = "jwtsecret"
+	genesisSszRelFilepathInSharedDir = "genesis.ssz"
+	jwtSecretRelFilepathInSharedDir  = "jwtsecret"
 
 	validatorKeysDirpathRelToSharedDirRoot    = "validator-keys"
 	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
