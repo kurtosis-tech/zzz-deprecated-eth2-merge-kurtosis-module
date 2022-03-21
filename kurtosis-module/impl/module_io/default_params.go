@@ -16,7 +16,7 @@ var defaultElImages = map[ParticipantELClientType]string{
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantELClientType_Geth:       "parithoshj/geth:merge-371a525", // From around 2022-03-03
 	ParticipantELClientType_Nethermind: "nethermindeth/nethermind:kintsugi_0.5",
-	ParticipantELClientType_Besu:       "hyperledger/besu",
+	ParticipantELClientType_Besu:       "hyperledger/besu:develop",
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
