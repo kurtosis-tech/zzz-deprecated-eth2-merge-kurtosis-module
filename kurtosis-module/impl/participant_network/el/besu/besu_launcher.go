@@ -12,7 +12,6 @@ import (
 	"github.com/kurtosis-tech/stacktrace"
 	"strings"
 	"time"
-
 )
 
 const (
@@ -33,6 +32,7 @@ const (
 	discoveryPortNum uint16 = 30303
 	engineRpcPortNum uint16 = 8550
 
+	
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
