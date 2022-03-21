@@ -53,12 +53,10 @@ const (
 	validatorKeysDirpathOnServiceContainer    = "$HOME/validator-keys"
 	validatorSecretsDirpathOnServiceContainer = "$HOME/validator-secrets"
 
-
 	maxNumHealthcheckRetries      = 15
 	timeBetweenHealthcheckRetries = 1 * time.Second
 
 	metricsPath = "/metrics"
-
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -78,7 +76,7 @@ var nimbusLogLevels = map[module_io.GlobalClientLogLevel]string{
 type NimbusLauncher struct {
 	// The dirpath on the module container where the config data directory exists
 	configDataDirpathOnModuleContainer string
-	
+
 	jwtSecretFilepathOnModuleContainer string
 
 	// NOTE: This launcher does NOT take in the expected number of peers because doing so causes the Beacon node not to peer at all
@@ -186,12 +184,6 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			)
 		}
 
-		elClientWsUrlStr := fmt.Sprintf(
-			"ws://%v:%v",
-			elClientContext.GetIPAddress(),
-			elClientContext.GetWSPortNum(),
-		)
-
 		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretFilepathRelToSharedDirRoot)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretFilepathRelToSharedDirRoot)
@@ -210,6 +202,12 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 		); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
 		}
+
+		elClientEngineRpcUrlStr := fmt.Sprintf(
+			"ws://%v:%v",
+			elClientContext.GetIPAddress(),
+			elClientContext.GetEngineRPCPortNum(),
+		)
 
 		// Sources for these flags:
 		//  1) https://github.com/status-im/nimbus-eth2/blob/stable/scripts/launch_local_testnet.sh
@@ -243,7 +241,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--log-level=" + logLevel,
 			"--network=" + configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer(),
 			"--data-dir=" + consensusDataDirpathInServiceContainer,
-			"--web3-url=" + elClientWsUrlStr,
+			"--web3-url=" + elClientEngineRpcUrlStr,
 			"--nat=extip:" + privateIpAddr,
 			"--enr-auto-update=false",
 			"--rest",
@@ -257,8 +255,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--doppelganger-detection=false",
 			// Set per Pari's recommendation to reduce noise in the logs
 			"--subscribe-all-subnets=true",
-			// TODO ACTUALLY IMPLEMENT THIS PROPERLY
-			// fmt.Sprintf("--jwt=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--jwt-secret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics",
 			"--metrics-address=" + privateIpAddr,
