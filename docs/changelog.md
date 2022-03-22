@@ -1,4 +1,6 @@
 # TBD
+
+# 0.4.11
 ### Features
 * Added a `Developing` section to the docs
 * Added a link in the README to the source code where default params are defined
