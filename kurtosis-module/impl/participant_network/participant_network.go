@@ -111,7 +111,7 @@ func LaunchParticipantNetwork(
 		),
 		module_io.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
 			elGenesisData.GetNethermindGenesisJsonFilepath(),
-			// TODO Pass in JWT secret filepath??
+			elGenesisData.GetJWTSecretFilepath(),
 			networkParams.TotalTerminalDifficulty,
 		),
 		module_io.ParticipantELClientType_Besu: besu.NewBesuELClientLauncher(

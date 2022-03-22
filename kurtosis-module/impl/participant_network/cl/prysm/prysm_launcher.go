@@ -44,6 +44,7 @@ const (
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
 	prysmPasswordTxtRelFilepathInSharedDir = "prysm-password.txt"
+	jwtSecretRelFilepathInSharedDir        = "jwtsecret"
 
 	validatorKeysRelDirpathInSharedDir    = "validator-keys"
 	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
@@ -237,21 +238,30 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			)
 		}
 
+		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretRelFilepathInSharedDir)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepathInSharedDir)
+		}
+
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
 			elClientContext.GetRPCPortNum(),
 		)
 
+		elClientEngineRpcUrlStr := fmt.Sprintf(
+			"http://%v:%v",
+			elClientContext.GetIPAddress(),
+			elClientContext.GetEngineRPCPortNum(),
+		)
+
 		cmdArgs := []string{
 			"--accept-terms-of-use=true", //it's mandatory in order to run the node
-			"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
 			"--datadir=" + consensusDataDirpathOnServiceContainer,
 			"--chain-config-file=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--genesis-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
 			"--http-web3provider=" + elClientRpcUrlStr,
-			"--execution-provider=" + elClientRpcUrlStr,
-			"--http-modules=prysm,eth",
+			"--execution-provider=" + elClientEngineRpcUrlStr,
 			"--rpc-host=" + privateIpAddr,
 			fmt.Sprintf("--rpc-port=%v", rpcPortNum),
 			"--grpc-gateway-host=0.0.0.0",
@@ -264,7 +274,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--verbosity=" + logLevel,
 			// Set per Pari's recommendation to reduce noise
 			"--subscribe-all-subnets=true",
-			// TODO SOMETHING ABOUT JWT SECRET?
+			fmt.Sprintf("--jwt-secret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--disable-monitoring=false",
 			"--monitoring-host=" + privateIpAddr,

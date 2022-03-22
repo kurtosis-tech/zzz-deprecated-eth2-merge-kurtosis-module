@@ -21,8 +21,8 @@ const (
 
 	// ---------------------------------- Beacon client -------------------------------------
 	consensusDataDirpathOnBeaconServiceContainer = "/consensus-data"
-	beaconConfigDataDirpathRelToSharedDirRoot = "config-data"
-	jwtSecretFilepathRelToSharedDirRoot       = "jwtsecret"
+	beaconConfigDataDirpathRelToSharedDirRoot    = "config-data"
+	jwtSecretFilepathRelToSharedDirRoot          = "jwtsecret"
 
 	// Port IDs
 	beaconTcpDiscoveryPortID = "tcpDiscovery"
@@ -43,6 +43,8 @@ const (
 
 	validatorKeysRelDirpathInSharedDir    = "validator-keys"
 	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
+
+	validatingRewardsAccount = "0x0000000000000000000000000000000000000000"
 
 	validatorHttpPortID     = "http"
 	validatorMetricsPortID  = "metrics"
@@ -253,6 +255,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--execution-endpoints=" + elClientEngineRpcUrlStr,
 			"--eth1-endpoints=" + elClientRpcUrlStr,
 			"--jwt-secrets=" + jwtSecretSharedPath.GetAbsPathOnServiceContainer(),
+			"--suggested-fee-recipient=" + validatingRewardsAccount,
 			// Set per Paris' recommendation to reduce noise in the logs
 			"--subscribe-all-subnets",
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv

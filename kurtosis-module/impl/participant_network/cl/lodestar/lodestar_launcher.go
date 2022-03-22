@@ -22,7 +22,7 @@ const (
 	tcpDiscoveryPortID = "tcpDiscovery"
 	udpDiscoveryPortID = "udpDiscovery"
 	httpPortID         = "http"
-	metricsPortID 	   = "metrics"
+	metricsPortID      = "metrics"
 
 	// Port nums
 	discoveryPortNum uint16 = 9000
@@ -193,6 +193,12 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			elClientContext.GetRPCPortNum(),
 		)
 
+		elClientEngineRpcUrlStr := fmt.Sprintf(
+			"http://%v:%v",
+			elClientContext.GetIPAddress(),
+			elClientContext.GetEngineRPCPortNum(),
+		)
+
 		cmdArgs := []string{
 			"beacon",
 			"--logLevel=" + logLevel,
@@ -201,12 +207,12 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			"--rootDir=" + consensusDataDirpathOnServiceContainer,
 			"--paramsFile=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--genesisStateFile=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
+			"--eth1.depositContractDeployBlock=0",
 			"--network.connectToDiscv5Bootnodes=true",
 			"--network.discv5.enabled=true",
 			"--eth1.enabled=true",
-			"--eth1.disableEth1DepositDataTracker=true",
 			"--eth1.providerUrls=" + elClientRpcUrlStr,
-			"--execution.urls=" + elClientRpcUrlStr,
+			"--execution.urls=" + elClientEngineRpcUrlStr,
 			"--api.rest.enabled=true",
 			"--api.rest.host=0.0.0.0",
 			"--api.rest.api=*",
@@ -216,8 +222,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			fmt.Sprintf("--enr.udp=%v", discoveryPortNum),
 			// Set per Pari's recommendation to reduce noise in the logs
 			"--network.subscribeAllSubnets=true",
-			// TODO ACTUALLY IMPLEMENT THIS PROPERLY
-			// fmt.Sprintf("--jwt=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--jwt-secret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics.enabled",
 			"--metrics.listenAddr=" + privateIpAddr,

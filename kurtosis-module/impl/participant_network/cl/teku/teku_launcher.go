@@ -23,7 +23,7 @@ const (
 	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
 
 	// TODO Get rid of this being hardcoded; should be shared
-	validatingRewardsAccount = "0x0000000000000000000000000000000000000001"
+	validatingRewardsAccount = "0x0000000000000000000000000000000000000000"
 
 	// Port IDs
 	tcpDiscoveryPortID = "tcpDiscovery"
@@ -37,6 +37,7 @@ const (
 	metricsPortNum   uint16 = 8008
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
+
 	genesisSszRelFilepathInSharedDir = "genesis.ssz"
 	jwtSecretRelFilepathInSharedDir  = "jwtsecret"
 
@@ -238,6 +239,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			destValidatorSecretsDirpathInServiceContainer,
 			"&&",
 			tekuBinaryFilepathInImage,
+			"--Xee-version kilnv2",
 			"--logging=" + logLevel,
 			"--log-destination=CONSOLE",
 			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
@@ -263,7 +265,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			),
 			fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
 			"--ee-endpoint=" + elClientEngineRpcUrlStr,
-			"--Xvalidators-proposer-default-fee-recipient=" + validatingRewardsAccount,
+			"--validators-proposer-default-fee-recipient=" + validatingRewardsAccount,
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics-enabled",
 			"--metrics-interface=" + privateIpAddr,
