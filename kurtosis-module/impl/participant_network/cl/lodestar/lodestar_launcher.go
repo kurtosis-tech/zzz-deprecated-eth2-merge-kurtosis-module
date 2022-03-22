@@ -22,7 +22,7 @@ const (
 	tcpDiscoveryPortID = "tcpDiscovery"
 	udpDiscoveryPortID = "udpDiscovery"
 	httpPortID         = "http"
-	metricsPortID 	   = "metrics"
+	metricsPortID      = "metrics"
 
 	// Port nums
 	discoveryPortNum uint16 = 9000
@@ -31,6 +31,7 @@ const (
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
 	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
+	jwtSecretRelFilepathInSharedDir        = "jwtsecret"
 
 	maxNumHealthcheckRetries      = 30
 	timeBetweenHealthcheckRetries = 2 * time.Second
@@ -58,10 +59,11 @@ var lodestarLogLevels = map[module_io.GlobalClientLogLevel]string{
 type LodestarClientLauncher struct {
 	genesisConfigYmlFilepathOnModuleContainer string
 	genesisSszFilepathOnModuleContainer       string
+	jwtSecretFilepathOnModuleContainer        string
 }
 
-func NewLodestarClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string) *LodestarClientLauncher {
-	return &LodestarClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer}
+func NewLodestarClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string) *LodestarClientLauncher {
+	return &LodestarClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer}
 }
 
 func (launcher *LodestarClientLauncher) Launch(
@@ -180,10 +182,21 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			)
 		}
 
+		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretRelFilepathInSharedDir)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepathInSharedDir)
+		}
+
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
 			elClientContext.GetRPCPortNum(),
+		)
+
+		elClientEngineRpcUrlStr := fmt.Sprintf(
+			"http://%v:%v",
+			elClientContext.GetIPAddress(),
+			elClientContext.GetEngineRPCPortNum(),
 		)
 
 		cmdArgs := []string{
@@ -194,12 +207,12 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			"--rootDir=" + consensusDataDirpathOnServiceContainer,
 			"--paramsFile=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--genesisStateFile=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
+			"--eth1.depositContractDeployBlock=0",
 			"--network.connectToDiscv5Bootnodes=true",
 			"--network.discv5.enabled=true",
 			"--eth1.enabled=true",
-			"--eth1.disableEth1DepositDataTracker=true",
 			"--eth1.providerUrls=" + elClientRpcUrlStr,
-			"--execution.urls=" + elClientRpcUrlStr,
+			"--execution.urls=" + elClientEngineRpcUrlStr,
 			"--api.rest.enabled=true",
 			"--api.rest.host=0.0.0.0",
 			"--api.rest.api=*",
@@ -209,6 +222,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			fmt.Sprintf("--enr.udp=%v", discoveryPortNum),
 			// Set per Pari's recommendation to reduce noise in the logs
 			"--network.subscribeAllSubnets=true",
+			fmt.Sprintf("--jwt-secret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics.enabled",
 			"--metrics.listenAddr=" + privateIpAddr,

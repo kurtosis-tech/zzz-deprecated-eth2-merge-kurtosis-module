@@ -21,12 +21,15 @@ const (
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
 	discoveryPortNum uint16 = 30303
+	engineRpcPortNum uint16 = 8551
 
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
 	tcpDiscoveryPortId = "tcpDiscovery"
 	udpDiscoveryPortId = "udpDiscovery"
+	engineRpcPortId    = "engineRpc"
+	engineWsPortId     = "engineWs"
 
 	// NOTE: This can't be 0x00000....000
 	// See: https://github.com/ethereum/go-ethereum/issues/19547
@@ -37,6 +40,7 @@ const (
 
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
 	sharedGenesisJsonRelFilepath = "genesis.json"
+	sharedJWTSecretRelFilepath   = "jwtsecret"
 
 	// The dirpath of the execution data directory on the client container
 	executionDataDirpathOnClientContainer = "/execution-data"
@@ -58,6 +62,7 @@ var usedPorts = map[string]*services.PortSpec{
 	wsPortId:           services.NewPortSpec(wsPortNum, services.PortProtocol_TCP),
 	tcpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
+	engineRpcPortId:    services.NewPortSpec(engineRpcPortNum, services.PortProtocol_TCP),
 }
 var entrypointArgs = []string{"sh", "-c"}
 var verbosityLevels = map[module_io.GlobalClientLogLevel]string{
@@ -70,12 +75,13 @@ var verbosityLevels = map[module_io.GlobalClientLogLevel]string{
 
 type GethELClientLauncher struct {
 	genesisJsonFilepathOnModuleContainer string
+	jwtSecretFilepathOnModuleContainer   string
 	prefundedAccountInfo                 []*genesis_consts.PrefundedAccount
 	networkId                            string
 }
 
-func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *GethELClientLauncher {
-	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo, networkId: networkId}
+func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *GethELClientLauncher {
+	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo, networkId: networkId}
 }
 
 func (launcher *GethELClientLauncher) Launch(
@@ -123,6 +129,7 @@ func (launcher *GethELClientLauncher) Launch(
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 		wsPortNum,
+		engineRpcPortNum,
 		miningWaiter,
 	)
 
@@ -144,6 +151,11 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModuleContainer, genesisJsonSharedPath); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedGenesisJsonRelFilepath)
+		}
+
+		jwtSecretSharedPath := sharedDir.GetChildPath(sharedJWTSecretRelFilepath)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, sharedJWTSecretRelFilepath)
 		}
 
 		gethKeysDirSharedPath := sharedDir.GetChildPath(gethKeysRelDirpathInSharedDir)
@@ -206,6 +218,10 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--allow-insecure-unlock",
 			"--nat=extip:" + privateIpAddr,
 			"--verbosity=" + verbosityLevel,
+			fmt.Sprintf("--authrpc.port=%v", engineRpcPortNum),
+			"--authrpc.addr=0.0.0.0",
+			"--authrpc.vhosts=*",
+			fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
 		}
 		if bootnodeContext != nil {
 			launchNodeCmdArgs = append(

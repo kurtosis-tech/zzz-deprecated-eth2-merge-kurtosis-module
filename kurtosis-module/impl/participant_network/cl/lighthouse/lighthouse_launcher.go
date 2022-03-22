@@ -7,6 +7,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -21,6 +22,7 @@ const (
 	// ---------------------------------- Beacon client -------------------------------------
 	consensusDataDirpathOnBeaconServiceContainer = "/consensus-data"
 	beaconConfigDataDirpathRelToSharedDirRoot    = "config-data"
+	jwtSecretFilepathRelToSharedDirRoot          = "jwtsecret"
 
 	// Port IDs
 	beaconTcpDiscoveryPortID = "tcpDiscovery"
@@ -42,10 +44,12 @@ const (
 	validatorKeysRelDirpathInSharedDir    = "validator-keys"
 	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
 
-	validatorHttpPortID    = "http"
-	validatorMetricsPortID = "metrics"
-	validatorHttpPortNum   = 5042
-	validatorMetricsPortNum   = 5064
+	validatingRewardsAccount = "0x0000000000000000000000000000000000000000"
+
+	validatorHttpPortID     = "http"
+	validatorMetricsPortID  = "metrics"
+	validatorHttpPortNum    = 5042
+	validatorMetricsPortNum = 5064
 
 	metricsPath = "/metrics"
 
@@ -60,7 +64,7 @@ var beaconUsedPorts = map[string]*services.PortSpec{
 	beaconMetricsPortID:      services.NewPortSpec(beaconMetricsPortNum, services.PortProtocol_TCP),
 }
 var validatorUsedPorts = map[string]*services.PortSpec{
-	validatorHttpPortID: services.NewPortSpec(validatorHttpPortNum, services.PortProtocol_TCP),
+	validatorHttpPortID:    services.NewPortSpec(validatorHttpPortNum, services.PortProtocol_TCP),
 	validatorMetricsPortID: services.NewPortSpec(validatorMetricsPortNum, services.PortProtocol_TCP),
 }
 var lighthouseLogLevels = map[module_io.GlobalClientLogLevel]string{
@@ -74,10 +78,11 @@ var lighthouseLogLevels = map[module_io.GlobalClientLogLevel]string{
 type LighthouseCLClientLauncher struct {
 	// The dirpath on the module container where the CL genesis config data directory exists
 	configDataDirpathOnModuleContainer string
+	jwtSecretFilepathOnModuleContainer string
 }
 
-func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string) *LighthouseCLClientLauncher {
-	return &LighthouseCLClientLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer}
+func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string) *LighthouseCLClientLauncher {
+	return &LighthouseCLClientLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer}
 }
 
 func (launcher *LighthouseCLClientLauncher) Launch(
@@ -197,10 +202,21 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			)
 		}
 
+		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretFilepathRelToSharedDirRoot)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretFilepathRelToSharedDirRoot)
+		}
+
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientCtx.GetIPAddress(),
 			elClientCtx.GetRPCPortNum(),
+		)
+
+		elClientEngineRpcUrlStr := fmt.Sprintf(
+			"http://%v:%v",
+			elClientCtx.GetIPAddress(),
+			elClientCtx.GetEngineRPCPortNum(),
 		)
 
 		configDataDirpathOnService := configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer()
@@ -236,8 +252,10 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			//   https://github.com/sigp/lighthouse/blob/7c88f582d955537f7ffff9b2c879dcf5bf80ce13/scripts/local_testnet/beacon_node.sh
 			// and the option says it's "useful for testing in smaller networks" (unclear what happens in larger networks)
 			"--disable-packet-filter",
-			"--execution-endpoints=" + elClientRpcUrlStr,
+			"--execution-endpoints=" + elClientEngineRpcUrlStr,
 			"--eth1-endpoints=" + elClientRpcUrlStr,
+			"--jwt-secrets=" + jwtSecretSharedPath.GetAbsPathOnServiceContainer(),
+			"--suggested-fee-recipient=" + validatingRewardsAccount,
 			// Set per Paris' recommendation to reduce noise in the logs
 			"--subscribe-all-subnets",
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv

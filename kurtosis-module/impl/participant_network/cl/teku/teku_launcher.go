@@ -23,7 +23,7 @@ const (
 	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
 
 	// TODO Get rid of this being hardcoded; should be shared
-	validatingRewardsAccount = "0x0000000000000000000000000000000000000001"
+	validatingRewardsAccount = "0x0000000000000000000000000000000000000000"
 
 	// Port IDs
 	tcpDiscoveryPortID = "tcpDiscovery"
@@ -37,7 +37,9 @@ const (
 	metricsPortNum   uint16 = 8008
 
 	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
-	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
+
+	genesisSszRelFilepathInSharedDir = "genesis.ssz"
+	jwtSecretRelFilepathInSharedDir  = "jwtsecret"
 
 	validatorKeysDirpathRelToSharedDirRoot    = "validator-keys"
 	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
@@ -78,11 +80,12 @@ var tekuLogLevels = map[module_io.GlobalClientLogLevel]string{
 type TekuCLClientLauncher struct {
 	genesisConfigYmlFilepathOnModuleContainer string
 	genesisSszFilepathOnModuleContainer       string
+	jwtSecretFilepathOnModuleContainer        string
 	expectedNumBeaconNodes                    uint32
 }
 
-func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, expectedNumBeaconNodes uint32) *TekuCLClientLauncher {
-	return &TekuCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
+func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string, expectedNumBeaconNodes uint32) *TekuCLClientLauncher {
+	return &TekuCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
 }
 
 func (launcher *TekuCLClientLauncher) Launch(
@@ -191,6 +194,11 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			)
 		}
 
+		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretRelFilepathInSharedDir)
+		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
+			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepathInSharedDir)
+		}
+
 		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
 		if err := recursive_copy.Copy(
 			validatorKeysDirpathOnModuleContainer,
@@ -212,6 +220,13 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			elClientContext.GetIPAddress(),
 			elClientContext.GetRPCPortNum(),
 		)
+
+		elClientEngineRpcUrlStr := fmt.Sprintf(
+			"http://%v:%v",
+			elClientContext.GetIPAddress(),
+			elClientContext.GetEngineRPCPortNum(),
+		)
+
 		cmdArgs := []string{
 			"cp",
 			"-R",
@@ -224,6 +239,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			destValidatorSecretsDirpathInServiceContainer,
 			"&&",
 			tekuBinaryFilepathInImage,
+			"--Xee-version kilnv2",
 			"--logging=" + logLevel,
 			"--log-destination=CONSOLE",
 			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
@@ -235,7 +251,6 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			"--p2p-subscribe-all-subnets-enabled=true",
 			fmt.Sprintf("--p2p-peer-lower-bound=%v", minPeers),
 			"--eth1-endpoints=" + elClientRpcUrlStr,
-			"--Xee-endpoint=" + elClientRpcUrlStr,
 			"--p2p-advertised-ip=" + privateIpAddr,
 			"--rest-api-enabled=true",
 			"--rest-api-docs-enabled=true",
@@ -248,7 +263,9 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 				destValidatorKeysDirpathInServiceContainer,
 				destValidatorSecretsDirpathInServiceContainer,
 			),
-			"--Xvalidators-proposer-default-fee-recipient=" + validatingRewardsAccount,
+			fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			"--ee-endpoint=" + elClientEngineRpcUrlStr,
+			"--validators-proposer-default-fee-recipient=" + validatingRewardsAccount,
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics-enabled",
 			"--metrics-interface=" + privateIpAddr,
