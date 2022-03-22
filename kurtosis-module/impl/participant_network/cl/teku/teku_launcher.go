@@ -239,6 +239,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			destValidatorSecretsDirpathInServiceContainer,
 			"&&",
 			tekuBinaryFilepathInImage,
+			"--Xee-version kilnv2",
 			"--logging=" + logLevel,
 			"--log-destination=CONSOLE",
 			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
