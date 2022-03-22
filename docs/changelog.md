@@ -1,5 +1,12 @@
 # TBD
 
+# 0.4.11
+### Features
+* Added a `Developing` section to the docs
+* Added a link in the README to the source code where default params are defined
+* EL & CL genesis generation now creates a JWT key
+* Lighthouse, Teku, and Geth, Nethermind, Besu now consume the JWT key
+
 # 0.4.10
 ### Fixes
 * Fixed metrics config in Teku CL container config

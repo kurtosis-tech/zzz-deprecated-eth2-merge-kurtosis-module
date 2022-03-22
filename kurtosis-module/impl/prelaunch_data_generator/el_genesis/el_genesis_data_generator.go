@@ -26,6 +26,8 @@ const (
 	nethermindGenesisFilename = "nethermind.json"
 	besuGenesisFilename = "besu.json"
 
+	jwtSecretFilename = "jwtsecret"
+
 	successfulExecCmdExitCode = 0
 )
 
@@ -122,8 +124,37 @@ func GenerateELGenesisData(
 		genesisFilenameToFilepathOnModuleContainer[outputFilename] = genesisSharedFile.GetAbsPathOnThisContainer()
 	}
 
+	jwtSecretSharedFile := outputSharedDir.GetChildPath(jwtSecretFilename)
+	jwtSecretGenerationCmdArgs := []string{
+		"bash",
+		"-c",
+		fmt.Sprintf(
+			"openssl rand -hex 32 | tr -d \"\\n\" > %v",
+			jwtSecretSharedFile.GetAbsPathOnServiceContainer(),
+		),
+	}
+
+	jwtSecretGenerationExitCode, jwtSecretGenerationOutput, err := serviceCtx.ExecCommand(jwtSecretGenerationCmdArgs)
+	if err != nil {
+		return nil, stacktrace.Propagate(
+			err,
+			"An error occurred executing command '%v' to generate the JWT secret",
+			strings.Join(jwtSecretGenerationCmdArgs, " "),
+		)
+	}
+	if jwtSecretGenerationExitCode != successfulExecCmdExitCode {
+		return nil, stacktrace.NewError(
+			"Expected JWT secret generation command '%v' to return exit code '%v' but returned '%v' with the following logs:\n%v",
+			strings.Join(jwtSecretGenerationCmdArgs, " "),
+			successfulExecCmdExitCode,
+			jwtSecretGenerationExitCode,
+			jwtSecretGenerationOutput,
+		)
+	}
+
 	result := newELGenesisData(
 		outputSharedDir.GetAbsPathOnThisContainer(),
+		jwtSecretSharedFile.GetAbsPathOnThisContainer(),
 		genesisFilenameToFilepathOnModuleContainer[gethGenesisFilename],
 		genesisFilenameToFilepathOnModuleContainer[nethermindGenesisFilename],
 		genesisFilenameToFilepathOnModuleContainer[besuGenesisFilename],
