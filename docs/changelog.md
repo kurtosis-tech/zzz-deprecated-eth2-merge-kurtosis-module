@@ -1,4 +1,6 @@
 # TBD
+
+# 0.4.12
 ### Fixes
 * Add a `0x` prefix to the JWT token contents, since Nimbus won't accept JWT tokens without it
 
