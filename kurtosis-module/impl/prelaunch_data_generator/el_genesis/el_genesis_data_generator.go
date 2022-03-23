@@ -129,7 +129,7 @@ func GenerateELGenesisData(
 		"bash",
 		"-c",
 		fmt.Sprintf(
-			"openssl rand -hex 32 | tr -d \"\\n\" > %v",
+			"openssl rand -hex 32 | tr -d \"\\n\" | sed 's/^/0x/' > %v",
 			jwtSecretSharedFile.GetAbsPathOnServiceContainer(),
 		),
 	}
