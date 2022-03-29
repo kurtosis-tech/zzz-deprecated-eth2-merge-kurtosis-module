@@ -1,4 +1,6 @@
 # TBD
+### Fixes
+* Modify `ElClientLauncher` interface to take in multiple EL client contexts, as a hackaround for a bug in Nethermind peering
 
 # 0.4.13
 ### Fixes

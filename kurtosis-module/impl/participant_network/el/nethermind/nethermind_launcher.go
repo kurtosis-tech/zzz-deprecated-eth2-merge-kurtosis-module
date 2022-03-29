@@ -71,7 +71,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 	image string,
 	participantLogLevel string,
 	globalLogLevel module_io.GlobalClientLogLevel,
-	bootnodeContext *el.ELClientContext,
+	existingElClients []*el.ELClientContext,
 	extraParams []string,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
 	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, nethermindLogLevels)
@@ -79,7 +79,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
 	}
 
-	containerConfigSupplier := launcher.getContainerConfigSupplier(image, bootnodeContext, logLevel, extraParams)
+	containerConfigSupplier := launcher.getContainerConfigSupplier(image, existingElClients, logLevel, extraParams)
 
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
@@ -116,11 +116,19 @@ func (launcher *NethermindELClientLauncher) Launch(
 // ====================================================================================================
 func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 	image string,
-	bootnodeCtx *el.ELClientContext,
+	existingElClients []*el.ELClientContext,
 	logLevel string,
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+		if len(existingElClients) == 0 {
+			return nil, stacktrace.NewError("Nethermind nodes cannot be boot nodes")
+		}
+		if len(existingElClients) < 2 {
+			return nil, stacktrace.NewError("Due to a bug in Nethermind peering, Nethermind requires two boot nodes (see https://discord.com/channels/783719264308953108/933134266580234290/958049716065665094https://discord.com/channels/783719264308953108/933134266580234290/958049716065665094 )")
+		}
+		bootnode1ElContext := existingElClients[0]
+		bootnode2ElContext := existingElClients[1]
 
 		nethermindGenesisJsonSharedPath := sharedDir.GetChildPath(sharedNethermindGenesisJsonRelFilepath)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModule, nethermindGenesisJsonSharedPath); err != nil {
@@ -158,12 +166,11 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			"--Merge.FeeRecipient=" + miningRewardsAccount,
 			fmt.Sprintf("--JsonRpc.JwtSecretFile=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
 			fmt.Sprintf("--JsonRpc.AdditionalRpcUrls=[\"http://0.0.0.0:%v|http;ws|net;eth;subscribe;engine;web3;client\"]", engineRpcPortNum),
-		}
-		if bootnodeCtx != nil {
-			commandArgs = append(
-				commandArgs,
-				"--Discovery.Bootnodes="+bootnodeCtx.GetEnode(),
-			)
+			fmt.Sprintf(
+				 "--Discovery.Bootnodes=%v,%v",
+				 bootnode1ElContext.GetEnode(),
+				 bootnode2ElContext.GetEnode(),
+			),
 		}
 		if len(extraParams) > 0 {
 			commandArgs = append(commandArgs, extraParams...)
