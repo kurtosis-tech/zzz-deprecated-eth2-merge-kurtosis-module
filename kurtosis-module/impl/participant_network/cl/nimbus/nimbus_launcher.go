@@ -148,6 +148,7 @@ func (launcher NimbusLauncher) Launch(
 	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
 
 	result := cl.NewCLClientContext(
+		"nimbus",
 		nodeIdentity.ENR,
 		serviceCtx.GetPrivateIPAddress(),
 		httpPortNum,

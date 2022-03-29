@@ -98,6 +98,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 
 	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
+		"nethermind",
 		// TODO TODO TODO TODO Get Nethermind ENR, so that CL clients can connect to it!!!
 		"", //Nethermind node info endpoint doesn't return ENR field https://docs.nethermind.io/nethermind/ethereum-client/json-rpc/admin
 		nodeInfo.Enode,

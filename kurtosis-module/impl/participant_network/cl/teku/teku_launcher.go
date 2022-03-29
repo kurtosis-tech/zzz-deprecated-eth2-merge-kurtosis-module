@@ -150,6 +150,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
 
 	result := cl.NewCLClientContext(
+		"teku",
 		nodeIdentity.ENR,
 		serviceCtx.GetPrivateIPAddress(),
 		httpPortNum,

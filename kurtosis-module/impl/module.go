@@ -14,6 +14,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prometheus"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/testnet_verifier"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/transaction_spammer"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
@@ -177,6 +178,12 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 	grafanaDashboardUrl := fmt.Sprintf("%v/%v", grafanaPublicUrl, grafanaDashboardPathUrl)
 	logrus.Infof("Successfully launched Grafana at '%v'", grafanaPublicUrl)
+
+	logrus.Info("Launching merge testnet verifier...")
+	if err := testnet_verifier.LaunchTestnetVerifier(enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty); err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred launching the merge testnet verifier")
+	}
+	logrus.Info("Successfully launched merge testnet verifier")
 
 	if paramsObj.WaitForFinalization {
 		logrus.Info("Waiting for the first finalized epoch...")

@@ -168,6 +168,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{beaconNodeMetricsInfo, validatorNodeMetricsInfo}
 
 	result := cl.NewCLClientContext(
+		"lighthouse",
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		beaconHttpPortNum,
