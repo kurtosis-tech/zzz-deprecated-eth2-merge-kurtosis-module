@@ -90,7 +90,8 @@ func (launcher *GethELClientLauncher) Launch(
 	image string,
 	participantLogLevel string,
 	globalLogLevel module_io.GlobalClientLogLevel,
-	bootnodeContext *el.ELClientContext,
+	// If empty then the node will be launched as a bootnode
+	existingElClients []*el.ELClientContext,
 	extraParams []string,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
 	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, verbosityLevels)
@@ -101,7 +102,7 @@ func (launcher *GethELClientLauncher) Launch(
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		image,
 		launcher.networkId,
-		bootnodeContext,
+		existingElClients,
 		logLevel,
 		extraParams,
 	)
@@ -142,7 +143,8 @@ func (launcher *GethELClientLauncher) Launch(
 func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	image string,
 	networkId string,
-	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
+	// NOTE: If this is nil, the node will be configured as a bootnode
+	existingElClients []*el.ELClientContext,
 	verbosityLevel string,
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
@@ -223,7 +225,8 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--authrpc.vhosts=*",
 			fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
 		}
-		if bootnodeContext != nil {
+		if len(existingElClients) > 0 {
+			bootnodeContext := existingElClients[0]
 			launchNodeCmdArgs = append(
 				launchNodeCmdArgs,
 				"--bootnodes="+bootnodeContext.GetEnode(),

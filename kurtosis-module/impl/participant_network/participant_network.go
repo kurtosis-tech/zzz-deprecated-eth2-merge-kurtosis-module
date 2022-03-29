@@ -45,7 +45,6 @@ const (
 )
 
 // To get clients to start as bootnodes, we pass in these values when starting them
-var elClientContextForBootElClients *el.ELClientContext = nil
 var clClientContextForBootClClients *cl.CLClientContext = nil
 
 func LaunchParticipantNetwork(
@@ -132,31 +131,17 @@ func LaunchParticipantNetwork(
 
 		// Add EL client
 		var newElClientCtx *el.ELClientContext
-		var elClientLaunchErr error
-		if idx == bootParticipantIndex {
-			newElClientCtx, elClientLaunchErr = elLauncher.Launch(
-				enclaveCtx,
-				elClientServiceId,
-				participantSpec.ELClientImage,
-				participantSpec.ELClientLogLevel,
-				globalLogLevel,
-				elClientContextForBootElClients,
-				participantSpec.ELExtraParams,
-			)
-		} else {
-			bootElClientCtx := allElClientContexts[bootParticipantIndex]
-			newElClientCtx, elClientLaunchErr = elLauncher.Launch(
-				enclaveCtx,
-				elClientServiceId,
-				participantSpec.ELClientImage,
-				participantSpec.ELClientLogLevel,
-				globalLogLevel,
-				bootElClientCtx,
-				participantSpec.ELExtraParams,
-			)
-		}
-		if elClientLaunchErr != nil {
-			return nil, 0, stacktrace.Propagate(elClientLaunchErr, "An error occurred launching EL client for participant %v", idx)
+		newElClientCtx, err = elLauncher.Launch(
+			enclaveCtx,
+			elClientServiceId,
+			participantSpec.ELClientImage,
+			participantSpec.ELClientLogLevel,
+			globalLogLevel,
+			allElClientContexts,
+			participantSpec.ELExtraParams,
+		)
+		if err != nil {
+			return nil, 0, stacktrace.Propagate(err, "An error occurred launching EL client for participant %v", idx)
 		}
 		allElClientContexts = append(allElClientContexts, newElClientCtx)
 		logrus.Infof("Added EL client %v of type '%v'", idx, elClientType)

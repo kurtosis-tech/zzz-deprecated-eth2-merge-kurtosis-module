@@ -78,7 +78,7 @@ func (launcher *BesuELClientLauncher) Launch(
 	image string,
 	participantLogLevel string,
 	globalLogLevel module_io.GlobalClientLogLevel,
-	bootnodeContext *el.ELClientContext,
+	existingElClients []*el.ELClientContext,
 	extraParams []string,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
 	logLevel, err := module_io.GetClientLogLevelStrOrDefault(participantLogLevel, globalLogLevel, besuLogLevels)
@@ -89,7 +89,7 @@ func (launcher *BesuELClientLauncher) Launch(
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		image,
 		launcher.networkId,
-		bootnodeContext,
+		existingElClients,
 		logLevel,
 		extraParams,
 	)
@@ -130,7 +130,7 @@ func (launcher *BesuELClientLauncher) Launch(
 func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 	image string,
 	networkId string,
-	bootnodeContext *el.ELClientContext, // NOTE: If this is empty, the node will be configured as a bootnode
+	existingElClients []*el.ELClientContext, // NOTE: If this is nil, the node will be configured as a bootnode
 	logLevel string,
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
@@ -174,7 +174,8 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--engine-rpc-http-port=%v", engineRpcPortNum),
 			fmt.Sprintf("--engine-rpc-ws-port=%v", engineRpcPortNum),
 		}
-		if bootnodeContext != nil {
+		if len(existingElClients) > 0 {
+			bootnodeContext := existingElClients[0]
 			launchNodeCmdArgs = append(
 				launchNodeCmdArgs,
 				"--bootnodes="+bootnodeContext.GetEnode(),
