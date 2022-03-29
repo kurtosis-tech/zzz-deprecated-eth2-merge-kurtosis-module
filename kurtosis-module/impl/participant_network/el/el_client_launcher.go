@@ -13,8 +13,8 @@ type ELClientLauncher interface {
 		image string,
 		participantLogLevel string,
 		globalLogLevel module_io.GlobalClientLogLevel,
-		// If nil, then the node will be launched as a bootnode
-		bootnodeContext *ELClientContext,
+		// If empty then the node will be launched as a bootnode
+		existingElClients []*ELClientContext,
 		extraParams []string,
 	) (
 		resultClientCtx *ELClientContext,

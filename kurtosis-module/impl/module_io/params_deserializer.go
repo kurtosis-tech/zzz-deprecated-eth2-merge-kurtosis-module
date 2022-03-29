@@ -158,5 +158,15 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 		)
 	}
 
+	// TODO Remove this once Nethermind no longer breaks if there's only one bootnode
+	participantParams := paramsObj.Participants
+	hasNethermindAsBootnodeOrSecondNode := (len(participantParams) >= 1 && participantParams[0].ELClientType == ParticipantELClientType_Nethermind) ||
+		(len(participantParams) >= 2 && participantParams[1].ELClientType == ParticipantELClientType_Nethermind)
+	if hasNethermindAsBootnodeOrSecondNode {
+		return nil, stacktrace.NewError(
+			"Due to a bug in Nethermind peering, Nethermind cannot be either the first or second EL node (see https://discord.com/channels/783719264308953108/933134266580234290/958049716065665094)",
+		)
+	}
+
 	return paramsObj, nil
 }
