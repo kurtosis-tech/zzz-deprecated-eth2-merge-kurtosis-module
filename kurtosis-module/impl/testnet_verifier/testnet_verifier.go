@@ -10,12 +10,17 @@ import (
 	"github.com/kurtosis-tech/stacktrace"
 )
 
+// We use Docker exec commands to run the commands we need, so we override the default
+var entrypointArgs = []string{
+	"sleep",
+	"999999",
+}
+
 const (
 	imageName = "marioevz/merge-testnet-verifier:latest"
 	serviceId = "testnet-verifier"
 )
 
-// TODO upgrade the spammer to be able to take in multiple EL addreses
 func LaunchTestnetVerifier(enclaveCtx *enclaves.EnclaveContext, elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64) error {
 	containerConfigSupplier := getContainerConfigSupplier(elClientCtxs, clClientCtxs, ttd)
 
@@ -27,24 +32,57 @@ func LaunchTestnetVerifier(enclaveCtx *enclaves.EnclaveContext, elClientCtxs []*
 	return nil
 }
 
-func getContainerConfigSupplier(elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
+func RunTestnetVerifier(enclaveCtx *enclaves.EnclaveContext, elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64) (int32, string, error) {
+	containerConfigSupplier := getSleepContainerConfigSupplier()
 
+	svcCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	if err != nil {
+		return 1, "", stacktrace.Propagate(err, "An error occurred adding the testnet verifier service")
+	}
+
+	cmd := getCmd(elClientCtxs, clClientCtxs, ttd, true)
+
+	return svcCtx.ExecCommand(cmd)
+
+}
+
+func getCmd(elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64, addBinaryName bool) []string {
+	cmd := make([]string, 0)
+	if addBinaryName {
+		cmd = append(cmd, "./merge_testnet_verifier")
+	}
+	cmd = append(cmd, "--ttd")
+	cmd = append(cmd, fmt.Sprintf("%d", ttd))
+
+	for _, elClientCtx := range elClientCtxs {
+		cmd = append(cmd, "--client")
+		cmd = append(cmd, fmt.Sprintf("%s,http://%v:%v", elClientCtx.GetClientName(), elClientCtx.GetIPAddress(), elClientCtx.GetRPCPortNum()))
+	}
+	for _, clClientCtx := range clClientCtxs {
+		cmd = append(cmd, "--client")
+		cmd = append(cmd, fmt.Sprintf("%s,http://%v:%v", clClientCtx.GetClientName(), clClientCtx.GetIPAddress(), clClientCtx.GetHTTPPortNum()))
+	}
+
+	return cmd
+}
+
+func getContainerConfigSupplier(elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		cmd := []string{
-			"--ttd",
-			fmt.Sprintf("%d", ttd),
-		}
-		for _, elClientCtx := range elClientCtxs {
-			cmd = append(cmd, "--client")
-			cmd = append(cmd, fmt.Sprintf("%s,http://%v:%v", elClientCtx.GetClientName(), elClientCtx.GetIPAddress(), elClientCtx.GetRPCPortNum()))
-		}
-		for _, clClientCtx := range clClientCtxs {
-			cmd = append(cmd, "--client")
-			cmd = append(cmd, fmt.Sprintf("%s,http://%v:%v", clClientCtx.GetClientName(), clClientCtx.GetIPAddress(), clClientCtx.GetHTTPPortNum()))
-		}
+		cmd := getCmd(elClientCtxs, clClientCtxs, ttd, false)
 		result := services.NewContainerConfigBuilder(
 			imageName,
 		).WithCmdOverride(cmd).Build()
+		return result, nil
+	}
+}
+
+func getSleepContainerConfigSupplier() func(string, *services.SharedPath) (*services.ContainerConfig, error) {
+	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+		result := services.NewContainerConfigBuilder(
+			imageName,
+		).WithEntrypointOverride(
+			entrypointArgs,
+		).Build()
 		return result, nil
 	}
 }

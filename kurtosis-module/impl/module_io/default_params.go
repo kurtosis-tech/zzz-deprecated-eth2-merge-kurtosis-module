@@ -66,9 +66,10 @@ func GetDefaultExecuteParams() *ExecuteParams {
 			NumValidatorKeysPerNode:            64,
 			PreregisteredValidatorKeysMnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete",
 		},
-		WaitForMining:       true,
-		WaitForFinalization: false,
-		ClientLogLevel:      GlobalClientLogLevel_Info,
+		WaitForMining:        true,
+		WaitForFinalization:  false,
+		WaitForVerifications: true,
+		ClientLogLevel:       GlobalClientLogLevel_Info,
 	}
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!

@@ -3,6 +3,9 @@ package impl
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/forkmon"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/grafana"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
@@ -19,7 +22,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 const (
@@ -179,21 +181,43 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	grafanaDashboardUrl := fmt.Sprintf("%v/%v", grafanaPublicUrl, grafanaDashboardPathUrl)
 	logrus.Infof("Successfully launched Grafana at '%v'", grafanaPublicUrl)
 
-	logrus.Info("Launching merge testnet verifier...")
-	if err := testnet_verifier.LaunchTestnetVerifier(enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty); err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred launching the merge testnet verifier")
-	}
-	logrus.Info("Successfully launched merge testnet verifier")
-
-	if paramsObj.WaitForFinalization {
-		logrus.Info("Waiting for the first finalized epoch...")
-		// TODO Make sure that ALL Beacon clients have finalized, not just the first one!!!
-		firstClClientCtx := allClClientContexts[0]
-		firstClClientRestClient := firstClClientCtx.GetRESTClient()
-		if err := waitUntilFirstFinalizedEpoch(firstClClientRestClient, networkParams.SecondsPerSlot, networkParams.SlotsPerEpoch); err != nil {
-			return "", stacktrace.Propagate(err, "An error occurred waiting until the first finalized epoch occurred")
+	if paramsObj.WaitForVerifications {
+		logrus.Info("Running merge testnet verifier...")
+		retCode, output, err := testnet_verifier.RunTestnetVerifier(enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty)
+		if err != nil {
+			return "", stacktrace.Propagate(err, "An error occurred running the merge testnet verifier")
 		}
-		logrus.Info("First finalized epoch occurred successfully")
+		logrus.Info("Testnet verifier has finished...")
+		if retCode == 0 {
+			logrus.Info("Successfully ran merge testnet verifier, all verifications were successful")
+		} else {
+			logrus.Error("Some verifications were not successful")
+			lines := strings.Split(output, "\n")
+			for _, l := range lines {
+				if strings.Contains(l, "lvl=crit") {
+					logrus.Info(l)
+				}
+			}
+		}
+	} else {
+
+		logrus.Info("Launching merge testnet verifier...")
+		if err := testnet_verifier.LaunchTestnetVerifier(enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty); err != nil {
+			return "", stacktrace.Propagate(err, "An error occurred launching the merge testnet verifier")
+		}
+		logrus.Info("Successfully launched merge testnet verifier")
+
+		if paramsObj.WaitForFinalization {
+			logrus.Info("Waiting for the first finalized epoch...")
+			// TODO Make sure that ALL Beacon clients have finalized, not just the first one!!!
+			firstClClientCtx := allClClientContexts[0]
+			firstClClientRestClient := firstClClientCtx.GetRESTClient()
+			if err := waitUntilFirstFinalizedEpoch(firstClClientRestClient, networkParams.SecondsPerSlot, networkParams.SlotsPerEpoch); err != nil {
+				return "", stacktrace.Propagate(err, "An error occurred waiting until the first finalized epoch occurred")
+			}
+			logrus.Info("First finalized epoch occurred successfully")
+		}
+
 	}
 
 	responseObj := &module_io.ExecuteResponse{

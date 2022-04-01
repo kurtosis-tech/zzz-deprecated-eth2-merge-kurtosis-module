@@ -89,6 +89,9 @@ type ExecuteParams struct {
 	// If set, the module will block until a finalized epoch has occurred
 	WaitForFinalization bool	`json:"waitForFinalization"`
 
+	// If set, the module will block until all verifications have passed
+	WaitForVerifications bool `json:"waitForVerifications"`
+
 	// The log level that the started clients should log at
 	ClientLogLevel GlobalClientLogLevel `json:"logLevel"`
 }
