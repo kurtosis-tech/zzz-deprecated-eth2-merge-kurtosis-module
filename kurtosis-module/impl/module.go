@@ -183,7 +183,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 
 	if paramsObj.WaitForVerifications {
 		logrus.Info("Running merge testnet verifier...")
-		retCode, output, err := testnet_verifier.RunTestnetVerifier(enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty)
+		retCode, output, err := testnet_verifier.RunTestnetVerifier(paramsObj, enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty)
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred running the merge testnet verifier")
 		}
@@ -198,11 +198,12 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 					logrus.Info(l)
 				}
 			}
+			return "", fmt.Errorf("Some verifications were not successful")
 		}
 	} else {
 
 		logrus.Info("Launching merge testnet verifier...")
-		if err := testnet_verifier.LaunchTestnetVerifier(enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty); err != nil {
+		if err := testnet_verifier.LaunchTestnetVerifier(paramsObj, enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty); err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred launching the merge testnet verifier")
 		}
 		logrus.Info("Successfully launched merge testnet verifier")

@@ -92,6 +92,14 @@ type ExecuteParams struct {
 	// If set, the module will block until all verifications have passed
 	WaitForVerifications bool `json:"waitForVerifications"`
 
+	// If set, verifications will be marked as failed if the TTD is not reached within specified number of epochs
+	// Default: 5
+	VerificationsTTDEpochLimit *uint64 `json:"verificationsTTDEpochLimit"`
+
+	// If set, verification checks will have this max number of epochs after the merge to be successful
+	// Default: 5
+	VerificationsEpochLimit *uint64 `json:"verificationsEpochLimit"`
+
 	// The log level that the started clients should log at
 	ClientLogLevel GlobalClientLogLevel `json:"logLevel"`
 }
