@@ -193,6 +193,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{beaconNodeMetricsInfo, validatorNodeMetricsInfo}
 
 	result := cl.NewCLClientContext(
+		"prysm",
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		httpPortNum,

@@ -86,8 +86,19 @@ type ExecuteParams struct {
 	//  CL client that's failing to start.
 	WaitForMining bool			`json:"waitForMining"`
 
-	// If set, the module will block until a finalized epoch has occurred
+	// If set, the module will block until a finalized epoch has occurred.
+	// If `waitForVerifications` is set to true, this extra wait will be skipped.
 	WaitForFinalization bool	`json:"waitForFinalization"`
+
+	// If set to true, the module will block until all verifications have passed
+	WaitForVerifications bool `json:"waitForVerifications"`
+
+	// If set, this will be the maximum number of epochs to wait for the TTD to be reached.
+    // Verifications will be marked as failed if the TTD takes longer.
+	VerificationsTTDEpochLimit uint64 `json:"verificationsTTDEpochLimit"`
+
+	// If set, after the merge, this will be the maximum number of epochs wait for the verifications to succeed. 
+	VerificationsEpochLimit uint64 `json:"verificationsEpochLimit"`
 
 	// The log level that the started clients should log at
 	ClientLogLevel GlobalClientLogLevel `json:"logLevel"`

@@ -125,6 +125,7 @@ func (launcher *GethELClientLauncher) Launch(
 
 	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
+		"geth",
 		nodeInfo.ENR,
 		nodeInfo.Enode,
 		serviceCtx.GetPrivateIPAddress(),

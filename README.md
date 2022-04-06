@@ -138,8 +138,19 @@ You can find the latest Kiln compatible docker images here: https://notes.ethere
     //  CL client that's failing to start.
     "waitForMining": true,
 
-    // If set, the module will block until a finalized epoch has occurred
+    // If set, the module will block until a finalized epoch has occurred.
+    // If `waitForVerifications` is set to true, this extra wait will be skipped.
     "waitForFinalization": false,
+
+    // If set to true, the module will block until all verifications have passed
+    "waitForVerifications": false,
+
+    // If set, this will be the maximum number of epochs to wait for the TTD to be reached.
+    // Verifications will be marked as failed if the TTD takes longer.
+    "verificationsTTDEpochLimit": 5,
+
+    // If set, after the merge, this will be the maximum number of epochs wait for the verifications to succeed. 
+    "verificationsEpochLimit": 5,
 
     // The global log level that all clients should log at
     // Valid values are "error", "warn", "info", "debug", and "trace"
