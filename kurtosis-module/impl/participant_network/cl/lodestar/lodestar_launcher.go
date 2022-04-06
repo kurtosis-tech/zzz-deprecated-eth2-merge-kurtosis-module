@@ -140,6 +140,7 @@ func (launcher *LodestarClientLauncher) Launch(
 	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
 
 	result := cl.NewCLClientContext(
+		"lodestar",
 		nodeIdentity.ENR,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		httpPortNum,

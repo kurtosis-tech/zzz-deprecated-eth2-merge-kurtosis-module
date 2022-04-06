@@ -3,15 +3,20 @@ package cl
 import "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 
 type CLClientContext struct {
-	enr         string
-	ipAddr      string
-	httpPortNum uint16
+	clientName       string
+	enr              string
+	ipAddr           string
+	httpPortNum      uint16
 	nodesMetricsInfo []*CLNodeMetricsInfo
-	restClient *cl_client_rest_client.CLClientRESTClient
+	restClient       *cl_client_rest_client.CLClientRESTClient
 }
 
-func NewCLClientContext(enr string, ipAddr string, httpPortNum uint16, nodesMetricsInfo []*CLNodeMetricsInfo, restClient *cl_client_rest_client.CLClientRESTClient) *CLClientContext {
-	return &CLClientContext{enr: enr, ipAddr: ipAddr, httpPortNum: httpPortNum, nodesMetricsInfo: nodesMetricsInfo, restClient: restClient}
+func NewCLClientContext(clientName string, enr string, ipAddr string, httpPortNum uint16, nodesMetricsInfo []*CLNodeMetricsInfo, restClient *cl_client_rest_client.CLClientRESTClient) *CLClientContext {
+	return &CLClientContext{clientName: clientName, enr: enr, ipAddr: ipAddr, httpPortNum: httpPortNum, nodesMetricsInfo: nodesMetricsInfo, restClient: restClient}
+}
+
+func (ctx *CLClientContext) GetClientName() string {
+	return ctx.clientName
 }
 
 func (ctx *CLClientContext) GetENR() string {

@@ -1,4 +1,5 @@
 # TBD
+* Added `Merge-Testnet-Verifier` module and wait-for-verifications flag
 
 # 0.4.14
 ### Fixes
