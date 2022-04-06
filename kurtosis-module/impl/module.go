@@ -182,28 +182,27 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Infof("Successfully launched Grafana at '%v'", grafanaPublicUrl)
 
 	if paramsObj.WaitForVerifications {
-		logrus.Info("Running merge testnet verifier...")
-		retCode, output, err := testnet_verifier.RunTestnetVerifier(paramsObj, enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty)
+		logrus.Info("Running synchronous testnet verification...")
+		retCode, output, err := testnet_verifier.RunSynchronousTestnetVerification(paramsObj, enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty)
 		if err != nil {
-			return "", stacktrace.Propagate(err, "An error occurred running the merge testnet verifier")
+			return "", stacktrace.Propagate(err, "An error occurred running the merge testnet verification")
 		}
-		logrus.Info("Testnet verifier has finished...")
-		if retCode == 0 {
-			logrus.Info("Successfully ran merge testnet verifier, all verifications were successful")
-		} else {
+		logrus.Info("Testnet verification has finished...")
+		if retCode != 0 {
 			logrus.Error("Some verifications were not successful")
 			lines := strings.Split(output, "\n")
 			for _, l := range lines {
 				if strings.Contains(l, "lvl=crit") {
-					logrus.Info(l)
+					logrus.Error(l)
 				}
 			}
 			return "", fmt.Errorf("Some verifications were not successful")
 		}
+		logrus.Info("Successfully ran merge testnet verification, all verifications were successful")
 	} else {
 
-		logrus.Info("Launching merge testnet verifier...")
-		if err := testnet_verifier.LaunchTestnetVerifier(paramsObj, enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty); err != nil {
+		logrus.Info("Launching asynchronous merge testnet verifier...")
+		if err := testnet_verifier.LaunchAsynchronousTestnetVerifier(paramsObj, enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty); err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred launching the merge testnet verifier")
 		}
 		logrus.Info("Successfully launched merge testnet verifier")

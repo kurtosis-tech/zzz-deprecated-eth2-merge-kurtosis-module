@@ -12,7 +12,7 @@ import (
 )
 
 // We use Docker exec commands to run the commands we need, so we override the default
-var entrypointArgs = []string{
+var synchronousEntrypointArgs = []string{
 	"sleep",
 	"999999",
 }
@@ -22,8 +22,8 @@ const (
 	serviceId = "testnet-verifier"
 )
 
-func LaunchTestnetVerifier(params *module_io.ExecuteParams, enclaveCtx *enclaves.EnclaveContext, elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64) error {
-	containerConfigSupplier := getContainerConfigSupplier(params, elClientCtxs, clClientCtxs, ttd)
+func LaunchAsynchronousTestnetVerifier(params *module_io.ExecuteParams, enclaveCtx *enclaves.EnclaveContext, elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64) error {
+	containerConfigSupplier := getAsynchronousVerificationContainerConfigSupplier(params, elClientCtxs, clClientCtxs, ttd)
 
 	_, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
@@ -33,8 +33,8 @@ func LaunchTestnetVerifier(params *module_io.ExecuteParams, enclaveCtx *enclaves
 	return nil
 }
 
-func RunTestnetVerifier(params *module_io.ExecuteParams, enclaveCtx *enclaves.EnclaveContext, elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64) (int32, string, error) {
-	containerConfigSupplier := getSleepContainerConfigSupplier()
+func RunSynchronousTestnetVerification(params *module_io.ExecuteParams, enclaveCtx *enclaves.EnclaveContext, elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64) (int32, string, error) {
+	containerConfigSupplier := getSynchronousVerificationContainerConfigSupplier()
 
 	svcCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
@@ -64,20 +64,16 @@ func getCmd(params *module_io.ExecuteParams, elClientCtxs []*el.ELClientContext,
 		cmd = append(cmd, fmt.Sprintf("%s,http://%v:%v", clClientCtx.GetClientName(), clClientCtx.GetIPAddress(), clClientCtx.GetHTTPPortNum()))
 	}
 
-	if params.VerificationsTTDEpochLimit != nil {
-		cmd = append(cmd, "--ttd-epoch-limit")
-		cmd = append(cmd, fmt.Sprintf("%d", *params.VerificationsTTDEpochLimit))
-	}
+	cmd = append(cmd, "--ttd-epoch-limit")
+	cmd = append(cmd, fmt.Sprintf("%d", params.VerificationsTTDEpochLimit))
 
-	if params.VerificationsEpochLimit != nil {
-		cmd = append(cmd, "--verif-epoch-limit")
-		cmd = append(cmd, fmt.Sprintf("%d", *params.VerificationsEpochLimit))
-	}
+	cmd = append(cmd, "--verif-epoch-limit")
+	cmd = append(cmd, fmt.Sprintf("%d", params.VerificationsEpochLimit))
 
 	return cmd
 }
 
-func getContainerConfigSupplier(params *module_io.ExecuteParams, elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
+func getAsynchronousVerificationContainerConfigSupplier(params *module_io.ExecuteParams, elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		cmd := getCmd(params, elClientCtxs, clClientCtxs, ttd, false)
 		result := services.NewContainerConfigBuilder(
@@ -87,12 +83,12 @@ func getContainerConfigSupplier(params *module_io.ExecuteParams, elClientCtxs []
 	}
 }
 
-func getSleepContainerConfigSupplier() func(string, *services.SharedPath) (*services.ContainerConfig, error) {
+func getSynchronousVerificationContainerConfigSupplier() func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 		result := services.NewContainerConfigBuilder(
 			imageName,
 		).WithEntrypointOverride(
-			entrypointArgs,
+			synchronousEntrypointArgs,
 		).Build()
 		return result, nil
 	}
