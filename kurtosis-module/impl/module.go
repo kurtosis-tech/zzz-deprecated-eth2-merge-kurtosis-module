@@ -125,18 +125,22 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Info("Successfully launched transaction spammer")
 
 
-	logrus.Info("Waiting until CL genesis occurs to add forkmon...")
-	// We need to wait until the CL genesis has been reached to launch Forkmon because it has a bug (as of 2022-01-18) where
-	//  if a CL ndoe's getHealth endpoint returns a non-200 error code, Forkmon will mark the node as failed and will never revisit it
-	// This is fine with nodes who report 200 before genesis, but certain nodes (e.g. Lighthouse) will report a 503 before genesis
-	// Therefore, the simple fix is wait until CL genesis to start Forkmon
-	secondsRemainingUntilClGenesis := clGenesisUnixTimestamp - uint64(time.Now().Unix())
-	if secondsRemainingUntilClGenesis < 0 {
-		secondsRemainingUntilClGenesis = 0
+	if paramsObj.WaitForClGenesis {
+		logrus.Info("Waiting until CL genesis occurs to add forkmon...")
+		// We need to wait until the CL genesis has been reached to launch Forkmon because it has a bug (as of 2022-01-18) where
+		//  if a CL ndoe's getHealth endpoint returns a non-200 error code, Forkmon will mark the node as failed and will never revisit it
+		// This is fine with nodes who report 200 before genesis, but certain nodes (e.g. Lighthouse) will report a 503 before genesis
+		// Therefore, the simple fix is wait until CL genesis to start Forkmon
+		secondsRemainingUntilClGenesis := clGenesisUnixTimestamp - uint64(time.Now().Unix())
+		if secondsRemainingUntilClGenesis < 0 {
+			secondsRemainingUntilClGenesis = 0
+		}
+		durationUntilClGenesis := time.Duration(int64(secondsRemainingUntilClGenesis)) * time.Second
+		time.Sleep(durationUntilClGenesis)
+		logrus.Info("CL genesis has occurred")
+	} else {
+		logrus.Info("The wait-for-mining flag was set to false. Forkmon will be started immediately but may not work properly.")
 	}
-	durationUntilClGenesis := time.Duration(int64(secondsRemainingUntilClGenesis)) * time.Second
-	time.Sleep(durationUntilClGenesis)
-	logrus.Info("CL genesis has occurred")
 
 
 	logrus.Info("Launching forkmon...")
@@ -220,6 +224,19 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 
 	}
 
+	allClClientPeers := []string{}
+	for _, clClientCtx := range allClClientContexts {
+		allClClientPeers = append(allClClientPeers, fmt.Sprintf("/ip4/%s/tcp/%v/p2p/%s", clClientCtx.GetPublicIPAddress(), clClientCtx.GetPublicHTTPPortNum(), clClientCtx.GetPeerId()))
+	}
+
+	allElClientPeers := []string{}
+	for _, elClientCtx := range allElClientContexts {
+		internal := fmt.Sprintf("@%s:%v",elClientCtx.GetIPAddress(),elClientCtx.GetDiscoveryPortNum())
+		external := fmt.Sprintf("@%s:%v",elClientCtx.GetPublicIPAddress(),elClientCtx.GetPublicDiscoveryPortNum())
+
+		allElClientPeers = append(allElClientPeers, strings.Replace(elClientCtx.GetEnode(),internal,external,1))
+	}
+
 	responseObj := &module_io.ExecuteResponse{
 		ForkmonPublicURL: forkmonPublicUrl,
 		PrometheusPublicURL: prometheusPublicUrl,
@@ -229,6 +246,8 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 			User: grafanaUser,
 			Password: grafanaPassword,
 		},
+		ClPeers: allClClientPeers,
+		ElPeers: allElClientPeers,
 	}
 	responseStr, err := json.MarshalIndent(responseObj, responseJsonLinePrefixStr, responseJsonLineIndentStr)
 	if err != nil {

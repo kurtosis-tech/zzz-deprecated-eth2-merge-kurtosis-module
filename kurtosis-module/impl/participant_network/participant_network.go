@@ -81,6 +81,7 @@ func LaunchParticipantNetwork(
 	clValidatorData, err := prelaunchDataGeneratorCtx.GenerateCLValidatorData(
 		numParticipants,
 		networkParams.NumValidatorKeysPerNode,
+		networkParams.NumExtraValidatorKeys,
 	)
 	if err != nil {
 		return nil, 0, stacktrace.Propagate(err, "An error occurred generating CL validator keys")
@@ -90,7 +91,7 @@ func LaunchParticipantNetwork(
 	// Per Pari's recommendation, we want to start all EL clients before any CL clients and wait until they're all mining blocks before
 	//  we start the CL clients. This matches the real world, where Eth1 definitely exists before Eth2
 	logrus.Info("Generating EL client genesis data...")
-	elGenesisTimestamp := uint64(time.Now().Unix())
+	elGenesisTimestamp := uint64(time.Now().Unix()) + uint64(networkParams.ElGenesisTimeAdditionalDelay)
 	elGenesisData, err := prelaunchDataGeneratorCtx.GenerateELGenesisData(
 		elGenesisGenerationConfigTemplate,
 		elGenesisTimestamp,
@@ -179,7 +180,8 @@ func LaunchParticipantNetwork(
 	// Set the genesis timestamp in the future so we don't start running slots until all the CL nodes are up
 	clGenesisTimestamp := uint64(time.Now().Unix()) +
 		uint64(clGenesisDataGenerationTime.Seconds()) +
-		uint64(numParticipants)*uint64(clNodeStartupTime.Seconds())
+		uint64(numParticipants)*uint64(clNodeStartupTime.Seconds()) +
+		uint64(networkParams.ClGenesisTimeAdditionalDelay)
 	clGenesisData, err := prelaunchDataGeneratorCtx.GenerateCLGenesisData(
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
@@ -190,6 +192,7 @@ func LaunchParticipantNetwork(
 		networkParams.MergeForkEpoch,
 		numParticipants,
 		networkParams.NumValidatorKeysPerNode,
+		networkParams.NumExtraValidatorKeys,
 	)
 	if err != nil {
 		return nil, 0, stacktrace.Propagate(err, "An error occurred generating the CL client genesis data")

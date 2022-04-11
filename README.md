@@ -104,6 +104,12 @@ You can find the latest Kiln compatible docker images here: https://notes.ethere
 	// The address of the staking contract address on the Eth1 chain
 	"depositContractAddress": "0x4242424242424242424242424242424242424242",
 
+    // Number of seconds to be added to the calculated genesis time for EL
+    "ElGenesisTimeAdditionalDelay": 0
+
+    // Number of seconds to be added to the calculated genesis time for CL
+    "ClGenesisTimeAdditionalDelay": 0
+
 	// Number of seconds per slot on the Beacon chain
 	"secondsPerSlot": 12,
 
@@ -127,6 +133,9 @@ You can find the latest Kiln compatible docker images here: https://notes.ethere
 	// The number of validator keys that each CL validator node should get
 	"numValidatorKeysPerNode": 64,
 
+    // The number of extra validator keys should be generated, useful to join the network from outside kurtosis
+	"numExtraValidatorKeys": 64,
+
 	// This mnemonic will a) be used to create keystores for all the types of validators that we have and b) be used to generate a CL genesis.ssz that has the children
 	//  validator keys already preregistered as validators
 	"preregisteredValidatorKeysMnemonic": "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
@@ -141,6 +150,9 @@ You can find the latest Kiln compatible docker images here: https://notes.ethere
     // If set, the module will block until a finalized epoch has occurred.
     // If `waitForVerifications` is set to true, this extra wait will be skipped.
     "waitForFinalization": false,
+
+    // If set, the module will block until a CL genesis has occurred
+    "waitForClGenesis": true,
 
     // If set to true, the module will block until all verifications have passed
     "waitForVerifications": false,

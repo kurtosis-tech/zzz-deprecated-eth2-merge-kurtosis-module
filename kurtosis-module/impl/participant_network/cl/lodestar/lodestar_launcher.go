@@ -139,11 +139,19 @@ func (launcher *LodestarClientLauncher) Launch(
 	nodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(serviceId), metricsPath, metricsUrl)
 	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{nodeMetricsInfo}
 
+	httpPublicPort, found := beaconServiceCtx.GetPublicPorts()[httpPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Lodestar service to have public port with ID '%v', but none was found", httpPortID)
+	}
+
 	result := cl.NewCLClientContext(
 		"lodestar",
 		nodeIdentity.ENR,
+		nodeIdentity.PeerId,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		httpPortNum,
+		beaconServiceCtx.GetMaybePublicIPAddress(),
+		httpPublicPort.GetNumber(),
 		nodesMetricsInfo,
 		beaconRestClient,
 	)

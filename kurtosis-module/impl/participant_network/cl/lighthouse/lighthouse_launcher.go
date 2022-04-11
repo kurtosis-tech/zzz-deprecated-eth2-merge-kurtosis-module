@@ -167,11 +167,19 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	validatorNodeMetricsInfo := cl.NewCLNodeMetricsInfo(string(validatorNodeServiceId), metricsPath, validatorMetricsUrl)
 	nodesMetricsInfo := []*cl.CLNodeMetricsInfo{beaconNodeMetricsInfo, validatorNodeMetricsInfo}
 
+	httpPublicPort, found := beaconServiceCtx.GetPublicPorts()[beaconHttpPortID]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Lighthouse Beacon service to have public port with ID '%v', but none was found", beaconHttpPortID)
+	}
+
 	result := cl.NewCLClientContext(
 		"lighthouse",
 		nodeIdentity.ENR,
+		nodeIdentity.PeerId,
 		beaconServiceCtx.GetPrivateIPAddress(),
 		beaconHttpPortNum,
+		beaconServiceCtx.GetMaybePublicIPAddress(),
+		httpPublicPort.GetNumber(),
 		nodesMetricsInfo,
 		beaconRestClient,
 	)

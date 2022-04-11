@@ -111,6 +111,7 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 		networkParams.MergeForkEpoch,
 		uint32(len(participantParams)),
 		networkParams.NumValidatorKeysPerNode,
+		networkParams.NumExtraValidatorKeys,
 	)
 	require.NoError(t, err)
 }

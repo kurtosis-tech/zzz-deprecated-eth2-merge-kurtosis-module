@@ -123,6 +123,11 @@ func (launcher *GethELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the EL client to become available")
 	}
 
+	publicDiscoveryPortNum, found := serviceCtx.GetPublicPorts()[tcpDiscoveryPortId]
+	if !found {
+		return nil, stacktrace.NewError("Expected new Geth EL client service to have public discovery port with ID '%v', but none was found", tcpDiscoveryPortId)
+	}
+
 	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
 		"geth",
@@ -130,6 +135,9 @@ func (launcher *GethELClientLauncher) Launch(
 		nodeInfo.Enode,
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
+		discoveryPortNum,
+		serviceCtx.GetMaybePublicIPAddress(),
+		publicDiscoveryPortNum.GetNumber(),
 		wsPortNum,
 		engineRpcPortNum,
 		miningWaiter,
