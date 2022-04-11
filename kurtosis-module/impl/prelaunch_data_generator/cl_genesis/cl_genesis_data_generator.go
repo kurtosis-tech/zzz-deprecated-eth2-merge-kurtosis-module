@@ -27,12 +27,13 @@ const (
 	genesisStateFilename     = "genesis.ssz"
 	deployBlockFilename      = "deploy_block.txt"
 	depositContractFilename = "deposit_contract.txt"
+	jwtSecretFilename = "jwtsecret"
 
 	// Generation constants
 	clGenesisGenerationBinaryFilepathOnContainer = "/usr/local/bin/eth2-testnet-genesis"
 	deployBlock = "0"
-	eth1Block = "0x0000000000000000000000000000000000000000000000000000000000000000"
-	expectedClGenesisGenerationExitCode = 0
+	eth1Block              = "0x0000000000000000000000000000000000000000000000000000000000000000"
+	successCommandExitCode = 0
 )
 
 type clGenesisConfigTemplateData struct {
@@ -50,6 +51,7 @@ type clGenesisConfigTemplateData struct {
 func GenerateCLGenesisData(
 	genesisGenerationConfigYmlTemplate *template.Template,
 	genesisGenerationMnemonicsYmlTemplate *template.Template,
+	jwtSecretFilepathOnModuleContainer string,
 	serviceCtx *services.ServiceContext,
 	genesisUnixTimestamp uint64,
 	networkId string,
@@ -109,6 +111,7 @@ func GenerateCLGenesisData(
 	result, err := runClGenesisGeneration(
 		genesisGenerationConfigSharedFile,
 		genesisGenerationMnemonicsSharedFile,
+		jwtSecretFilepathOnModuleContainer,
 		genesisUnixTimestamp,
 		depositContractAddress,
 		serviceCtx,
@@ -147,6 +150,7 @@ func createGenesisGenerationConfig(
 func runClGenesisGeneration(
 	genesisGenerationConfigSharedFile *services.SharedPath,
 	genesisGenerationMnemonicsSharedFile *services.SharedPath,
+	jwtSecretFilepathOnModuleContainer string,
 	genesisTimestamp uint64,
 	depositContractAddress string,
 	serviceCtx *services.ServiceContext,
@@ -204,7 +208,7 @@ func runClGenesisGeneration(
 		"--state-output", genesisStateSharedFile.GetAbsPathOnServiceContainer(),
 	}
 
-	exitCode, output, err := serviceCtx.ExecCommand(clGenesisGenerationCmdArgs)
+	genesisGenerationExitCode, genesisGenerationOutput, err := serviceCtx.ExecCommand(clGenesisGenerationCmdArgs)
 	if err != nil {
 		return nil, stacktrace.Propagate(
 			err,
@@ -212,18 +216,29 @@ func runClGenesisGeneration(
 			strings.Join(clGenesisGenerationCmdArgs, " "),
 		 )
 	}
-	if exitCode != expectedClGenesisGenerationExitCode {
+	if genesisGenerationExitCode != successCommandExitCode {
 		return nil, stacktrace.NewError(
 			"Expected CL genesis data generation command '%v' to return exit code '%v' but returned '%v' with the following logs:\n%v",
 			strings.Join(clGenesisGenerationCmdArgs, " "),
-			expectedClGenesisGenerationExitCode,
-			exitCode,
-			output,
+			successCommandExitCode,
+			genesisGenerationExitCode,
+			genesisGenerationOutput,
 		 )
+	}
+
+	jwtSecretSharedFile := outputSharedDir.GetChildPath(jwtSecretFilename)
+	if err := service_launch_utils.CopyFileToSharedPath(jwtSecretFilepathOnModuleContainer, jwtSecretSharedFile); err != nil {
+		return nil, stacktrace.Propagate(
+			err,
+			"An error occurred copying JWT secret file from path '%v' to shared filepath '%v'",
+			jwtSecretFilepathOnModuleContainer,
+			jwtSecretSharedFile.GetAbsPathOnThisContainer(),
+		)
 	}
 
 	result := newCLGenesisData(
 		outputSharedDir.GetAbsPathOnThisContainer(),
+		jwtSecretSharedFile.GetAbsPathOnThisContainer(),
 		genesisConfigSharedFile.GetAbsPathOnThisContainer(),
 		genesisStateSharedFile.GetAbsPathOnThisContainer(),
 	)

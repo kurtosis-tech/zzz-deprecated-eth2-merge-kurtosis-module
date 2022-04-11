@@ -8,15 +8,15 @@ import (
 	"github.com/kurtosis-tech/stacktrace"
 )
 
-
 const (
 	// Though this is a Kurtosis image, it's actually built from the original repo:
 	//  https://github.com/skylenet/ethereum-genesis-generator
 	// It's only a Kurtosis image because the original repo doesn't publish Docker images
-	image = "kurtosistech/ethereum-genesis-generator:skylenet-commit-de6abe7"
+	image = "skylenet/ethereum-genesis-generator:latest"
 
 	serviceId services.ServiceID = "prelaunch-data-generator"
 )
+
 // We use Docker exec commands to run the commands we need, so we override the default
 var entrypointArgs = []string{
 	"sleep",
@@ -24,10 +24,10 @@ var entrypointArgs = []string{
 }
 
 type PrelaunchData struct {
-	GethELGenesisJsonFilepathOnModuleContainer string
+	GethELGenesisJsonFilepathOnModuleContainer     string
 	NethermindGenesisJsonFilepathOnModuleContainer string
-	CLGenesisPaths *cl_genesis.CLGenesisData
-	KeystoresGenerationResult *cl_validator_keystores.GenerateKeystoresResult
+	CLGenesisPaths                                 *cl_genesis.CLGenesisData
+	KeystoresGenerationResult                      *cl_validator_keystores.GenerateKeystoresResult
 }
 
 func LaunchPrelaunchDataGenerator(

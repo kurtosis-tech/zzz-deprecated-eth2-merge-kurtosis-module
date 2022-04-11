@@ -45,7 +45,6 @@ const (
 )
 
 // To get clients to start as bootnodes, we pass in these values when starting them
-var elClientContextForBootElClients *el.ELClientContext = nil
 var clClientContextForBootClClients *cl.CLClientContext = nil
 
 func LaunchParticipantNetwork(
@@ -106,15 +105,18 @@ func LaunchParticipantNetwork(
 	elClientLaunchers := map[module_io.ParticipantELClientType]el.ELClientLauncher{
 		module_io.ParticipantELClientType_Geth: geth.NewGethELClientLauncher(
 			elGenesisData.GetGethGenesisJsonFilepath(),
+			elGenesisData.GetJWTSecretFilepath(),
 			genesis_consts.PrefundedAccounts,
 			networkParams.NetworkID,
 		),
 		module_io.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
 			elGenesisData.GetNethermindGenesisJsonFilepath(),
+			elGenesisData.GetJWTSecretFilepath(),
 			networkParams.TotalTerminalDifficulty,
 		),
 		module_io.ParticipantELClientType_Besu: besu.NewBesuELClientLauncher(
 			elGenesisData.GetBesuGenesisJsonFilepath(),
+			elGenesisData.GetJWTSecretFilepath(),
 			networkParams.NetworkID,
 		),
 	}
@@ -130,31 +132,17 @@ func LaunchParticipantNetwork(
 
 		// Add EL client
 		var newElClientCtx *el.ELClientContext
-		var elClientLaunchErr error
-		if idx == bootParticipantIndex {
-			newElClientCtx, elClientLaunchErr = elLauncher.Launch(
-				enclaveCtx,
-				elClientServiceId,
-				participantSpec.ELClientImage,
-				participantSpec.ELClientLogLevel,
-				globalLogLevel,
-				elClientContextForBootElClients,
-				participantSpec.ELExtraParams,
-			)
-		} else {
-			bootElClientCtx := allElClientContexts[bootParticipantIndex]
-			newElClientCtx, elClientLaunchErr = elLauncher.Launch(
-				enclaveCtx,
-				elClientServiceId,
-				participantSpec.ELClientImage,
-				participantSpec.ELClientLogLevel,
-				globalLogLevel,
-				bootElClientCtx,
-				participantSpec.ELExtraParams,
-			)
-		}
-		if elClientLaunchErr != nil {
-			return nil, 0, stacktrace.Propagate(elClientLaunchErr, "An error occurred launching EL client for participant %v", idx)
+		newElClientCtx, err = elLauncher.Launch(
+			enclaveCtx,
+			elClientServiceId,
+			participantSpec.ELClientImage,
+			participantSpec.ELClientLogLevel,
+			globalLogLevel,
+			allElClientContexts,
+			participantSpec.ELExtraParams,
+		)
+		if err != nil {
+			return nil, 0, stacktrace.Propagate(err, "An error occurred launching EL client for participant %v", idx)
 		}
 		allElClientContexts = append(allElClientContexts, newElClientCtx)
 		logrus.Infof("Added EL client %v of type '%v'", idx, elClientType)
@@ -197,6 +185,7 @@ func LaunchParticipantNetwork(
 	clGenesisData, err := prelaunchDataGeneratorCtx.GenerateCLGenesisData(
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
+		elGenesisData.GetJWTSecretFilepath(),
 		clGenesisTimestamp,
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,
@@ -215,21 +204,26 @@ func LaunchParticipantNetwork(
 		module_io.ParticipantCLClientType_Teku: teku.NewTekuCLClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
+			clGenesisData.GetJWTSecretFilepath(),
 			numParticipants,
 		),
 		module_io.ParticipantCLClientType_Nimbus: nimbus.NewNimbusLauncher(
 			clGenesisData.GetParentDirpath(),
+			clGenesisData.GetJWTSecretFilepath(),
 		),
 		module_io.ParticipantCLClientType_Lodestar: lodestar.NewLodestarClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
+			clGenesisData.GetJWTSecretFilepath(),
 		),
 		module_io.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
 			clGenesisData.GetParentDirpath(),
+			clGenesisData.GetJWTSecretFilepath(),
 		),
 		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLClientLauncher(
 			clGenesisData.GetConfigYMLFilepath(),
 			clGenesisData.GetGenesisSSZFilepath(),
+			clGenesisData.GetJWTSecretFilepath(),
 			clValidatorData.PrysmPassword,
 		),
 	}

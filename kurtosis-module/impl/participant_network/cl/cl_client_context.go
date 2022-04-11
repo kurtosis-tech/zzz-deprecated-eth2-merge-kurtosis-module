@@ -3,41 +3,30 @@ package cl
 import "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 
 type CLClientContext struct {
-	enr               string
+	clientName       string
+	enr              string
 	peerId            string
-	ipAddr            string
-	httpPortNum       uint16
+	ipAddr           string
+	httpPortNum      uint16
 	publicIpAddr      string
 	publicHttpPortNum uint16
 	nodesMetricsInfo []*CLNodeMetricsInfo
-	restClient *cl_client_rest_client.CLClientRESTClient
+	restClient       *cl_client_rest_client.CLClientRESTClient
 }
 
-func NewCLClientContext(
-	enr string,
-	peerId string,
-	ipAddr string,
-	httpPortNum uint16,
-	publicIpAddr string,
-	publicHttpPortNum uint16,
-	nodesMetricsInfo []*CLNodeMetricsInfo, 
-	restClient *cl_client_rest_client.CLClientRESTClient) *CLClientContext {
-	return &CLClientContext{
-		enr: enr,
-		peerId: peerId,
-		ipAddr: ipAddr,
-		httpPortNum: httpPortNum,
-		publicIpAddr: publicIpAddr,
-		publicHttpPortNum: publicHttpPortNum,
-		nodesMetricsInfo: nodesMetricsInfo,
-		restClient: restClient,
-	}
+func NewCLClientContext(clientName string, enr string, peerId string, ipAddr string, httpPortNum uint16, publicIpAddr string, publicHttpPortNum uint16, nodesMetricsInfo []*CLNodeMetricsInfo, restClient *cl_client_rest_client.CLClientRESTClient) *CLClientContext {
+	return &CLClientContext{clientName: clientName, enr: enr, peerId: peerId, ipAddr: ipAddr, httpPortNum: httpPortNum, publicIpAddr: publicIpAddr, publicHttpPortNum: publicHttpPortNum, nodesMetricsInfo: nodesMetricsInfo, restClient: restClient}
+}
+
+func (ctx *CLClientContext) GetClientName() string {
+	return ctx.clientName
 }
 
 func (ctx *CLClientContext) GetENR() string {
 	return ctx.enr
 }
 
+// TODO correct capitalization
 func (ctx *CLClientContext) GetPeerId() string {
 	return ctx.peerId
 }

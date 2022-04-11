@@ -9,6 +9,7 @@ import (
 	"github.com/kurtosis-tech/kurtosis-engine-api-lib/api/golang/lib/kurtosis_context"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -97,9 +98,13 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	tempJwtSecretFile, err := ioutil.TempFile("", "jwt-secret")
+	require.NoError(t, err)
+
 	_, err = dataGeneratorCtx.GenerateCLGenesisData(
 		genesisConfigTemplate,
 		genesisMnemonicsTemplate,
+		tempJwtSecretFile.Name(),
 		uint64(time.Now().Unix()),
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,

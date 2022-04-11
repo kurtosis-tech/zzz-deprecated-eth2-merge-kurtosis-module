@@ -4,6 +4,8 @@ package el_genesis
 type ELGenesisData struct {
 	// Path to the directory holding all the EL genesis files
 	parentDirpath string
+
+	jwtSecretFilepath string
 	
 	gethGenesisJsonFilepath string
 
@@ -12,12 +14,15 @@ type ELGenesisData struct {
 	besuGenesisJsonFilepath string
 }
 
-func newELGenesisData(parentDirpath string, gethGenesisJsonFilepath string, nethermindGenesisJsonFilepath string, besuGenesisJsonFilepath string) *ELGenesisData {
-	return &ELGenesisData{parentDirpath: parentDirpath, gethGenesisJsonFilepath: gethGenesisJsonFilepath, nethermindGenesisJsonFilepath: nethermindGenesisJsonFilepath, besuGenesisJsonFilepath: besuGenesisJsonFilepath}
+func newELGenesisData(parentDirpath string, jwtSecretFilepath string, gethGenesisJsonFilepath string, nethermindGenesisJsonFilepath string, besuGenesisJsonFilepath string) *ELGenesisData {
+	return &ELGenesisData{parentDirpath: parentDirpath, jwtSecretFilepath: jwtSecretFilepath, gethGenesisJsonFilepath: gethGenesisJsonFilepath, nethermindGenesisJsonFilepath: nethermindGenesisJsonFilepath, besuGenesisJsonFilepath: besuGenesisJsonFilepath}
 }
 
 func (paths *ELGenesisData) GetParentDirpath() string {
 	return paths.parentDirpath
+}
+func (paths *ELGenesisData) GetJWTSecretFilepath() string {
+	return paths.jwtSecretFilepath
 }
 func (paths *ELGenesisData) GetGethGenesisJsonFilepath() string {
 	return paths.gethGenesisJsonFilepath

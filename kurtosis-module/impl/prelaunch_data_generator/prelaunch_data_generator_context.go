@@ -60,6 +60,7 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateCLValidatorData(
 func (ctx *PrelaunchDataGeneratorContext) GenerateCLGenesisData(
 	genesisGenerationConfigYmlTemplate *template.Template,
 	genesisGenerationMnemonicsYmlTemplate *template.Template,
+	jwtSecretFilepathOnModuleContainer string,
 	genesisUnixTimestamp uint64,
 	secondsPerSlot uint32,
 	altairForkEpoch uint64,
@@ -75,6 +76,7 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateCLGenesisData(
 	result, err := cl_genesis.GenerateCLGenesisData(
 		genesisGenerationConfigYmlTemplate,
 		genesisGenerationMnemonicsYmlTemplate,
+		jwtSecretFilepathOnModuleContainer,
 		ctx.serviceCtx,
 		genesisUnixTimestamp,
 		ctx.networkId,

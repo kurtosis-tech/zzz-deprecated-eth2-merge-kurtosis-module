@@ -31,7 +31,7 @@ const (
 	GrafanaDatasourceConfigTemplateFilepath         = staticFilesDirpath + grafanaConfigDirpath + "/datasource.yml.tmpl"
 	GrafanaDashboardsConfigDirpath                  = staticFilesDirpath + grafanaConfigDirpath + "/dashboards"
 	GrafanaDashboardProvidersConfigTemplateFilepath = GrafanaDashboardsConfigDirpath + "/dashboard-providers.yml.tmpl"
-	GrafanaDashboardConfigFilepath = GrafanaDashboardsConfigDirpath + "/dashboard.json"
+	GrafanaDashboardConfigFilepath                  = GrafanaDashboardsConfigDirpath + "/dashboard.json"
 )
 
 func ParseTemplate(filepath string) (*template.Template, error) {

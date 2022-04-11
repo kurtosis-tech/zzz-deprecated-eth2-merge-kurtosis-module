@@ -1,19 +1,27 @@
 package el
 
 type ELClientContext struct {
-	enr string
-	enode string
-	ipAddr string
-	rpcPortNum  uint16
+	clientName       string
+	enr              string
+	enode            string
+	// TODO rename
+	ipAddr           string
+	rpcPortNum       uint16
+	wsPortNum        uint16
 	discoveryPortNum uint16
+	engineRpcPortNum uint16
 	publicIpAddr string
+	// TODO rename
 	publicDiscoveryPortNum uint16
-	wsPortNum uint16
-	miningWaiter ELClientMiningWaiter
+	miningWaiter     ELClientMiningWaiter
 }
 
-func NewELClientContext(enr string, enode string, ipAddr string, rpcPortNum uint16,discoveryPortNum uint16, publicIpAddr string, publicDiscoveryPortNum uint16, wsPortNum uint16, miningWaiter ELClientMiningWaiter) *ELClientContext {
-	return &ELClientContext{enr: enr, enode: enode, ipAddr: ipAddr, rpcPortNum: rpcPortNum, discoveryPortNum: discoveryPortNum, publicIpAddr: publicIpAddr, publicDiscoveryPortNum: publicDiscoveryPortNum, wsPortNum: wsPortNum, miningWaiter: miningWaiter}
+func NewELClientContext(clientName string, enr string, enode string, ipAddr string, rpcPortNum uint16, wsPortNum uint16, discoveryPortNum uint16, engineRpcPortNum uint16, publicIpAddr string, publicDiscoveryPortNum uint16, miningWaiter ELClientMiningWaiter) *ELClientContext {
+	return &ELClientContext{clientName: clientName, enr: enr, enode: enode, ipAddr: ipAddr, rpcPortNum: rpcPortNum, wsPortNum: wsPortNum, discoveryPortNum: discoveryPortNum, engineRpcPortNum: engineRpcPortNum, publicIpAddr: publicIpAddr, publicDiscoveryPortNum: publicDiscoveryPortNum, miningWaiter: miningWaiter}
+}
+
+func (ctx *ELClientContext) GetClientName() string {
+	return ctx.clientName
 }
 
 func (ctx *ELClientContext) GetENR() string {
@@ -34,9 +42,13 @@ func (ctx *ELClientContext) GetDiscoveryPortNum() uint16 {
 func (ctx *ELClientContext) GetWSPortNum() uint16 {
 	return ctx.wsPortNum
 }
+func (ctx *ELClientContext) GetEngineRPCPortNum() uint16 {
+	return ctx.engineRpcPortNum
+}
 func (ctx *ELClientContext) GetMiningWaiter() ELClientMiningWaiter {
 	return ctx.miningWaiter
 }
+
 func (ctx *ELClientContext) GetPublicIPAddress() string {
 	return ctx.publicIpAddr
 }
