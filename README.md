@@ -50,9 +50,9 @@ You can find the latest Kiln compatible docker images here: https://notes.ethere
 
             // The Docker image that should be used for the EL client; leave blank to use the default for the client type
             // Defaults by client:
-            // - geth: parithoshj/geth:merge-b951e9c"
-            // - nethermind: nethermindeth/nethermind:kiln_0.8
-            // - besu: hyperledger/besu:22.1.3-SNAPSHOT
+            // - geth: parithoshj/geth:master"
+            // - nethermind: nethermindeth/nethermind:kiln_0.11
+            // - besu: hyperledger/besu:22.4.0-RC2-SNAPSHOT
             "elImage": "",
 
             // The log level string that this participant's EL client should log at
@@ -73,8 +73,8 @@ You can find the latest Kiln compatible docker images here: https://notes.ethere
             // Defaults by client (note that Prysm is different in that it requires two images - a Beacon and a validator - separated by a comma):
             // - lighthouse: sigp/lighthouse:latest-unstable
             // - teku: consensys/teku:latest
-            // - nimbus: parithoshj/nimbus:merge-a35c5f8
-            // - prysm: gcr.io/prysmaticlabs/prysm/beacon-chain:kiln-3ea8b7,gcr.io/prysmaticlabs/prysm/validator:kiln-ee1ee6
+            // - nimbus: parithoshj/nimbus:merge-97cefaa
+            // - prysm: gcr.io/prysmaticlabs/prysm/beacon-chain:latest,gcr.io/prysmaticlabs/prysm/validator:latest
             // - lodestar: chainsafe/lodestar:next
             "clImage": "",
 

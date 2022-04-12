@@ -1,5 +1,10 @@
 # TBD
 
+# 0.4.16
+* Updates prysm config
+* Increases nimbus timeout
+* Updates default images
+
 # 0.4.15
 * Added `Merge-Testnet-Verifier` module and wait-for-verifications flag
 

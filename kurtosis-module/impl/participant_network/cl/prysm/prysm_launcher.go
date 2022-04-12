@@ -93,8 +93,8 @@ func NewPrysmCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, 
 func (launcher *PrysmCLClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
-	// NOTE: Because Prysm has separate images for Beacon and validator, this string will actually be a delimited
-	//  combination of both Beacon & validator images
+// NOTE: Because Prysm has separate images for Beacon and validator, this string will actually be a delimited
+//  combination of both Beacon & validator images
 	delimitedImagesStr string,
 	participantLogLevel string,
 	globalLogLevel module_io.GlobalClientLogLevel,
@@ -244,12 +244,6 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepathInSharedDir)
 		}
 
-		elClientRpcUrlStr := fmt.Sprintf(
-			"http://%v:%v",
-			elClientContext.GetIPAddress(),
-			elClientContext.GetRPCPortNum(),
-		)
-
 		elClientEngineRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
@@ -261,8 +255,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--datadir=" + consensusDataDirpathOnServiceContainer,
 			"--chain-config-file=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
 			"--genesis-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
-			"--http-web3provider=" + elClientRpcUrlStr,
-			"--execution-provider=" + elClientEngineRpcUrlStr,
+			"--http-web3provider=" + elClientEngineRpcUrlStr,
 			"--rpc-host=" + privateIpAddr,
 			fmt.Sprintf("--rpc-port=%v", rpcPortNum),
 			"--grpc-gateway-host=0.0.0.0",
