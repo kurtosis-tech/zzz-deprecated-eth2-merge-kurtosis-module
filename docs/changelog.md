@@ -1,6 +1,11 @@
 # TBD
+### Features
+* Added extra CL & EL genesis delay parameters
+* Added a parameter for creating additional, external validator keys
+* Added a flag to skip the CL genesis wait
 
 # 0.4.15
+### Features
 * Added `Merge-Testnet-Verifier` module and wait-for-verifications flag
 
 # 0.4.14
