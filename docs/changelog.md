@@ -1,4 +1,6 @@
 # TBD
+
+# 0.4.16
 * Updates prysm config
 * Increases nimbus timeout
 * Updates default images
