@@ -53,7 +53,7 @@ const (
 	validatorKeysDirpathOnServiceContainer    = "$HOME/validator-keys"
 	validatorSecretsDirpathOnServiceContainer = "$HOME/validator-secrets"
 
-	maxNumHealthcheckRetries      = 15
+	maxNumHealthcheckRetries      = 60
 	timeBetweenHealthcheckRetries = 1 * time.Second
 
 	metricsPath = "/metrics"
@@ -256,7 +256,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--doppelganger-detection=false",
 			// Set per Pari's recommendation to reduce noise in the logs
 			"--subscribe-all-subnets=true",
-			// Nimbus can handle a max of 256 threads, if the host has more then nimbus crashes. Setting it to 4 so it doesn't crash on build servers 
+			// Nimbus can handle a max of 256 threads, if the host has more then nimbus crashes. Setting it to 4 so it doesn't crash on build servers
 			"--num-threads=4",
 			fmt.Sprintf("--jwt-secret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
