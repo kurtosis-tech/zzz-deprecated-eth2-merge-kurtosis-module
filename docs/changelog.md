@@ -1,4 +1,6 @@
 # TBD
+### Changes
+* Upgraded to module-api-lib 0.14.1, switching to the files API for moving files between containers
 
 # 0.4.16
 * Updates prysm config

@@ -8,6 +8,18 @@ import (
 	"text/template"
 )
 
+func FillTemplateToPath(tmpl *template.Template, data interface{}, destFilepath string) error {
+	destFp, err := os.Create(destFilepath)
+	if err != nil {
+		return stacktrace.Propagate(err, "An error occurred creating file with filepath '%v' on the module container", destFilepath)
+	}
+	defer destFp.Close()
+	if err := tmpl.Execute(destFp, data); err != nil {
+		return stacktrace.Propagate(err, "An error occurred filling the template to destination '%v'", destFilepath)
+	}
+	return nil
+}
+
 func FillTemplateToSharedPath(tmpl *template.Template, data interface{}, destination *services.SharedPath) error {
 	destFilepath := destination.GetAbsPathOnThisContainer()
 	destFp, err := os.Create(destFilepath)

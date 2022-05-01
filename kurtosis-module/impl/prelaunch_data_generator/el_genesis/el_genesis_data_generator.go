@@ -2,20 +2,21 @@ package el_genesis
 
 import (
 	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
+	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"io/ioutil"
 	"os"
+	"path"
 	"strings"
 	"text/template"
-	"time"
 )
 
 const (
-	// The prefix that the directory for containing information about this EL genesis generation run will have
-	//  inside the shared directory
-	elGenesisGenerationInstanceSharedDirpathPrefix = "el-genesis-"
+	// The prefix dirpath on the generation container where generation output will be placed
+	genesisDirpathOnGenerator = "/el-genesis"
 
 	configDirname                      = "config"
 	genesisConfigFilename  = "genesis-config.yaml"
@@ -67,7 +68,8 @@ var allGenesisGenerationCmds = map[string]genesisGenerationCmd{
 
 
 func GenerateELGenesisData(
-	serviceCtx *services.ServiceContext,
+	enclaveCtx *enclaves.EnclaveContext,
+	// serviceCtx *services.ServiceContext,
 	genesisGenerationConfigTemplate *template.Template,
 	genesisUnixTimestamp uint64,
 	networkId string,
@@ -77,12 +79,76 @@ func GenerateELGenesisData(
 	*ELGenesisData,
 	error,
 ) {
+	templateData := &genesisGenerationConfigTemplateData{
+		NetworkId:               networkId,
+		DepositContractAddress:  depositContractAddress,
+		UnixTimestamp:           genesisUnixTimestamp,
+		TotalTerminalDifficulty: totalTerminalDifficulty,
+	}
+	genesisConfigFilepathOnModule := path.Join(os.TempDir(), genesisConfigFilename)
+	if err := service_launch_utils.FillTemplateToPath(
+		genesisGenerationConfigTemplate,
+		templateData,
+		genesisConfigFilepathOnModule,
+	); err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred creating the genesis config file at '%v'", genesisConfigFilepathOnModule)
+	}
+	genesisConfigArtifactId, err := enclaveCtx.UploadFiles(genesisConfigFilepathOnModule)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred uploading the genesis config filepath from '%v'", genesisConfigFilepathOnModule)
+	}
+
+	configDirpathOnGenerator := path.Join(genesisDirpathOnGenerator, configDirname)
+	outputDirpathOnGenerator := path.Join(genesisDirpathOnGenerator, outputDirname)
+
+	serviceCtx, err := prelaunch_data_generator.LaunchPrelaunchDataGenerator(
+		enclaveCtx,
+		map[services.FilesArtifactID]string{
+			genesisConfigArtifactId: configDirpathOnGenerator,
+		},
+	)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred launching the generator container")
+	}
+
+	allDirpathsToCreateOnGenerator := []string{
+		genesisDirpathOnGenerator,
+		configDirpathOnGenerator,
+		outputDirpathOnGenerator,
+	}
+	allDirpathCreationCommands := []string{}
+	for _, dirpathToCreateOnGenerator := range allDirpathsToCreateOnGenerator {
+		allDirpathCreationCommands = append(
+			allDirpathCreationCommands,
+			fmt.Sprintf("mkdir -p %v", dirpathToCreateOnGenerator),
+		)
+	}
+	dirCreationCmd := []string{
+		"sh",
+		"-c",
+		strings.Join(allDirpathCreationCommands, " && "),
+	}
+	exitCode, output, err := serviceCtx.ExecCommand(dirCreationCmd)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred executing dir creation command '%+v' on the generator container")
+	}
+	if exitCode != successfulExecCmdExitCode {
+		return nil, stacktrace.NewError(
+			"Dir creation command '%+v' should have returned %v but returned %v with the following output:\n%v",
+			successfulExecCmdExitCode,
+			exitCode,
+			output,
+		)
+	}
+
+	/*
 	sharedDir := serviceCtx.GetSharedDirectory()
 	generationInstanceSharedDir := sharedDir.GetChildPath(fmt.Sprintf(
 		"%v%v",
-		elGenesisGenerationInstanceSharedDirpathPrefix,
+		genesisDirpathOnGenerator,
 		time.Now().Unix(),
 	))
+
 	configSharedDir := generationInstanceSharedDir.GetChildPath(configDirname)
 	outputSharedDir := generationInstanceSharedDir.GetChildPath(outputDirname)
 
@@ -108,6 +174,7 @@ func GenerateELGenesisData(
 	if err := service_launch_utils.FillTemplateToSharedPath(genesisGenerationConfigTemplate, templateData, generationConfigSharedFile); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred filling the genesis generation config template")
 	}
+	*/
 
 	genesisFilenameToFilepathOnModuleContainer := map[string]string{}
 	for outputFilename, generationCmd := range allGenesisGenerationCmds {
