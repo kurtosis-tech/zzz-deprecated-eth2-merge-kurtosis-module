@@ -8,6 +8,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -100,7 +101,6 @@ func (launcher *GethELClientLauncher) Launch(
 
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		image,
-		launcher.networkId,
 		existingElClients,
 		logLevel,
 		extraParams,
@@ -142,7 +142,6 @@ func (launcher *GethELClientLauncher) Launch(
 // ====================================================================================================
 func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	image string,
-	networkId string,
 	// NOTE: If this is nil, the node will be configured as a bootnode
 	existingElClients []*el.ELClientContext,
 	verbosityLevel string,
@@ -189,9 +188,9 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 		// We need to put the keys into the right spot
 		copyKeysIntoKeystoreCmdStr := fmt.Sprintf(
 			"cp -r %v/* %v/",
-			// TODO We have to add this magical "geth" because Kurtosis' current method for storing directories in files artifacts
+			// TODO We have to do this because Kurtosis' current method for storing directories in files artifacts
 			//  We can remove this when Kurtosis can "flatten" directories when storing files artifacts
-			path.Join(prefundedKeysMountDirpath, "geth"),
+			path.Join(prefundedKeysMountDirpath, path.Base(static_files.GethPrefundedKeysDirpath)),
 			keystoreDirpathOnClientContainer,
 		)
 
@@ -211,7 +210,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--miner.etherbase=" + miningRewardsAccount,
 			fmt.Sprintf("--miner.threads=%v", numMiningThreads),
 			"--datadir=" + executionDataDirpathOnClientContainer,
-			"--networkid=" + networkId,
+			"--networkid=" + launcher.networkId,
 			"--http",
 			"--http.addr=0.0.0.0",
 			// WARNING: The admin info endpoint is enabled so that we can easily get ENR/enode, which means

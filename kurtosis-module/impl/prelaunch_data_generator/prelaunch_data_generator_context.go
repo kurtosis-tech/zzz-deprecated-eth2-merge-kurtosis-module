@@ -21,6 +21,7 @@ func newPrelaunchDataGeneratorContext(serviceCtx *services.ServiceContext, netwo
 	return &PrelaunchDataGeneratorContext{serviceCtx: serviceCtx, networkId: networkId, depositContractAddress: depositContractAddress, totalTerminalDifficulty: totalTerminalDifficulty, preregisteredValidatorKeysMnemonic: preregisteredValidatorKeysMnemonic}
 }
 
+/*
 func (ctx *PrelaunchDataGeneratorContext) GenerateELGenesisData(
 	genesisGenerationConfigTemplate *template.Template,
 	genesisUnixTimestamp uint64,
@@ -38,6 +39,8 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateELGenesisData(
 	}
 	return result, nil
 }
+
+ */
 
 func (ctx *PrelaunchDataGeneratorContext) GenerateCLValidatorData(
 	numValidatorNodes uint32,
@@ -58,7 +61,7 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateCLValidatorData(
 func (ctx *PrelaunchDataGeneratorContext) GenerateCLGenesisData(
 	genesisGenerationConfigYmlTemplate *template.Template,
 	genesisGenerationMnemonicsYmlTemplate *template.Template,
-	jwtSecretFilepathOnModuleContainer string,
+	elGenesisData *el_genesis.ELGenesisData, // Needed so we can get the JWT secret filepath
 	genesisUnixTimestamp uint64,
 	secondsPerSlot uint32,
 	altairForkEpoch uint64,
@@ -73,7 +76,7 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateCLGenesisData(
 	result, err := cl_genesis.GenerateCLGenesisData(
 		genesisGenerationConfigYmlTemplate,
 		genesisGenerationMnemonicsYmlTemplate,
-		jwtSecretFilepathOnModuleContainer,
+		elGenesisData,
 		ctx.serviceCtx,
 		genesisUnixTimestamp,
 		ctx.networkId,

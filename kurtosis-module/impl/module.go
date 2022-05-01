@@ -1,9 +1,10 @@
 package impl
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/new_launcher"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"strings"
 	"time"
 
@@ -53,6 +54,8 @@ func NewEth2KurtosisModule() *Eth2KurtosisModule {
 }
 
 func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
+	ctx := context.Background()
+
 	logrus.Infof("Deserializing the following execute params:\n%v", serializedParams)
 	paramsObj, err := module_io.DeserializeAndValidateParams(serializedParams)
 	if err != nil {
@@ -77,7 +80,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 
 	logrus.Info("Creating prelaunch data generator...")
-	prelaunchDataGeneratorCtx, err := new_launcher.LaunchPrelaunchDataGenerator(
+	prelaunchDataGeneratorCtx, err := prelaunch_data_generator.LaunchPrelaunchDataGenerator(
 		enclaveCtx,
 		networkParams.NetworkID,
 		networkParams.DepositContractAddress,
@@ -91,6 +94,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 
 	logrus.Infof("Adding %v participants logging at level '%v'...", numParticipants, paramsObj.ClientLogLevel)
 	participants, clGenesisUnixTimestamp, err := participant_network.LaunchParticipantNetwork(
+		ctx,
 		enclaveCtx,
 		prelaunchDataGeneratorCtx,
 		networkParams,

@@ -1,6 +1,7 @@
 package cl_genesis
 import (
 	"fmt"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -51,7 +52,7 @@ type clGenesisConfigTemplateData struct {
 func GenerateCLGenesisData(
 	genesisGenerationConfigYmlTemplate *template.Template,
 	genesisGenerationMnemonicsYmlTemplate *template.Template,
-	jwtSecretFilepathOnModuleContainer string,
+	elGenesisData *el_genesis.ELGenesisData, // Needed to get JWT secret
 	serviceCtx *services.ServiceContext,
 	genesisUnixTimestamp uint64,
 	networkId string,
@@ -111,7 +112,8 @@ func GenerateCLGenesisData(
 	result, err := runClGenesisGeneration(
 		genesisGenerationConfigSharedFile,
 		genesisGenerationMnemonicsSharedFile,
-		jwtSecretFilepathOnModuleContainer,
+		// TODO NEED TO FIX THISSSSSS!!!!!
+		"",
 		genesisUnixTimestamp,
 		depositContractAddress,
 		serviceCtx,
