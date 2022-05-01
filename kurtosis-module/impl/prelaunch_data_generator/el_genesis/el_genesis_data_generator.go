@@ -1,13 +1,13 @@
 package el_genesis
 
 import (
+	"context"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -68,6 +68,7 @@ var allGenesisGenerationCmds = map[string]genesisGenerationCmd{
 
 
 func GenerateELGenesisData(
+	ctx context.Context,
 	enclaveCtx *enclaves.EnclaveContext,
 	// serviceCtx *services.ServiceContext,
 	genesisGenerationConfigTemplate *template.Template,
@@ -124,7 +125,7 @@ func GenerateELGenesisData(
 		)
 	}
 	dirCreationCmd := []string{
-		"sh",
+		"bash",
 		"-c",
 		strings.Join(allDirpathCreationCommands, " && "),
 	}
@@ -142,134 +143,75 @@ func GenerateELGenesisData(
 	}
 
 	genesisConfigFilepathOnGenerator := path.Join(configDirpathOnGenerator, genesisConfigFilename)
-	genesisFilenameToFilepathOnModuleContainer := map[string]string{}
+	genesisFilenameToRelativeFilepathInArtifact := map[string]string{}
 	for outputFilename, generationCmd := range allGenesisGenerationCmds {
 		cmd := generationCmd(genesisConfigFilepathOnGenerator)
 		outputFilepathOnGenerator := path.Join(outputDirpathOnGenerator, outputFilename)
-		if err := execCmdAndWriteOutputToSharedFile(serviceCtx, cmd, genesisSharedFile); err != nil {
+		outputRedirectingCommand := append(cmd, ">", outputFilepathOnGenerator)
+		cmdToExecute := []string{
+			"bash",
+			"-c",
+			strings.Join(outputRedirectingCommand, " "),
+		}
+		if err := execCommand(serviceCtx, cmdToExecute); err != nil {
 			return nil, stacktrace.Propagate(
 				err,
-				"An error occurred running command '%v' to generate file '%v'",
-				strings.Join(cmd, " "),
-				outputFilename,
+				"An error occurred executing command '%+v' to create genesis config file '%v'",
+				cmdToExecute,
+				outputFilepathOnGenerator,
 			)
 		}
-		genesisFilenameToFilepathOnModuleContainer[outputFilename] = genesisSharedFile.GetAbsPathOnThisContainer()
+		genesisFilenameToRelativeFilepathInArtifact[outputFilename] = path.Join(
+			path.Base(outputDirpathOnGenerator),
+			outputFilename,
+		)
 	}
 
-	/*
-	sharedDir := serviceCtx.GetSharedDirectory()
-	generationInstanceSharedDir := sharedDir.GetChildPath(fmt.Sprintf(
-		"%v%v",
-		genesisDirpathOnGenerator,
-		time.Now().Unix(),
-	))
-
-	configSharedDir := generationInstanceSharedDir.GetChildPath(configDirname)
-	outputSharedDir := generationInstanceSharedDir.GetChildPath(outputDirname)
-
-	allSharedDirsToCreate := []*services.SharedPath{
-		generationInstanceSharedDir,
-		configSharedDir,
-		outputSharedDir,
-	}
-	for _, sharedDirToCreate := range allSharedDirsToCreate {
-		toCreateDirpathOnModuleContainer := sharedDirToCreate.GetAbsPathOnThisContainer()
-		if err := os.Mkdir(toCreateDirpathOnModuleContainer, os.ModePerm); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred creating directory '%v'", toCreateDirpathOnModuleContainer)
-		}
-	}
-
-	generationConfigSharedFile := configSharedDir.GetChildPath(genesisConfigFilename)
-	templateData := &genesisGenerationConfigTemplateData{
-		NetworkId:               networkId,
-		DepositContractAddress:  depositContractAddress,
-		UnixTimestamp:           genesisUnixTimestamp,
-		TotalTerminalDifficulty: totalTerminalDifficulty,
-	}
-	if err := service_launch_utils.FillTemplateToSharedPath(genesisGenerationConfigTemplate, templateData, generationConfigSharedFile); err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred filling the genesis generation config template")
-	}
-
-	genesisFilenameToFilepathOnModuleContainer := map[string]string{}
-	for outputFilename, generationCmd := range allGenesisGenerationCmds {
-		cmd := generationCmd(generationConfigSharedFile)
-		genesisSharedFile := outputSharedDir.GetChildPath(outputFilename)
-		if err := execCmdAndWriteOutputToSharedFile(serviceCtx, cmd, genesisSharedFile); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred running command '%v' to generate file '%v'",
-				strings.Join(cmd, " "),
-				outputFilename,
-			 )
-		}
-		genesisFilenameToFilepathOnModuleContainer[outputFilename] = genesisSharedFile.GetAbsPathOnThisContainer()
-	}
-	*/
-
-	jwtSecretSharedFile := outputSharedDir.GetChildPath(jwtSecretFilename)
+	jwtSecretFilepathOnGenerator := path.Join(outputDirpathOnGenerator, jwtSecretFilename)
 	jwtSecretGenerationCmdArgs := []string{
 		"bash",
 		"-c",
 		fmt.Sprintf(
 			"openssl rand -hex 32 | tr -d \"\\n\" | sed 's/^/0x/' > %v",
-			jwtSecretSharedFile.GetAbsPathOnServiceContainer(),
+			jwtSecretFilepathOnGenerator,
 		),
 	}
-
-	jwtSecretGenerationExitCode, jwtSecretGenerationOutput, err := serviceCtx.ExecCommand(jwtSecretGenerationCmdArgs)
-	if err != nil {
-		return nil, stacktrace.Propagate(
-			err,
-			"An error occurred executing command '%v' to generate the JWT secret",
-			strings.Join(jwtSecretGenerationCmdArgs, " "),
-		)
+	if err := execCommand(serviceCtx, jwtSecretGenerationCmdArgs); err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred executing the JWT secret generation command")
 	}
-	if jwtSecretGenerationExitCode != successfulExecCmdExitCode {
-		return nil, stacktrace.NewError(
-			"Expected JWT secret generation command '%v' to return exit code '%v' but returned '%v' with the following logs:\n%v",
-			strings.Join(jwtSecretGenerationCmdArgs, " "),
-			successfulExecCmdExitCode,
-			jwtSecretGenerationExitCode,
-			jwtSecretGenerationOutput,
-		)
+
+	elGenesisDataArtifactId, err := enclaveCtx.StoreFilesFromService(ctx, serviceCtx.GetServiceID(), outputDirpathOnGenerator)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred storing the generated EL genesis data in the enclave")
 	}
 
 	result := newELGenesisData(
-		outputSharedDir.GetAbsPathOnThisContainer(),
-		jwtSecretSharedFile.GetAbsPathOnThisContainer(),
-		genesisFilenameToFilepathOnModuleContainer[gethGenesisFilename],
-		genesisFilenameToFilepathOnModuleContainer[nethermindGenesisFilename],
-		genesisFilenameToFilepathOnModuleContainer[besuGenesisFilename],
+		elGenesisDataArtifactId,
+		path.Join(path.Base(outputDirpathOnGenerator), jwtSecretFilename),
+		genesisFilenameToRelativeFilepathInArtifact[gethGenesisFilename],
+		genesisFilenameToRelativeFilepathInArtifact[nethermindGenesisFilename],
+		genesisFilenameToRelativeFilepathInArtifact[besuGenesisFilename],
 	)
 	return result, nil
 }
 
-func execCmdAndWriteOutputToSharedFile(
-	serviceCtx *services.ServiceContext,
-	cmdArgs []string,
-	outputSharedFile *services.SharedPath,
-) error {
-	exitCode, output, err := serviceCtx.ExecCommand(cmdArgs)
+func execCommand(serviceCtx *services.ServiceContext, cmd []string) error {
+	exitCode, output, err := serviceCtx.ExecCommand(cmd)
 	if err != nil {
 		return stacktrace.Propagate(
 			err,
-			"An error occurred running command '%v'",
-			strings.Join(cmdArgs, " "),
+			"An error occurred executing command '%+v' on the generator container",
+			cmd,
 		)
 	}
 	if exitCode != successfulExecCmdExitCode {
 		return stacktrace.NewError(
-			"Expected command '%v' to return exit code '%v' but returned '%v' with the following logs:\n%v",
-			strings.Join(cmdArgs, " "),
+			"Command '%+v' should have returned %v but returned %v with the following output:\n%v",
+			cmd,
 			successfulExecCmdExitCode,
 			exitCode,
 			output,
 		)
-	}
-	filepathOnModuleContainer := outputSharedFile.GetAbsPathOnThisContainer()
-	if err := ioutil.WriteFile(filepathOnModuleContainer, []byte(output), os.ModePerm); err != nil {
-		return stacktrace.Propagate(err, "An error occurred writing chainspec file '%v'", filepathOnModuleContainer)
 	}
 	return nil
 }
