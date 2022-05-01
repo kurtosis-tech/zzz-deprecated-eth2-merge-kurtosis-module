@@ -39,29 +39,29 @@ type genesisGenerationConfigTemplateData struct {
 	TotalTerminalDifficulty uint64
 }
 
-type genesisGenerationCmd func(genesisConfigPath *services.SharedPath)[]string
+type genesisGenerationCmd func(genesisConfigFilepathOnGenerator string)[]string
 
 // Mapping of output genesis filename -> generator to create the file
 var allGenesisGenerationCmds = map[string]genesisGenerationCmd{
-	gethGenesisFilename: func(genesisConfigPath *services.SharedPath)[]string{
+	gethGenesisFilename: func(genesisConfigFilepathOnGenerator string)[]string{
 		return []string{
 			"python3",
 			"/apps/el-gen/genesis_geth.py",
-			genesisConfigPath.GetAbsPathOnServiceContainer(),
+			genesisConfigFilepathOnGenerator,
 		}
 	},
-	nethermindGenesisFilename: func(genesisConfigPath *services.SharedPath)[]string{
+	nethermindGenesisFilename: func(genesisConfigFilepathOnGenerator string)[]string{
 		return []string{
 			"python3",
 			"/apps/el-gen/genesis_chainspec.py",
-			genesisConfigPath.GetAbsPathOnServiceContainer(),
+			genesisConfigFilepathOnGenerator,
 		}
 	},
-	besuGenesisFilename: func(genesisConfigPath *services.SharedPath)[]string{
+	besuGenesisFilename: func(genesisConfigFilepathOnGenerator string)[]string{
 		return []string{
 			"python3",
 			"/apps/el-gen/genesis_besu.py",
-			genesisConfigPath.GetAbsPathOnServiceContainer(),
+			genesisConfigFilepathOnGenerator,
 		}
 	},
 }
@@ -141,6 +141,22 @@ func GenerateELGenesisData(
 		)
 	}
 
+	genesisConfigFilepathOnGenerator := path.Join(configDirpathOnGenerator, genesisConfigFilename)
+	genesisFilenameToFilepathOnModuleContainer := map[string]string{}
+	for outputFilename, generationCmd := range allGenesisGenerationCmds {
+		cmd := generationCmd(genesisConfigFilepathOnGenerator)
+		outputFilepathOnGenerator := path.Join(outputDirpathOnGenerator, outputFilename)
+		if err := execCmdAndWriteOutputToSharedFile(serviceCtx, cmd, genesisSharedFile); err != nil {
+			return nil, stacktrace.Propagate(
+				err,
+				"An error occurred running command '%v' to generate file '%v'",
+				strings.Join(cmd, " "),
+				outputFilename,
+			)
+		}
+		genesisFilenameToFilepathOnModuleContainer[outputFilename] = genesisSharedFile.GetAbsPathOnThisContainer()
+	}
+
 	/*
 	sharedDir := serviceCtx.GetSharedDirectory()
 	generationInstanceSharedDir := sharedDir.GetChildPath(fmt.Sprintf(
@@ -174,7 +190,6 @@ func GenerateELGenesisData(
 	if err := service_launch_utils.FillTemplateToSharedPath(genesisGenerationConfigTemplate, templateData, generationConfigSharedFile); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred filling the genesis generation config template")
 	}
-	*/
 
 	genesisFilenameToFilepathOnModuleContainer := map[string]string{}
 	for outputFilename, generationCmd := range allGenesisGenerationCmds {
@@ -190,6 +205,7 @@ func GenerateELGenesisData(
 		}
 		genesisFilenameToFilepathOnModuleContainer[outputFilename] = genesisSharedFile.GetAbsPathOnThisContainer()
 	}
+	*/
 
 	jwtSecretSharedFile := outputSharedDir.GetChildPath(jwtSecretFilename)
 	jwtSecretGenerationCmdArgs := []string{
