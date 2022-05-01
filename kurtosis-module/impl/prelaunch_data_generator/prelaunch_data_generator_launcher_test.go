@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/new_launcher"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-engine-api-lib/api/golang/lib/kurtosis_context"
@@ -83,7 +84,7 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 	networkParams := executeParams.Network
 	participantParams := executeParams.Participants
 
-	dataGeneratorCtx, err := LaunchPrelaunchDataGenerator(
+	dataGeneratorCtx, err := new_launcher.LaunchPrelaunchDataGenerator(
 		enclaveCtx,
 		networkParams.NetworkID,
 		networkParams.DepositContractAddress,

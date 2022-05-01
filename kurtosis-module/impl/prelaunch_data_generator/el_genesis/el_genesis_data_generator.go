@@ -3,7 +3,7 @@ package el_genesis
 import (
 	"context"
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/new_launcher"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -102,7 +102,8 @@ func GenerateELGenesisData(
 	configDirpathOnGenerator := path.Join(genesisDirpathOnGenerator, configDirname)
 	outputDirpathOnGenerator := path.Join(genesisDirpathOnGenerator, outputDirname)
 
-	serviceCtx, err := prelaunch_data_generator.LaunchPrelaunchDataGenerator(
+	// TODO Make this the actual data generator
+	serviceCtx, err := new_launcher.LaunchPrelaunchDataGenerator(
 		enclaveCtx,
 		map[services.FilesArtifactID]string{
 			genesisConfigArtifactId: configDirpathOnGenerator,
