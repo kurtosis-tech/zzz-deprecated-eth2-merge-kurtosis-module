@@ -18,15 +18,18 @@ func newELGenesisData(filesArtifactId services.FilesArtifactID, jwtSecretRelativ
 	return &ELGenesisData{filesArtifactId: filesArtifactId, jwtSecretRelativeFilepath: jwtSecretRelativeFilepath, gethGenesisJsonRelativeFilepath: gethGenesisJsonRelativeFilepath, nethermindGenesisJsonRelativeFilepath: nethermindGenesisJsonRelativeFilepath, besuGenesisJsonRelativeFilepath: besuGenesisJsonRelativeFilepath}
 }
 
-func (paths *ELGenesisData) GetJWTSecretRelativeFilepath() string {
-	return paths.jwtSecretRelativeFilepath
+func (data *ELGenesisData) GetFilesArtifactID() services.FilesArtifactID {
+	return data.filesArtifactId
 }
-func (paths *ELGenesisData) GetGethGenesisJsonRelativeFilepath() string {
-	return paths.gethGenesisJsonRelativeFilepath
+func (data *ELGenesisData) GetJWTSecretRelativeFilepath() string {
+	return data.jwtSecretRelativeFilepath
 }
-func (paths *ELGenesisData) GetNethermindGenesisJsonRelativeFilepath() string {
-	return paths.nethermindGenesisJsonRelativeFilepath
+func (data *ELGenesisData) GetGethGenesisJsonRelativeFilepath() string {
+	return data.gethGenesisJsonRelativeFilepath
 }
-func (paths *ELGenesisData) GetBesuGenesisJsonRelativeFilepath() string {
-	return paths.besuGenesisJsonRelativeFilepath
+func (data *ELGenesisData) GetNethermindGenesisJsonRelativeFilepath() string {
+	return data.nethermindGenesisJsonRelativeFilepath
+}
+func (data *ELGenesisData) GetBesuGenesisJsonRelativeFilepath() string {
+	return data.besuGenesisJsonRelativeFilepath
 }

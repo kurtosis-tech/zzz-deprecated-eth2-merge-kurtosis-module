@@ -6,10 +6,11 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	"path"
 	"strings"
 	"time"
 )
@@ -17,6 +18,8 @@ import (
 const (
 	// The dirpath of the execution data directory on the client container
 	executionDataDirpathOnClientContainer = "/opt/besu/execution-data"
+
+	genesisDataDirpathOnClientContainer = "/opt/besu/genesis"
 
 	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
 	sharedGenesisJsonRelFilepath = "genesis.json"
@@ -63,13 +66,12 @@ var besuLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type BesuELClientLauncher struct {
-	genesisJsonFilepathOnModuleContainer string
-	jwtSecretFilepathOnModuleContainer   string
+	genesisData *el_genesis.ELGenesisData
 	networkId                            string
 }
 
-func NewBesuELClientLauncher(genesisJsonFilepathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string, networkId string) *BesuELClientLauncher {
-	return &BesuELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer, networkId: networkId}
+func NewBesuELClientLauncher(genesisData *el_genesis.ELGenesisData, networkId string) *BesuELClientLauncher {
+	return &BesuELClientLauncher{genesisData: genesisData, networkId: networkId}
 }
 
 func (launcher *BesuELClientLauncher) Launch(
@@ -136,22 +138,14 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModuleContainer, genesisJsonSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedGenesisJsonRelFilepath)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretRelFilepath)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepath)
-		}
+		genesisJsonFilepathOnClient := path.Join(genesisDataDirpathOnClientContainer, launcher.genesisData.GetBesuGenesisJsonRelativeFilepath())
+		jwtSecretJsonFilepathOnClient := path.Join(genesisDataDirpathOnClientContainer, launcher.genesisData.GetJWTSecretRelativeFilepath())
 
 		launchNodeCmdArgs := []string{
 			"besu",
 			"--logging=" + logLevel,
 			"--data-path=" + executionDataDirpathOnClientContainer,
-			"--genesis-file=" + genesisJsonSharedPath.GetAbsPathOnServiceContainer(),
+			"--genesis-file=" + genesisJsonFilepathOnClient,
 			"--network-id=" + networkId,
 			"--host-allowlist=*",
 			"--Xmerge-support=true",
@@ -170,7 +164,7 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 			"--p2p-host=" + privateIpAddr,
 			fmt.Sprintf("--p2p-port=%v", discoveryPortNum),
 			"--engine-jwt-enabled=true",
-			fmt.Sprintf("--engine-jwt-secret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--engine-jwt-secret=%v", jwtSecretJsonFilepathOnClient),
 			"--engine-host-allowlist=*",
 			fmt.Sprintf("--engine-rpc-http-port=%v", engineRpcPortNum),
 			fmt.Sprintf("--engine-rpc-ws-port=%v", engineRpcPortNum),
@@ -195,6 +189,8 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 			entrypointArgs,
 		).WithCmdOverride([]string{
 			launchNodeCmdStr,
+		}).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataDirpathOnClientContainer,
 		}).Build()
 
 		return containerConfig, nil
