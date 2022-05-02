@@ -11,7 +11,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	recursive_copy "github.com/otiai10/copy"
 	"io/ioutil"
 	"os"
 	"path"
@@ -25,6 +24,7 @@ const (
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 	genesisDataMountDirpathOnServiceContainer = "/genesis"
+	validatorKeysMountDirpathOnServiceContainer = "/validator-keys"
 
 	// Port IDs
 	tcpDiscoveryPortID        = "tcpDiscovery"
@@ -96,7 +96,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
@@ -161,8 +161,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		logLevel,
 		beaconRPCEndpoint,
 		beaconHTTPEndpoint,
-		nodeKeystoreDirpaths.RawKeysDirpath,
-		nodeKeystoreDirpaths.PrysmDirpath,
+		keystoreFiles,
 		extraValidatorParams,
 	)
 	validatorServiceCtx, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
@@ -301,8 +300,7 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 	logLevel string,
 	beaconRPCEndpoint string,
 	beaconHTTPEndpoint string,
-	validatorKeysDirpathOnModuleContainer string,
-	validatorSecretsDirpathOnModuleContainer string,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
@@ -320,6 +318,7 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 
 		 */
 
+		/*
 		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysRelDirpathInSharedDir)
 		if err := recursive_copy.Copy(
 			validatorKeysDirpathOnModuleContainer,
@@ -336,22 +335,25 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
 		}
 
+		 */
+
 		prysmPasswordTxtSharedPath := sharedDir.GetChildPath(prysmPasswordTxtRelFilepathInSharedDir)
 		prysmPasswordTxtFilepathOnModuleContainer := prysmPasswordTxtSharedPath.GetAbsPathOnThisContainer()
 		if err := ioutil.WriteFile(prysmPasswordTxtFilepathOnModuleContainer, []byte(launcher.prysmPassword), os.ModePerm); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred writing the Prysm keystore password to file '%v'", prysmPasswordTxtFilepathOnModuleContainer)
 		}
 
-		rootDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
+		consensusDataDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
+		prysmKeystoreDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.PrysmRelativeDirpath)
 
 		cmdArgs := []string{
 			"--accept-terms-of-use=true", //it's mandatory in order to run the node
 			"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
 			"--beacon-rpc-gateway-provider=" + beaconHTTPEndpoint,
 			"--beacon-rpc-provider=" + beaconRPCEndpoint,
-			"--wallet-dir=" + validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			"--wallet-dir=" + prysmKeystoreDirpath,
 			"--wallet-password-file=" + prysmPasswordTxtSharedPath.GetAbsPathOnServiceContainer(),
-			"--datadir=" + rootDirpath,
+			"--datadir=" + consensusDataDirpath,
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
 			"--verbosity=" + logLevel,
@@ -374,6 +376,7 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			cmdArgs,
 		).WithFiles(map[services.FilesArtifactID]string{
 			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
+			keystoreFiles.FilesArtifactID: validatorKeysMountDirpathOnServiceContainer,
 		}).Build()
 
 		return containerConfig, nil

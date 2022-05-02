@@ -11,7 +11,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	recursive_copy "github.com/otiai10/copy"
 	"path"
 	"strings"
 	"time"
@@ -19,6 +18,8 @@ import (
 
 const (
 	genesisDataMountpointOnClient = "/genesis-data"
+
+	validatorKeysMountpointOnClient = "/validator-keys"
 
 	// Port IDs
 	tcpDiscoveryPortID = "tcpDiscovery"
@@ -94,7 +95,7 @@ func (launcher NimbusLauncher) Launch(
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
@@ -110,8 +111,7 @@ func (launcher NimbusLauncher) Launch(
 		bootnodeContext,
 		elClientContext,
 		logLevel,
-		nodeKeystoreDirpaths.NimbusKeysDirpath,
-		nodeKeystoreDirpaths.RawSecretsDirpath,
+		keystoreFiles,
 		extraParams,
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
@@ -166,8 +166,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel string,
-	validatorKeysDirpathOnModuleContainer string,
-	validatorSecretsDirpathOnModuleContainer string,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
@@ -192,6 +191,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 
 		 */
 
+		/*
 		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
 		if err := recursive_copy.Copy(validatorKeysDirpathOnModuleContainer, validatorKeysSharedPath.GetAbsPathOnThisContainer()); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
@@ -206,6 +206,8 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
 		}
 
+		 */
+
 		elClientEngineRpcUrlStr := fmt.Sprintf(
 			"ws://%v:%v",
 			elClientContext.GetIPAddress(),
@@ -215,6 +217,8 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 		// For some reason, Nimbus takes in the parent directory of the config file (rather than the path to the config file itself)
 		genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClient, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
 		jwtSecretFilepath := path.Join(genesisDataMountpointOnClient, launcher.genesisData.GetJWTSecretRelativeFilepath())
+		validatorKeysDirpath := path.Join(validatorKeysMountpointOnClient, keystoreFiles.NimbusKeysRelativeDirpath)
+		validatorSecretsDirpath := path.Join(validatorKeysMountpointOnClient, keystoreFiles.RawSecretsRelativeDirpath)
 
 		// Sources for these flags:
 		//  1) https://github.com/status-im/nimbus-eth2/blob/stable/scripts/launch_local_testnet.sh
@@ -227,14 +231,15 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"-m",
 			consensusDataDirPermsStr,
 			"&&",
+			// TODO COMMENT THIS OUT?
 			"cp",
 			"-R",
-			validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
+			validatorKeysDirpath,
 			validatorKeysDirpathOnServiceContainer,
 			"&&",
 			"cp",
 			"-R",
-			validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			validatorSecretsDirpath,
 			validatorSecretsDirpathOnServiceContainer,
 			"&&",
 			// If we don't do this chmod, Nimbus will spend a crazy amount of time manually correcting them
@@ -293,6 +298,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			cmdStr,
 		}).WithFiles(map[services.FilesArtifactID]string{
 			launcher.genesisData.GetFilesArtifactID(): genesisDataMountpointOnClient,
+			keystoreFiles.FilesArtifactID: validatorKeysMountpointOnClient,
 		}).Build()
 
 		return containerConfig, nil

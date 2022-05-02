@@ -11,7 +11,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	recursive_copy "github.com/otiai10/copy"
 	"path"
 	"strings"
 	"time"
@@ -24,6 +23,8 @@ const (
 
 	// The Docker container runs as the "teku" user so we can't write to root
 	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
+
+	validatorKeysDirpathOnServiceContainer = "/opt/teku/validator-keys"
 
 	// TODO Get rid of this being hardcoded; should be shared
 	validatingRewardsAccount = "0x0000000000000000000000000000000000000000"
@@ -93,7 +94,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
@@ -109,8 +110,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 		bootnodeContext,
 		elClientContext,
 		logLevel,
-		nodeKeystoreDirpaths.TekuKeysDirpath,
-		nodeKeystoreDirpaths.TekuSecretsDirpath,
+		keystoreFiles,
 		extraParams,
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
@@ -165,8 +165,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel string,
-	validatorKeysDirpathOnModuleContainer string,
-	validatorSecretsDirpathOnModuleContainer string,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
@@ -199,6 +198,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 
 		 */
 
+		/*
 		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
 		if err := recursive_copy.Copy(
 			validatorKeysDirpathOnModuleContainer,
@@ -215,6 +215,8 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
 		}
 
+		 */
+
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
@@ -230,15 +232,19 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetConfigYMLRelativeFilepath())
 		genesisSszFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetGenesisSSZRelativeFilepath())
 		jwtSecretFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetJWTSecretRelativeFilepath())
+		validatorKeysDirpath := path.Join(validatorKeysDirpathOnServiceContainer, keystoreFiles.TekuKeysRelativeDirpath)
+		validatorSecretsDirpath := path.Join(validatorKeysDirpathOnServiceContainer, keystoreFiles.TekuSecretsRelativeDirpath)
 		cmdArgs := []string{
+			// TODO DELETE?
 			"cp",
 			"-R",
-			validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
+			validatorKeysDirpath,
 			destValidatorKeysDirpathInServiceContainer,
 			"&&",
+			// TODO DELETE?
 			"cp",
 			"-R",
-			validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			validatorSecretsDirpath,
 			destValidatorSecretsDirpathInServiceContainer,
 			"&&",
 			tekuBinaryFilepathInImage,
@@ -295,6 +301,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			cmdStr,
 		}).WithFiles(map[services.FilesArtifactID]string{
 			launcher.clGenesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
+			keystoreFiles.FilesArtifactID: validatorKeysDirpathOnServiceContainer,
 		}).Build()
 
 		return containerConfig, nil
