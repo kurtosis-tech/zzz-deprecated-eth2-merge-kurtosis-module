@@ -6,17 +6,19 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	cl_client_rest_client2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	recursive_copy "github.com/otiai10/copy"
+	"path"
 	"strings"
 	"time"
 )
 
 const (
+	genesisDataMountpointOnClient = "/genesis-data"
 
 	// Port IDs
 	tcpDiscoveryPortID = "tcpDiscovery"
@@ -74,17 +76,14 @@ var nimbusLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type NimbusLauncher struct {
-	// The dirpath on the module container where the config data directory exists
-	configDataDirpathOnModuleContainer string
-
-	jwtSecretFilepathOnModuleContainer string
+	genesisData *cl_genesis.CLGenesisData
 
 	// NOTE: This launcher does NOT take in the expected number of peers because doing so causes the Beacon node not to peer at all
 	// See: https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/26
 }
 
-func NewNimbusLauncher(configDataDirpathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string) *NimbusLauncher {
-	return &NimbusLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer}
+func NewNimbusLauncher(genesisData *cl_genesis.CLGenesisData) *NimbusLauncher {
+	return &NimbusLauncher{genesisData: genesisData}
 }
 
 func (launcher NimbusLauncher) Launch(
@@ -173,6 +172,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
+		/*
 		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(configDataDirpathRelToSharedDirRoot)
 
 		destConfigDataDirpathOnModule := configDataDirpathOnServiceSharedPath.GetAbsPathOnThisContainer()
@@ -189,6 +189,8 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretFilepathRelToSharedDirRoot)
 		}
+
+		 */
 
 		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
 		if err := recursive_copy.Copy(validatorKeysDirpathOnModuleContainer, validatorKeysSharedPath.GetAbsPathOnThisContainer()); err != nil {
@@ -209,6 +211,10 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			elClientContext.GetIPAddress(),
 			elClientContext.GetEngineRPCPortNum(),
 		)
+
+		// For some reason, Nimbus takes in the parent directory of the config file (rather than the path to the config file itself)
+		genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClient, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
+		jwtSecretFilepath := path.Join(genesisDataMountpointOnClient, launcher.genesisData.GetJWTSecretRelativeFilepath())
 
 		// Sources for these flags:
 		//  1) https://github.com/status-im/nimbus-eth2/blob/stable/scripts/launch_local_testnet.sh
@@ -240,7 +246,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			defaultImageEntrypoint,
 			"--non-interactive=true",
 			"--log-level=" + logLevel,
-			"--network=" + configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer(),
+			"--network=" + genesisConfigParentDirpathOnClient,
 			"--data-dir=" + consensusDataDirpathInServiceContainer,
 			"--web3-url=" + elClientEngineRpcUrlStr,
 			"--nat=extip:" + privateIpAddr,
@@ -258,7 +264,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--subscribe-all-subnets=true",
 			// Nimbus can handle a max of 256 threads, if the host has more then nimbus crashes. Setting it to 4 so it doesn't crash on build servers
 			"--num-threads=4",
-			fmt.Sprintf("--jwt-secret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics",
 			"--metrics-address=" + privateIpAddr,
@@ -285,6 +291,8 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"sh", "-c",
 		}).WithCmdOverride([]string{
 			cmdStr,
+		}).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataMountpointOnClient,
 		}).Build()
 
 		return containerConfig, nil

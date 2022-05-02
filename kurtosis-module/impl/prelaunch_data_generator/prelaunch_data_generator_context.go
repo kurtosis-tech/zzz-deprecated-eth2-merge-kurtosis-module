@@ -1,12 +1,9 @@
 package prelaunch_data_generator
 
 import (
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"text/template"
 )
 
 type PrelaunchDataGeneratorContext struct {
@@ -58,6 +55,7 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateCLValidatorData(
 	return result, nil
 }
 
+/*
 func (ctx *PrelaunchDataGeneratorContext) GenerateCLGenesisData(
 	genesisGenerationConfigYmlTemplate *template.Template,
 	genesisGenerationMnemonicsYmlTemplate *template.Template,
@@ -93,3 +91,5 @@ func (ctx *PrelaunchDataGeneratorContext) GenerateCLGenesisData(
 	}
 	return result, nil
 }
+
+ */

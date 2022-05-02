@@ -202,7 +202,7 @@ func LaunchParticipantNetwork(
 	clGenesisTimestamp := uint64(time.Now().Unix()) +
 		uint64(clGenesisDataGenerationTime.Seconds()) +
 		uint64(numParticipants)*uint64(clNodeStartupTime.Seconds())
-	cl_genesis.GenerateCLGenesisData(
+	clGenesisData, err := cl_genesis.GenerateCLGenesisData(
 		ctx,
 		enclaveCtx,
 		clGenesisConfigTemplate,
@@ -226,9 +226,7 @@ func LaunchParticipantNetwork(
 	logrus.Infof("Adding %v CL clients...", numParticipants)
 	clClientLaunchers := map[module_io.ParticipantCLClientType]cl.CLClientLauncher{
 		module_io.ParticipantCLClientType_Teku: teku.NewTekuCLClientLauncher(
-			clGenesisData.GetConfigYMLFilepath(),
-			clGenesisData.GetGenesisSSZFilepath(),
-			clGenesisData.GetJWTSecretFilepath(),
+			clGenesisData,
 			numParticipants,
 		),
 		module_io.ParticipantCLClientType_Nimbus: nimbus.NewNimbusLauncher(

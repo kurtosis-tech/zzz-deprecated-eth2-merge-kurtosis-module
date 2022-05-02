@@ -227,9 +227,9 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			elClientContext.GetEngineRPCPortNum(),
 		)
 
-		genesisConfigDirpath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetConfigYMLRelativeFilepath())
-		genesisSszDirpath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetGenesisSSZRelativeFilepath())
-		jwtSecretDirpath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetJWTSecretRelativeFilepath())
+		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetConfigYMLRelativeFilepath())
+		genesisSszFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetGenesisSSZRelativeFilepath())
+		jwtSecretFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetJWTSecretRelativeFilepath())
 		cmdArgs := []string{
 			"cp",
 			"-R",
@@ -245,8 +245,8 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			"--Xee-version kilnv2",
 			"--logging=" + logLevel,
 			"--log-destination=CONSOLE",
-			"--network=" + genesisConfigDirpath,
-			"--initial-state=" + genesisSszDirpath,
+			"--network=" + genesisConfigFilepath,
+			"--initial-state=" + genesisSszFilepath,
 			"--data-path=" + consensusDataDirpathOnServiceContainer,
 			"--data-storage-mode=PRUNE",
 			"--p2p-enabled=true",
@@ -266,7 +266,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 				destValidatorKeysDirpathInServiceContainer,
 				destValidatorSecretsDirpathInServiceContainer,
 			),
-			fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretDirpath),
+			fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretFilepath),
 			"--ee-endpoint=" + elClientEngineRpcUrlStr,
 			"--validators-proposer-default-fee-recipient=" + validatingRewardsAccount,
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
