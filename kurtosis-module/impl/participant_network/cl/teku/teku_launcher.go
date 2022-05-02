@@ -6,18 +6,21 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	recursive_copy "github.com/otiai10/copy"
+	"path"
 	"strings"
 	"time"
 )
 
 const (
 	tekuBinaryFilepathInImage = "/opt/teku/bin/teku"
+
+	genesisDataMountDirpathOnServiceContainer = "/opt/teku/genesis"
 
 	// The Docker container runs as the "teku" user so we can't write to root
 	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
@@ -35,11 +38,6 @@ const (
 	discoveryPortNum uint16 = 9000
 	httpPortNum             = 4000
 	metricsPortNum   uint16 = 8008
-
-	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
-
-	genesisSszRelFilepathInSharedDir = "genesis.ssz"
-	jwtSecretRelFilepathInSharedDir  = "jwtsecret"
 
 	validatorKeysDirpathRelToSharedDirRoot    = "validator-keys"
 	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
@@ -78,14 +76,12 @@ var tekuLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type TekuCLClientLauncher struct {
-	genesisConfigYmlFilepathOnModuleContainer string
-	genesisSszFilepathOnModuleContainer       string
-	jwtSecretFilepathOnModuleContainer        string
+	clGenesisData *cl_genesis.CLGenesisData
 	expectedNumBeaconNodes                    uint32
 }
 
-func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string, expectedNumBeaconNodes uint32) *TekuCLClientLauncher {
-	return &TekuCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
+func NewTekuCLClientLauncher(clGenesisData *cl_genesis.CLGenesisData) *TekuCLClientLauncher {
+	return &TekuCLClientLauncher{clGenesisData: clGenesisData}
 }
 
 func (launcher *TekuCLClientLauncher) Launch(
@@ -175,6 +171,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
+		/*
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
 			return nil, stacktrace.Propagate(
@@ -199,6 +196,8 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepathInSharedDir)
 		}
+
+		 */
 
 		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
 		if err := recursive_copy.Copy(
@@ -228,6 +227,9 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			elClientContext.GetEngineRPCPortNum(),
 		)
 
+		genesisConfigDirpath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetConfigYMLRelativeFilepath())
+		genesisSszDirpath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetGenesisSSZRelativeFilepath())
+		jwtSecretDirpath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetJWTSecretRelativeFilepath())
 		cmdArgs := []string{
 			"cp",
 			"-R",
@@ -243,8 +245,8 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			"--Xee-version kilnv2",
 			"--logging=" + logLevel,
 			"--log-destination=CONSOLE",
-			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
-			"--initial-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
+			"--network=" + genesisConfigDirpath,
+			"--initial-state=" + genesisSszDirpath,
 			"--data-path=" + consensusDataDirpathOnServiceContainer,
 			"--data-storage-mode=PRUNE",
 			"--p2p-enabled=true",
@@ -264,7 +266,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 				destValidatorKeysDirpathInServiceContainer,
 				destValidatorSecretsDirpathInServiceContainer,
 			),
-			fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretDirpath),
 			"--ee-endpoint=" + elClientEngineRpcUrlStr,
 			"--validators-proposer-default-fee-recipient=" + validatingRewardsAccount,
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
@@ -291,6 +293,8 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			"sh", "-c",
 		}).WithCmdOverride([]string{
 			cmdStr,
+		}).WithFiles(map[services.FilesArtifactID]string{
+			launcher.clGenesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
 		}).Build()
 
 		return containerConfig, nil

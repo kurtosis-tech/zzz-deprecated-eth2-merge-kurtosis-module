@@ -35,9 +35,13 @@ const (
 )
 
 func TestPrelaunchGenesisGeneration(t *testing.T) {
+	// TODO COMMENT
+	/*
 	if len(os.Getenv(runKurtosisTestsEnvVar)) == 0 {
 		t.SkipNow()
 	}
+
+	 */
 
 	// Go test always runs in the directory that this file is in
 	pwd, err := os.Getwd()

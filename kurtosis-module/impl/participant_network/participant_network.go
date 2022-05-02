@@ -15,6 +15,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/nethermind"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
@@ -201,15 +202,20 @@ func LaunchParticipantNetwork(
 	clGenesisTimestamp := uint64(time.Now().Unix()) +
 		uint64(clGenesisDataGenerationTime.Seconds()) +
 		uint64(numParticipants)*uint64(clNodeStartupTime.Seconds())
-	clGenesisData, err := prelaunchDataGeneratorCtx.GenerateCLGenesisData(
+	cl_genesis.GenerateCLGenesisData(
+		ctx,
+		enclaveCtx,
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
 		elGenesisData,
 		clGenesisTimestamp,
+		networkParams.NetworkID,
+		networkParams.DepositContractAddress,
+		networkParams.TotalTerminalDifficulty,
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,
 		networkParams.MergeForkEpoch,
-		numParticipants,
+		networkParams.PreregisteredValidatorKeysMnemonic,
 		networkParams.NumValidatorKeysPerNode,
 	)
 	if err != nil {
