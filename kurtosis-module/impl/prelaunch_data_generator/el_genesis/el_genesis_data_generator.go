@@ -3,11 +3,12 @@ package el_genesis
 import (
 	"context"
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/new_launcher"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/new_launcher_TODO"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	"github.com/sirupsen/logrus"
 	"os"
 	"path"
 	"strings"
@@ -15,13 +16,10 @@ import (
 )
 
 const (
-	// The prefix dirpath on the generation container where generation output will be placed
-	genesisDirpathOnGenerator = "/el-genesis"
+	configDirpathOnGenerator = "/config"
+	genesisConfigFilename    = "genesis-config.yaml"
 
-	configDirname                      = "config"
-	genesisConfigFilename  = "genesis-config.yaml"
-
-	outputDirname = "output"
+	outputDirpathOnGenerator = "/output"
 
 	gethGenesisFilename = "geth.json"
 	nethermindGenesisFilename = "nethermind.json"
@@ -94,27 +92,29 @@ func GenerateELGenesisData(
 	); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred creating the genesis config file at '%v'", genesisConfigFilepathOnModule)
 	}
-	genesisConfigArtifactId, err := enclaveCtx.UploadFiles(genesisConfigFilepathOnModule)
+	genesisGenerationConfigArtifactId, err := enclaveCtx.UploadFiles(genesisConfigFilepathOnModule)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred uploading the genesis config filepath from '%v'", genesisConfigFilepathOnModule)
 	}
 
-	configDirpathOnGenerator := path.Join(genesisDirpathOnGenerator, configDirname)
-	outputDirpathOnGenerator := path.Join(genesisDirpathOnGenerator, outputDirname)
-
 	// TODO Make this the actual data generator
-	serviceCtx, err := new_launcher.LaunchPrelaunchDataGenerator(
+	serviceCtx, err := new_launcher_TODO.LaunchPrelaunchDataGenerator(
 		enclaveCtx,
 		map[services.FilesArtifactID]string{
-			genesisConfigArtifactId: configDirpathOnGenerator,
+			genesisGenerationConfigArtifactId: configDirpathOnGenerator,
 		},
 	)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the generator container")
 	}
+	defer func() {
+		serviceId := serviceCtx.GetServiceID()
+		if err := enclaveCtx.RemoveService(serviceId, 0); err != nil {
+			logrus.Warnf("Tried to remove prelaunch data generator service '%v', but doing so threw an error:\n%v", serviceId, err)
+		}
+	}()
 
 	allDirpathsToCreateOnGenerator := []string{
-		genesisDirpathOnGenerator,
 		configDirpathOnGenerator,
 		outputDirpathOnGenerator,
 	}
@@ -130,21 +130,11 @@ func GenerateELGenesisData(
 		"-c",
 		strings.Join(allDirpathCreationCommands, " && "),
 	}
-	exitCode, output, err := serviceCtx.ExecCommand(dirCreationCmd)
-	if err != nil {
+	if err := execCommand(serviceCtx, dirCreationCmd); err != nil {
 		return nil, stacktrace.Propagate(
 			err,
 			"An error occurred executing dir creation command '%+v' on the generator container",
 			dirCreationCmd,
-		)
-	}
-	if exitCode != successfulExecCmdExitCode {
-		return nil, stacktrace.NewError(
-			"Dir creation command '%+v' should have returned %v but returned %v with the following output:\n%v",
-			dirCreationCmd,
-			successfulExecCmdExitCode,
-			exitCode,
-			output,
 		)
 	}
 

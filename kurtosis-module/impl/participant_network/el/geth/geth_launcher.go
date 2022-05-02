@@ -151,28 +151,6 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 		genesisJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetGethGenesisJsonRelativeFilepath())
 		jwtSecretJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetJWTSecretRelativeFilepath())
 
-		/*
-		gethKeysDirSharedPath := sharedDir.GetChildPath(gethKeysRelDirpathInSharedDir)
-		if err := os.Mkdir(gethKeysDirSharedPath.GetAbsPathOnThisContainer(), os.ModePerm); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred creating the Geth keys directory in the shared dir")
-		}
-
-		 */
-
-		/*
-		accountAddressesToUnlock := []string{}
-		for _, prefundedAccount := range launcher.prefundedAccountInfo {
-			keyFilepathOnModuleContainer := prefundedAccount.GethKeyFilepath
-			keyFilename := path.Base(keyFilepathOnModuleContainer)
-			keyRelFilepathInSharedDir := path.Join(gethKeysRelDirpathInSharedDir, keyFilename)
-			keyFileSharedPath := sharedDir.GetChildPath(keyRelFilepathInSharedDir)
-			if err := service_launch_utils.CopyFileToSharedPath(keyFilepathOnModuleContainer, keyFileSharedPath); err != nil {
-				return nil, stacktrace.Propagate(err, "An error occurred copying key file '%v' to the shared directory", keyFilepathOnModuleContainer)
-			}
-
-			accountAddressesToUnlock = append(accountAddressesToUnlock, prefundedAccount.Address)
-		}
-		 */
 		accountAddressesToUnlock := []string{}
 		for _, prefundedAccount := range launcher.prefundedAccountInfo {
 			accountAddressesToUnlock = append(accountAddressesToUnlock, prefundedAccount.Address)

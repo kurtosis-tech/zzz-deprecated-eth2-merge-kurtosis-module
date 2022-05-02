@@ -1,4 +1,4 @@
-package new_launcher
+package new_launcher_TODO
 
 import (
 	"fmt"
@@ -24,17 +24,10 @@ var entrypointArgs = []string{
 	"999999",
 }
 
+// Launches a prelaunch data generator image, for use in various of the genesis generation
 func LaunchPrelaunchDataGenerator(
 	enclaveCtx *enclaves.EnclaveContext,
 	filesArtifactMountpoints map[services.FilesArtifactID]string,
-
-/*
-	networkId string,
-	depositContractAddress string,
-	totalTerminalDifficulty uint64,
-	preregisteredValidatorKeysMnemonic string,
-
-*/
 ) (
 	*services.ServiceContext,
 	error,

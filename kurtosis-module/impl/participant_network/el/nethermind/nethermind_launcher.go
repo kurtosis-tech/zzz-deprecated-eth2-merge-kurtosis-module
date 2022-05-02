@@ -20,10 +20,6 @@ const (
 
 	genesisDataMountDirpath = "/genesis"
 
-	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
-	sharedNethermindGenesisJsonRelFilepath = "nethermind_genesis.json"
-	sharedJWTSecretRelFilepath             = "jwtsecret"
-
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
 
 	rpcPortNum       uint16 = 8545
@@ -135,23 +131,6 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 		
 		genesisJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetNethermindGenesisJsonRelativeFilepath())
 		jwtSecretJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetJWTSecretRelativeFilepath())
-
-		/*
-		nethermindGenesisJsonSharedPath := sharedDir.GetChildPath(sharedNethermindGenesisJsonRelFilepath)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModule, nethermindGenesisJsonSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the Nethermind genesis JSON file from '%v' into the Nethermind node being started",
-				launcher.genesisJsonFilepathOnModule,
-			)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(sharedJWTSecretRelFilepath)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, sharedJWTSecretRelFilepath)
-		}
-
-		 */
 
 		commandArgs := []string{
 			"--config=kiln",
