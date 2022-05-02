@@ -133,7 +133,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 		bootnode1ElContext := existingElClients[0]
 		bootnode2ElContext := existingElClients[1]
 		
-		genesisJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetGethGenesisJsonRelativeFilepath())
+		genesisJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetNethermindGenesisJsonRelativeFilepath())
 		jwtSecretJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetJWTSecretRelativeFilepath())
 
 		/*
