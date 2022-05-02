@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/new_launcher"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-engine-api-lib/api/golang/lib/kurtosis_context"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -29,17 +27,19 @@ const (
 	// Relative to the static files directory
 	genesisGenerationConfigRelDirpath = "genesis-generation-config"
 	elGenerationConfigRelDirpath = genesisGenerationConfigRelDirpath + "/el"
-	gethGenesisConfigRelFilepath = elGenerationConfigRelDirpath + "/geth-genesis-config.yaml.tmpl"
-	nethermindGenesisConfigRelFilepath = elGenerationConfigRelDirpath + "/nethermind-genesis.json.tmpl"
+	gethGenesisConfigRelFilepath = elGenerationConfigRelDirpath + "/genesis-config.yaml.tmpl"
 	clGenerationConfigRelDirpath = genesisGenerationConfigRelDirpath + "/cl"
 	clGenesisConfigRelFilepath = clGenerationConfigRelDirpath + "/config.yaml.tmpl"
 	clGenesisMnemonicsRelFilepath = clGenerationConfigRelDirpath + "/mnemonics.yaml.tmpl"
 )
 
 func TestPrelaunchGenesisGeneration(t *testing.T) {
+	/*
 	if len(os.Getenv(runKurtosisTestsEnvVar)) == 0 {
 		t.SkipNow()
 	}
+
+	 */
 
 	// Go test always runs in the directory that this file is in
 	pwd, err := os.Getwd()
@@ -73,18 +73,21 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 	))
 	enclaveCtx, err := kurtosisCtx.CreateEnclave(context.Background(), enclaveId, isPartitioningEnabled)
 	require.NoError(t, err)
+	// TODO FIX
+	/*
 	defer func() {
 		if err := kurtosisCtx.StopEnclave(context.Background(), enclaveId); err != nil {
 			logrus.Errorf("We tried to stop the enclave we created, '%v', but an error occurred:\n%v", enclaveId, err)
 			logrus.Errorf("ACTION REQUIRED: You'll need to stop enclave '%v' manually!", enclaveId)
 		}
 	}()
+	 */
 
 	executeParams := module_io.GetDefaultExecuteParams()
 	networkParams := executeParams.Network
 	participantParams := executeParams.Participants
 
-	dataGeneratorCtx, err := new_launcher.LaunchPrelaunchDataGenerator(
+	dataGeneratorCtx, err := LaunchPrelaunchDataGenerator(
 		enclaveCtx,
 		networkParams.NetworkID,
 		networkParams.DepositContractAddress,
@@ -93,19 +96,21 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = dataGeneratorCtx.GenerateELGenesisData(
+	elGenesisData, err := el_genesis.GenerateELGenesisData(
+		context.Background(),
+		enclaveCtx,
 		gethGenesisConfigTemplate,
 		uint64(time.Now().Unix()),
+		networkParams.NetworkID,
+		networkParams.DepositContractAddress,
+		networkParams.TotalTerminalDifficulty,
 	)
-	require.NoError(t, err)
-
-	tempJwtSecretFile, err := ioutil.TempFile("", "jwt-secret")
 	require.NoError(t, err)
 
 	_, err = dataGeneratorCtx.GenerateCLGenesisData(
 		genesisConfigTemplate,
 		genesisMnemonicsTemplate,
-		tempJwtSecretFile.Name(),
+		elGenesisData,
 		uint64(time.Now().Unix()),
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,
