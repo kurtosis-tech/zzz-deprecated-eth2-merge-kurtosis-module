@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
@@ -84,6 +85,8 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 
 	executeParams := module_io.GetDefaultExecuteParams()
 	networkParams := executeParams.Network
+
+	/*
 	participantParams := executeParams.Participants
 
 	dataGeneratorCtx, err := LaunchPrelaunchDataGenerator(
@@ -94,6 +97,8 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 		networkParams.PreregisteredValidatorKeysMnemonic,
 	)
 	require.NoError(t, err)
+
+	 */
 
 	elGenesisData, err := el_genesis.GenerateELGenesisData(
 		context.Background(),
@@ -106,15 +111,20 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = dataGeneratorCtx.GenerateCLGenesisData(
+	_, err = cl_genesis.GenerateCLGenesisData(
+		context.Background(),
+		enclaveCtx,
 		genesisConfigTemplate,
 		genesisMnemonicsTemplate,
 		elGenesisData,
 		uint64(time.Now().Unix()),
+		networkParams.NetworkID,
+		networkParams.DepositContractAddress,
+		networkParams.TotalTerminalDifficulty,
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,
 		networkParams.MergeForkEpoch,
-		uint32(len(participantParams)),
+		networkParams.PreregisteredValidatorKeysMnemonic,
 		networkParams.NumValidatorKeysPerNode,
 	)
 	require.NoError(t, err)

@@ -227,25 +227,18 @@ func LaunchParticipantNetwork(
 	clClientLaunchers := map[module_io.ParticipantCLClientType]cl.CLClientLauncher{
 		module_io.ParticipantCLClientType_Teku: teku.NewTekuCLClientLauncher(
 			clGenesisData,
-			numParticipants,
 		),
 		module_io.ParticipantCLClientType_Nimbus: nimbus.NewNimbusLauncher(
-			clGenesisData.GetParentDirpath(),
-			clGenesisData.GetJWTSecretFilepath(),
+			clGenesisData,
 		),
 		module_io.ParticipantCLClientType_Lodestar: lodestar.NewLodestarClientLauncher(
-			clGenesisData.GetConfigYMLFilepath(),
-			clGenesisData.GetGenesisSSZFilepath(),
-			clGenesisData.GetJWTSecretFilepath(),
+			clGenesisData,
 		),
 		module_io.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
-			clGenesisData.GetParentDirpath(),
-			clGenesisData.GetJWTSecretFilepath(),
+			clGenesisData,
 		),
 		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLClientLauncher(
-			clGenesisData.GetConfigYMLFilepath(),
-			clGenesisData.GetGenesisSSZFilepath(),
-			clGenesisData.GetJWTSecretFilepath(),
+			clGenesisData,
 			clValidatorData.PrysmPassword,
 		),
 	}
