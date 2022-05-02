@@ -288,7 +288,9 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			beaconUsedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).Build()
+		).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataMountpointOnClients,
+		}).Build()
 		return containerConfig, nil
 	}
 }

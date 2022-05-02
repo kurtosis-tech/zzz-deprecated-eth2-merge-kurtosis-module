@@ -42,10 +42,7 @@ const (
 	beaconMonitoringPortNum    uint16 = 8080
 	validatorMonitoringPortNum uint16 = 8081
 
-	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
-	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
 	prysmPasswordTxtRelFilepathInSharedDir = "prysm-password.txt"
-	jwtSecretRelFilepathInSharedDir        = "jwtsecret"
 
 	validatorKeysRelDirpathInSharedDir    = "validator-keys"
 	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
@@ -289,7 +286,9 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			beaconNodeUsedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).Build()
+		).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
+		}).Build()
 
 		return containerConfig, nil
 	}
@@ -373,7 +372,9 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			validatorNodeUsedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).Build()
+		).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
+		}).Build()
 
 		return containerConfig, nil
 	}
