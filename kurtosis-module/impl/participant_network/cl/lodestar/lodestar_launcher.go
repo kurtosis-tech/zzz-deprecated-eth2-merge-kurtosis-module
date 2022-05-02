@@ -30,10 +30,6 @@ const (
 	httpPortNum             = 4000
 	metricsPortNum   uint16 = 8008
 
-	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
-	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
-	jwtSecretRelFilepathInSharedDir        = "jwtsecret"
-
 	maxNumHealthcheckRetries      = 30
 	timeBetweenHealthcheckRetries = 2 * time.Second
 

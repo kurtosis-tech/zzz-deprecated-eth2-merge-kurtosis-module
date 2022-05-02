@@ -6,8 +6,8 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -24,6 +24,7 @@ const (
 	expectedNumImages       = 2
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
+	genesisDataMountDirpathOnServiceContainer = "/genesis"
 
 	// Port IDs
 	tcpDiscoveryPortID        = "tcpDiscovery"
@@ -80,14 +81,12 @@ var prysmLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type PrysmCLClientLauncher struct {
-	genesisConfigYmlFilepathOnModuleContainer string
-	genesisSszFilepathOnModuleContainer       string
-	jwtSecretFilepathOnModuleContainer        string
+	genesisData *cl_genesis.CLGenesisData
 	prysmPassword                             string
 }
 
-func NewPrysmCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string, prysmPassword string) *PrysmCLClientLauncher {
-	return &PrysmCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer, prysmPassword: prysmPassword}
+func NewPrysmCLClientLauncher(genesisData *cl_genesis.CLGenesisData, prysmPassword string) *PrysmCLClientLauncher {
+	return &PrysmCLClientLauncher{genesisData: genesisData, prysmPassword: prysmPassword}
 }
 
 func (launcher *PrysmCLClientLauncher) Launch(
@@ -135,8 +134,6 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		bootnodeContext,
 		elClientContext,
 		logLevel,
-		launcher.genesisConfigYmlFilepathOnModuleContainer,
-		launcher.genesisSszFilepathOnModuleContainer,
 		extraBeaconParams,
 	)
 	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfigSupplier)
@@ -213,12 +210,11 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel string,
-	genesisConfigYmlFilepathOnModuleContainer string,
-	genesisSszFilepathOnModuleContainer string,
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
+		/*
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
 		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
 			return nil, stacktrace.Propagate(
@@ -244,17 +240,22 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepathInSharedDir)
 		}
 
+		 */
+
 		elClientEngineRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
 			elClientContext.GetEngineRPCPortNum(),
 		)
 
+		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())
+		genesisSszFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetGenesisSSZRelativeFilepath())
+		jwtSecretFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetJWTSecretRelativeFilepath())
 		cmdArgs := []string{
 			"--accept-terms-of-use=true", //it's mandatory in order to run the node
 			"--datadir=" + consensusDataDirpathOnServiceContainer,
-			"--chain-config-file=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
-			"--genesis-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
+			"--chain-config-file=" + genesisConfigFilepath,
+			"--genesis-state=" + genesisSszFilepath,
 			"--http-web3provider=" + elClientEngineRpcUrlStr,
 			"--rpc-host=" + privateIpAddr,
 			fmt.Sprintf("--rpc-port=%v", rpcPortNum),
@@ -268,7 +269,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--verbosity=" + logLevel,
 			// Set per Pari's recommendation to reduce noise
 			"--subscribe-all-subnets=true",
-			fmt.Sprintf("--jwt-secret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--disable-monitoring=false",
 			"--monitoring-host=" + privateIpAddr,
@@ -307,6 +308,7 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
 
+		/*
 		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
 		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
 			return nil, stacktrace.Propagate(
@@ -316,6 +318,8 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 				genesisConfigYmlRelFilepathInSharedDir,
 			)
 		}
+
+		 */
 
 		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysRelDirpathInSharedDir)
 		if err := recursive_copy.Copy(
