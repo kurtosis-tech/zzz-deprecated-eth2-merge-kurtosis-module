@@ -98,38 +98,38 @@ You can find the latest Kiln compatible docker images here: https://notes.ethere
 
     // Configuration parameters for the Eth network
     "network": {
-	// The network ID of the Eth1 network
-	"networkId": "3151908",
+        // The network ID of the Eth1 network
+        "networkId": "3151908",
 
-	// The address of the staking contract address on the Eth1 chain
-	"depositContractAddress": "0x4242424242424242424242424242424242424242",
+        // The address of the staking contract address on the Eth1 chain
+        "depositContractAddress": "0x4242424242424242424242424242424242424242",
 
-	// Number of seconds per slot on the Beacon chain
-	"secondsPerSlot": 12,
+        // Number of seconds per slot on the Beacon chain
+        "secondsPerSlot": 12,
 
-	// Number of slots in an epoch on the Beacon chain
-	"slotsPerEpoch": 32,
+        // Number of slots in an epoch on the Beacon chain
+        "slotsPerEpoch": 32,
 
-	// Must come before the merge fork epoch
-	// See https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F
-	"altairForkEpoch": 1,
+        // Must come before the merge fork epoch
+        // See https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F
+        "altairForkEpoch": 1,
 
-	// Must occur before the total terminal difficulty is hit on the Eth1 chain
-	// See https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F
-	"mergeForkEpoch": 2,
+        // Must occur before the total terminal difficulty is hit on the Eth1 chain
+        // See https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F
+        "mergeForkEpoch": 2,
 
-	// Once the total difficulty of all mined blocks crosses this threshold, the Eth1 chain will
-	//  merge with the Beacon chain
-	// Must happen after the merge fork epoch on the Beacon chain
-	// See https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F
-	"totalTerminalDifficulty": 100000000,
+        // Once the total difficulty of all mined blocks crosses this threshold, the Eth1 chain will
+        //  merge with the Beacon chain
+        // Must happen after the merge fork epoch on the Beacon chain
+        // See https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F
+        "totalTerminalDifficulty": 100000000,
 
-	// The number of validator keys that each CL validator node should get
-	"numValidatorKeysPerNode": 64,
+        // The number of validator keys that each CL validator node should get
+        "numValidatorKeysPerNode": 64,
 
-	// This mnemonic will a) be used to create keystores for all the types of validators that we have and b) be used to generate a CL genesis.ssz that has the children
-	//  validator keys already preregistered as validators
-	"preregisteredValidatorKeysMnemonic": "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
+        // This mnemonic will a) be used to create keystores for all the types of validators that we have and b) be used to generate a CL genesis.ssz that has the children
+        //  validator keys already preregistered as validators
+        "preregisteredValidatorKeysMnemonic": "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
     },
 
     // If set to false, we won't wait for the EL clients to mine at least 1 block before proceeding with adding the CL clients
