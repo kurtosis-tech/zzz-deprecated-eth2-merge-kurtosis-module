@@ -16,6 +16,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/nethermind"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
@@ -83,7 +84,10 @@ func LaunchParticipantNetwork(
 	// CL validator key generation is CPU-intensive, so we want to do the generation before any EL clients start mining
 	//  (even though we only start the CL clients after the EL network is fully up & mining)
 	logrus.Info("Generating validator keys....")
-	clValidatorData, err := prelaunchDataGeneratorCtx.GenerateCLValidatorData(
+	clValidatorData, err := cl_validator_keystores.GenerateCLValidatorKeystores(
+		ctx,
+		enclaveCtx,
+		networkParams.PreregisteredValidatorKeysMnemonic,
 		numParticipants,
 		networkParams.NumValidatorKeysPerNode,
 	)
@@ -242,7 +246,7 @@ func LaunchParticipantNetwork(
 			clValidatorData.PrysmPassword,
 		),
 	}
-	preregisteredValidatorKeysForNodes := clValidatorData.PerNodeKeystoreDirpaths
+	preregisteredValidatorKeysForNodes := clValidatorData.PerNodeKeystores
 	allClClientContexts := []*cl.CLClientContext{}
 	for idx, participantSpec := range allParticipantSpecs {
 		clClientType := participantSpec.CLClientType

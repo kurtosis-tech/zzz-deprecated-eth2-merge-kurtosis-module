@@ -18,6 +18,7 @@ import (
 const (
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 	genesisDataMountDirpathOnServiceContainer = "/genesis"
+	validatorKeysMountDirpathOnServiceContainer = "/validator-keys"
 
 	// Port IDs
 	tcpDiscoveryPortID = "tcpDiscovery"
@@ -69,7 +70,7 @@ func (launcher *LodestarClientLauncher) Launch(
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
@@ -114,9 +115,8 @@ func (launcher *LodestarClientLauncher) Launch(
 		validatorNodeServiceId,
 		image,
 		logLevel,
+		keystoreFiles,
 		beaconHttpUrl,
-		nodeKeystoreDirpaths.RawKeysDirpath,
-		nodeKeystoreDirpaths.LodestarSecretsDirpath,
 		extraValidatorParams,
 	)
 	_, err = enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
@@ -256,9 +256,8 @@ func (launcher *LodestarClientLauncher) getValidatorContainerConfigSupplier(
 	serviceId services.ServiceID,
 	image string,
 	logLevel string,
+	keystoreFiles *cl2.KeystoreFiles,
 	beaconEndpoint string,
-	validatorKeysDirpathOnModuleContainer string,
-	validatorSecretsDirpathOnModuleContainer string,
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
@@ -279,14 +278,16 @@ func (launcher *LodestarClientLauncher) getValidatorContainerConfigSupplier(
 		rootDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
 
 		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())
+		validatorKeysDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.RawKeysRelativeDirpath)
+		validatorSecretsDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.LodestarSecretsRelativeDirpath)
 		cmdArgs := []string{
 			"validator",
 			"--logLevel=" + logLevel,
 			"--rootDir=" + rootDirpath,
 			"--paramsFile=" + genesisConfigFilepath,
 			"--server=" + beaconEndpoint,
-			"--keystoresDir=" + validatorKeysDirpathOnModuleContainer,
-			"--secretsDir=" + validatorSecretsDirpathOnModuleContainer,
+			"--keystoresDir=" + validatorKeysDirpath,
+			"--secretsDir=" + validatorSecretsDirpath,
 		}
 		if len(cmdArgs) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)
@@ -300,6 +301,7 @@ func (launcher *LodestarClientLauncher) getValidatorContainerConfigSupplier(
 			cmdArgs,
 		).WithFiles(map[services.FilesArtifactID]string{
 			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
+			keystoreFiles.FilesArtifactID: validatorKeysMountDirpathOnServiceContainer,
 		}).Build()
 
 		return containerConfig, nil
