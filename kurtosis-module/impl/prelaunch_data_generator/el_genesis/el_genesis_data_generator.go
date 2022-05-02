@@ -8,7 +8,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"github.com/sirupsen/logrus"
 	"os"
 	"path"
 	"strings"
@@ -95,7 +94,6 @@ func GenerateELGenesisData(
 	); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred creating the genesis config file at '%v'", genesisConfigFilepathOnModule)
 	}
-	logrus.Info(genesisConfigFilepathOnModule)
 	genesisConfigArtifactId, err := enclaveCtx.UploadFiles(genesisConfigFilepathOnModule)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred uploading the genesis config filepath from '%v'", genesisConfigFilepathOnModule)

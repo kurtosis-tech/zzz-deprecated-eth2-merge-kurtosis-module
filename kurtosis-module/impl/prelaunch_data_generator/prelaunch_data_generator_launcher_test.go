@@ -8,6 +8,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-engine-api-lib/api/golang/lib/kurtosis_context"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"os"
 	"path"
@@ -73,15 +74,12 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 	))
 	enclaveCtx, err := kurtosisCtx.CreateEnclave(context.Background(), enclaveId, isPartitioningEnabled)
 	require.NoError(t, err)
-	// TODO FIX
-	/*
 	defer func() {
 		if err := kurtosisCtx.StopEnclave(context.Background(), enclaveId); err != nil {
 			logrus.Errorf("We tried to stop the enclave we created, '%v', but an error occurred:\n%v", enclaveId, err)
 			logrus.Errorf("ACTION REQUIRED: You'll need to stop enclave '%v' manually!", enclaveId)
 		}
 	}()
-	 */
 
 	executeParams := module_io.GetDefaultExecuteParams()
 	networkParams := executeParams.Network
