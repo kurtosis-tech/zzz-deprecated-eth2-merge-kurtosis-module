@@ -1,4 +1,4 @@
-package prelaunch_data_generator_launcher
+package prelaunch_data_generator
 
 import (
 	"context"

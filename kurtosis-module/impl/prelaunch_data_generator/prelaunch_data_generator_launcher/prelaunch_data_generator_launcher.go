@@ -50,8 +50,8 @@ func LaunchPrelaunchDataGenerator(
 
 func getContainerConfigSupplier(
 	filesArtifactMountpoints map[services.FilesArtifactID]string,
-) func(privateIpAddr string, sharedPath *services.SharedPath) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string, path *services.SharedPath) (*services.ContainerConfig, error) {
+) func(privateIpAddr string) (*services.ContainerConfig, error) {
+	return func(privateIpAddr string) (*services.ContainerConfig, error) {
 		containerConfig := services.NewContainerConfigBuilder(
 			image,
 		).WithEntrypointOverride(
