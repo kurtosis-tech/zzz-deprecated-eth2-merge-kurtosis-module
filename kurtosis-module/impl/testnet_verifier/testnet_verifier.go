@@ -73,8 +73,13 @@ func getCmd(params *module_io.ExecuteParams, elClientCtxs []*el.ELClientContext,
 	return cmd
 }
 
-func getAsynchronousVerificationContainerConfigSupplier(params *module_io.ExecuteParams, elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+func getAsynchronousVerificationContainerConfigSupplier(
+	params *module_io.ExecuteParams,
+	elClientCtxs []*el.ELClientContext,
+	clClientCtxs []*cl.CLClientContext,
+	ttd uint64,
+) func(string) (*services.ContainerConfig, error) {
+	return func(privateIpAddr string) (*services.ContainerConfig, error) {
 		cmd := getCmd(params, elClientCtxs, clClientCtxs, ttd, false)
 		result := services.NewContainerConfigBuilder(
 			imageName,
@@ -83,8 +88,8 @@ func getAsynchronousVerificationContainerConfigSupplier(params *module_io.Execut
 	}
 }
 
-func getSynchronousVerificationContainerConfigSupplier() func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+func getSynchronousVerificationContainerConfigSupplier() func(string) (*services.ContainerConfig, error) {
+	return func(privateIpAddr string) (*services.ContainerConfig, error) {
 		result := services.NewContainerConfigBuilder(
 			imageName,
 		).WithEntrypointOverride(
