@@ -7,7 +7,9 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	"io"
 	"os"
+	"path"
 	"text/template"
 )
 
@@ -20,14 +22,18 @@ const (
 
 	configDirectoriesPermission = 0755
 
-	datasourcesConfigDirpathInShareDir = "datasources"
-	datasourceConfigFileNameInShareDir = "datasource.yml"
+	datasourcesConfigDirname = "datasources"
+	datasourceConfigFilename = "datasource.yml"
 
-	dashboardsConfigDirpahtInShareDir          = "dashboards"
-	dashboardProvidersConfigFilenameInShareDir = "dashboard-providers.yml"
-	grafanaDashboardConfigFilename             = "dashboard.json"
+	dashboardsConfigDirname          = "dashboards"
+	dashboardProvidersConfigFilename = "dashboard-providers.yml"
+	dashboardConfigFilename          = "dashboard.json"
 
 	configDirpathEnvVar = "GF_PATHS_PROVISIONING"
+
+	grafanaConfigDirpathOnModule = "/tmp/grafana-config"
+
+	grafanaConfigDirpathOnService = "/config"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -38,20 +44,27 @@ type datasourceConfigTemplateData struct {
 	PrometheusURL string
 }
 
-type dashboardConfigTemplateData struct {
+type dashboardProvidersConfigTemplateData struct {
 	DashboardsDirpath string
 }
 
 func LaunchGrafana(
 	enclaveCtx *enclaves.EnclaveContext,
 	datasourceConfigTemplate *template.Template,
-	dashboardConfigTemplate *template.Template,
+	dashboardProvidersConfigTemplate *template.Template,
 	prometheusPrivateUrl string,
 ) (string, error) {
-	containerConfigSupplier, err := getContainerConfigSupplier(datasourceConfigTemplate, dashboardConfigTemplate, prometheusPrivateUrl)
+	artifactId, err := getGrafanaConfigDirArtifactId(
+		enclaveCtx,
+		datasourceConfigTemplate,
+		dashboardProvidersConfigTemplate,
+		prometheusPrivateUrl,
+	)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred getting the container config supplier")
+		return "", stacktrace.Propagate(err, "An error occurred getting the Grafana config directory files artifact")
 	}
+
+	containerConfigSupplier := getContainerConfigSupplier(artifactId)
 	serviceCtx, err := enclaveCtx.AddService(serviceID, containerConfigSupplier)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the grafana service")
@@ -71,79 +84,117 @@ func LaunchGrafana(
 // ====================================================================================================
 //                                       Private Helper Functions
 // ====================================================================================================
-func getContainerConfigSupplier(
+func getGrafanaConfigDirArtifactId(
+	enclaveCtx *enclaves.EnclaveContext,
 	datasourceConfigTemplate *template.Template,
-	dashboardConfigTemplate *template.Template,
+	dashboardProvidersConfigTemplate *template.Template,
 	prometheusPrivateUrl string,
-	) (func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error), error,
+) (services.FilesArtifactID, error) {
+	datasourcesConfigDirpathOnModule := path.Join(grafanaConfigDirpathOnModule, datasourcesConfigDirname)
+	datasourceConfigFilepath := path.Join(datasourcesConfigDirpathOnModule, datasourceConfigFilename)
+	dashboardsConfigDirpathOnModule := path.Join(grafanaConfigDirpathOnModule, dashboardsConfigDirname)
+	dashboardProvidersConfigFilepath := path.Join(dashboardsConfigDirpathOnModule, dashboardProvidersConfigFilename)
+	dashboardConfigFilepath := path.Join(dashboardsConfigDirpathOnModule, dashboardConfigFilename)
+
+	dashboardConfigFilepathOnGrafanaContainer := path.Join(
+		grafanaConfigDirpathOnService,
+		path.Base(grafanaConfigDirpathOnModule), // Needed because Kurtosis doesn't flatten directories for now
+		dashboardsConfigDirname,
+		dashboardConfigFilename,
+	)
+
+	dirpathsToCreate := []string{
+		grafanaConfigDirpathOnModule,
+		datasourcesConfigDirpathOnModule,
+		dashboardsConfigDirpathOnModule,
+	}
+	for _, dirpath := range dirpathsToCreate {
+		if err := os.Mkdir(dirpath, configDirectoriesPermission); err != nil {
+			return "", stacktrace.Propagate(err, "An error occurred creating Grafana config directory '%v'", dirpathsToCreate)
+		}
+	}
+
+	datasourceTemplateData := datasourceConfigTemplateData{
+		PrometheusURL: prometheusPrivateUrl,
+	}
+	if err := service_launch_utils.FillTemplateToPath(datasourceConfigTemplate, datasourceTemplateData, datasourceConfigFilepath); err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred filling the datasource config template")
+	}
+
+
+	dashboardProvidersTemplateData := dashboardProvidersConfigTemplateData{
+		// Grafana needs to know where the dashboards config file will be on disk, which means we need to feed
+		//  it the *mounted* location on disk (on the Grafana container) when we generate this on the module container
+		DashboardsDirpath: dashboardConfigFilepathOnGrafanaContainer,
+	}
+	if err := service_launch_utils.FillTemplateToPath(dashboardProvidersConfigTemplate, dashboardProvidersTemplateData, dashboardProvidersConfigFilepath); err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred filling the dashboard config providers template")
+	}
+
+	if err := addGrafanaDashboardConfigToConfigDir(
+		static_files.GrafanaDashboardConfigFilepath,
+		dashboardConfigFilepath,
+	); err != nil {
+		return "", stacktrace.Propagate(
+			err,
+			"An error occurred copying Grafana dashboard config file '%v' to the Grafana config directory at '%v'",
+			static_files.GrafanaDashboardConfigFilepath,
+			dashboardConfigFilepath,
+		)
+	}
+
+	artifactId, err := enclaveCtx.UploadFiles(grafanaConfigDirpathOnModule)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred uploading Grafana config dir at '%v'", grafanaConfigDirpathOnModule)
+	}
+
+	return artifactId, nil
+}
+
+func getContainerConfigSupplier(
+	configDirArtifactId services.FilesArtifactID,
+) (
+	func(privateIpAddr string) (*services.ContainerConfig, error),
 ) {
-	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		datasourcesConfigSharedPath := sharedDir.GetChildPath(datasourcesConfigDirpathInShareDir)
-		if err := os.Mkdir(datasourcesConfigSharedPath.GetAbsPathOnServiceContainer(), configDirectoriesPermission); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred creating directory '%v' on grafana service container ", datasourcesConfigSharedPath.GetAbsPathOnServiceContainer(), )
-		}
-
-		dashboardsConfigSharedPath := sharedDir.GetChildPath(dashboardsConfigDirpahtInShareDir)
-		err := os.Mkdir(dashboardsConfigSharedPath.GetAbsPathOnServiceContainer(), configDirectoriesPermission)
-		if err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred creating directory '%v' on grafana service container ", dashboardsConfigSharedPath.GetAbsPathOnServiceContainer())
-		}
-
-		datasourceConfigFileSharedPath := datasourcesConfigSharedPath.GetChildPath(datasourceConfigFileNameInShareDir)
-
-		datasourceTemplateData := datasourceConfigTemplateData{
-			PrometheusURL: prometheusPrivateUrl,
-		}
-
-		if err := service_launch_utils.FillTemplateToSharedPath(datasourceConfigTemplate, datasourceTemplateData, datasourceConfigFileSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred filling the config file template")
-		}
-
-		dashboardTemplateData := dashboardConfigTemplateData{
-			DashboardsDirpath: dashboardsConfigSharedPath.GetAbsPathOnServiceContainer(),
-		}
-
-		dashboardsConfigFileSharedPath := dashboardsConfigSharedPath.GetChildPath(dashboardProvidersConfigFilenameInShareDir)
-
-		if err := service_launch_utils.FillTemplateToSharedPath(dashboardConfigTemplate, dashboardTemplateData, dashboardsConfigFileSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred filling the config file template")
-		}
-
-		if err := copyGrafanaDashboardConfigFileToSharedDir(dashboardsConfigSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying grafana-dashboard-config file into the shared directory '%v'", dashboardsConfigSharedPath.GetAbsPathOnServiceContainer())
-		}
-
+	// We need the path.Base() here because Kurtosis doesn't flatten directories yet
+	configDirpath := path.Join(grafanaConfigDirpathOnService, path.Base(grafanaConfigDirpathOnModule))
+	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithUsedPorts(
 			usedPorts,
 		).WithEnvironmentVariableOverrides(map[string]string{
-			configDirpathEnvVar: sharedDir.GetAbsPathOnServiceContainer(),
+			configDirpathEnvVar: configDirpath,
+		}).WithFiles(map[services.FilesArtifactID]string{
+			configDirArtifactId: grafanaConfigDirpathOnService,
 		}).Build()
 
 		return containerConfig, nil
 	}
 
-	return containerConfigSupplier, nil
+	return containerConfigSupplier
 }
 
-func copyGrafanaDashboardConfigFileToSharedDir(
-		dashboardsConfigSharedPath *services.SharedPath,
-	) error {
+func addGrafanaDashboardConfigToConfigDir(srcFilepath, destFilepath string) error {
+	// Copy the config file from the static files
+	srcFp, err := os.Open(srcFilepath)
+	if err != nil {
+		return stacktrace.Propagate(err, "An error occurred opening Grafana dashboard config file '%v'", srcFilepath)
+	}
+	defer srcFp.Close()
 
-	grafanaDashboardConfigFilepathInModuleContainer := static_files.GrafanaDashboardConfigFilepath
+	destFp, err := os.Create(destFilepath)
+	if err != nil {
+		return stacktrace.Propagate(err, "An error occurred creating dashboard config file '%v'", destFilepath)
+	}
+	defer destFp.Close()
 
-	grafanaDashboardConfigSharedPath := dashboardsConfigSharedPath.GetChildPath(grafanaDashboardConfigFilename)
-
-	if err := service_launch_utils.CopyFileToSharedPath(
-		grafanaDashboardConfigFilepathInModuleContainer,
-		grafanaDashboardConfigSharedPath); err != nil {
+	if _, err := io.Copy(destFp, srcFp); err != nil {
 		return stacktrace.Propagate(
 			err,
-			"An error occurred copying grafana-dashboard-config file from '%v' into path '%v'",
-			grafanaDashboardConfigFilepathInModuleContainer,
-			grafanaDashboardConfigSharedPath,
+			"An error occurred copying bytes from dashboard config source file '%v' to destination file '%v'",
+			srcFilepath,
+			destFilepath,
 		)
 	}
 	return nil

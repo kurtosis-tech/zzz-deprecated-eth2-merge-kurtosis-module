@@ -1,29 +1,29 @@
 package cl_genesis
 
+import "github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
+
 type CLGenesisData struct {
-	// Path to the directory holding all the CL genesis files
-	parentDirpath string
-	
-	jwtSecretFilepath string
+	filesArtifactId services.FilesArtifactID
 
-	configYmlFilepath string
-
-	genesisSszFilepath string
+	// Various filepaths, relative to the root of the files artifact
+	jwtSecretRelativeFilepath string
+	configYmlRelativeFilepath string
+	genesisSszRelativeFilepath string
 }
 
-func newCLGenesisData(parentDirpath string, jwtSecretFilepath string, configYmlFilepath string, genesisSszFilepath string) *CLGenesisData {
-	return &CLGenesisData{parentDirpath: parentDirpath, jwtSecretFilepath: jwtSecretFilepath, configYmlFilepath: configYmlFilepath, genesisSszFilepath: genesisSszFilepath}
+func newCLGenesisData(filesArtifactId services.FilesArtifactID, jwtSecretRelativeFilepath string, configYmlRelativeFilepath string, genesisSszRelativeFilepath string) *CLGenesisData {
+	return &CLGenesisData{filesArtifactId: filesArtifactId, jwtSecretRelativeFilepath: jwtSecretRelativeFilepath, configYmlRelativeFilepath: configYmlRelativeFilepath, genesisSszRelativeFilepath: genesisSszRelativeFilepath}
 }
 
-func (paths *CLGenesisData) GetParentDirpath() string {
-	return paths.parentDirpath
+func (paths *CLGenesisData) GetFilesArtifactID() services.FilesArtifactID {
+	return paths.filesArtifactId
 }
-func (paths *CLGenesisData) GetJWTSecretFilepath() string {
-	return paths.jwtSecretFilepath
+func (paths *CLGenesisData) GetJWTSecretRelativeFilepath() string {
+	return paths.jwtSecretRelativeFilepath
 }
-func (paths *CLGenesisData) GetConfigYMLFilepath() string {
-	return paths.configYmlFilepath
+func (paths *CLGenesisData) GetConfigYMLRelativeFilepath() string {
+	return paths.configYmlRelativeFilepath
 }
-func (paths *CLGenesisData) GetGenesisSSZFilepath() string {
-	return paths.genesisSszFilepath
+func (paths *CLGenesisData) GetGenesisSSZRelativeFilepath() string {
+	return paths.genesisSszRelativeFilepath
 }

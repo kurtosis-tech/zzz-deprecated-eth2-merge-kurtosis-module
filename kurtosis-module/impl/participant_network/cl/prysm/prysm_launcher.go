@@ -6,14 +6,11 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	recursive_copy "github.com/otiai10/copy"
-	"io/ioutil"
-	"os"
 	"path"
 	"strings"
 	"time"
@@ -24,6 +21,9 @@ const (
 	expectedNumImages       = 2
 
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
+	genesisDataMountDirpathOnServiceContainer = "/genesis"
+	validatorKeysMountDirpathOnServiceContainer = "/validator-keys"
+	prysmPasswordMountDirpathOnServiceContainer = "/prysm-password"
 
 	// Port IDs
 	tcpDiscoveryPortID        = "tcpDiscovery"
@@ -40,14 +40,6 @@ const (
 	httpPortNum                uint16 = 3500
 	beaconMonitoringPortNum    uint16 = 8080
 	validatorMonitoringPortNum uint16 = 8081
-
-	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
-	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
-	prysmPasswordTxtRelFilepathInSharedDir = "prysm-password.txt"
-	jwtSecretRelFilepathInSharedDir        = "jwtsecret"
-
-	validatorKeysRelDirpathInSharedDir    = "validator-keys"
-	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
 
 	maxNumHealthcheckRetries      = 100
 	timeBetweenHealthcheckRetries = 5 * time.Second
@@ -80,27 +72,26 @@ var prysmLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type PrysmCLClientLauncher struct {
-	genesisConfigYmlFilepathOnModuleContainer string
-	genesisSszFilepathOnModuleContainer       string
-	jwtSecretFilepathOnModuleContainer        string
-	prysmPassword                             string
+	genesisData *cl_genesis.CLGenesisData
+	prysmPasswordArtifactId services.FilesArtifactID
+	prysmPasswordRelativeFilepath string
 }
 
-func NewPrysmCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string, prysmPassword string) *PrysmCLClientLauncher {
-	return &PrysmCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer, prysmPassword: prysmPassword}
+func NewPrysmCLClientLauncher(genesisData *cl_genesis.CLGenesisData, prysmPasswordArtifactId services.FilesArtifactID, prysmPasswordRelativeFilepath string) *PrysmCLClientLauncher {
+	return &PrysmCLClientLauncher{genesisData: genesisData, prysmPasswordArtifactId: prysmPasswordArtifactId, prysmPasswordRelativeFilepath: prysmPasswordRelativeFilepath}
 }
 
 func (launcher *PrysmCLClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
-// NOTE: Because Prysm has separate images for Beacon and validator, this string will actually be a delimited
-//  combination of both Beacon & validator images
+	// NOTE: Because Prysm has separate images for Beacon and validator, this string will actually be a delimited
+	//  combination of both Beacon & validator images
 	delimitedImagesStr string,
 	participantLogLevel string,
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
@@ -135,8 +126,6 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		bootnodeContext,
 		elClientContext,
 		logLevel,
-		launcher.genesisConfigYmlFilepathOnModuleContainer,
-		launcher.genesisSszFilepathOnModuleContainer,
 		extraBeaconParams,
 	)
 	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfigSupplier)
@@ -167,8 +156,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		logLevel,
 		beaconRPCEndpoint,
 		beaconHTTPEndpoint,
-		nodeKeystoreDirpaths.RawKeysDirpath,
-		nodeKeystoreDirpaths.PrysmDirpath,
+		keystoreFiles,
 		extraValidatorParams,
 	)
 	validatorServiceCtx, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
@@ -213,48 +201,23 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel string,
-	genesisConfigYmlFilepathOnModuleContainer string,
-	genesisSszFilepathOnModuleContainer string,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				genesisConfigYmlFilepathOnModuleContainer,
-				genesisConfigYmlRelFilepathInSharedDir,
-			)
-		}
-
-		genesisSszSharedPath := sharedDir.GetChildPath(genesisSszRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis SSZ from '%v' to shared dir relative path '%v'",
-				genesisSszFilepathOnModuleContainer,
-				genesisSszRelFilepathInSharedDir,
-			)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepathInSharedDir)
-		}
-
+) func(string) (*services.ContainerConfig, error) {
+	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		elClientEngineRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
 			elClientContext.GetEngineRPCPortNum(),
 		)
 
+		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())
+		genesisSszFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetGenesisSSZRelativeFilepath())
+		jwtSecretFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetJWTSecretRelativeFilepath())
 		cmdArgs := []string{
 			"--accept-terms-of-use=true", //it's mandatory in order to run the node
 			"--datadir=" + consensusDataDirpathOnServiceContainer,
-			"--chain-config-file=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
-			"--genesis-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
+			"--chain-config-file=" + genesisConfigFilepath,
+			"--genesis-state=" + genesisSszFilepath,
 			"--http-web3provider=" + elClientEngineRpcUrlStr,
 			"--rpc-host=" + privateIpAddr,
 			fmt.Sprintf("--rpc-port=%v", rpcPortNum),
@@ -268,7 +231,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--verbosity=" + logLevel,
 			// Set per Pari's recommendation to reduce noise
 			"--subscribe-all-subnets=true",
-			fmt.Sprintf("--jwt-secret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--disable-monitoring=false",
 			"--monitoring-host=" + privateIpAddr,
@@ -288,7 +251,9 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			beaconNodeUsedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).Build()
+		).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
+		}).Build()
 
 		return containerConfig, nil
 	}
@@ -301,54 +266,22 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 	logLevel string,
 	beaconRPCEndpoint string,
 	beaconHTTPEndpoint string,
-	validatorKeysDirpathOnModuleContainer string,
-	validatorSecretsDirpathOnModuleContainer string,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				launcher.genesisConfigYmlFilepathOnModuleContainer,
-				genesisConfigYmlRelFilepathInSharedDir,
-			)
-		}
-
-		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysRelDirpathInSharedDir)
-		if err := recursive_copy.Copy(
-			validatorKeysDirpathOnModuleContainer,
-			validatorKeysSharedPath.GetAbsPathOnThisContainer(),
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
-		}
-
-		validatorSecretsSharedPath := sharedDir.GetChildPath(validatorSecretsRelDirpathInSharedDir)
-		if err := recursive_copy.Copy(
-			validatorSecretsDirpathOnModuleContainer,
-			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
-		}
-
-		prysmPasswordTxtSharedPath := sharedDir.GetChildPath(prysmPasswordTxtRelFilepathInSharedDir)
-		prysmPasswordTxtFilepathOnModuleContainer := prysmPasswordTxtSharedPath.GetAbsPathOnThisContainer()
-		if err := ioutil.WriteFile(prysmPasswordTxtFilepathOnModuleContainer, []byte(launcher.prysmPassword), os.ModePerm); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred writing the Prysm keystore password to file '%v'", prysmPasswordTxtFilepathOnModuleContainer)
-		}
-
-		rootDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
+) func(string) (*services.ContainerConfig, error) {
+	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
+		consensusDataDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
+		prysmKeystoreDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.PrysmRelativeDirpath)
+		prysmPasswordFilepath := path.Join(prysmPasswordMountDirpathOnServiceContainer, launcher.prysmPasswordRelativeFilepath)
 
 		cmdArgs := []string{
 			"--accept-terms-of-use=true", //it's mandatory in order to run the node
 			"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
 			"--beacon-rpc-gateway-provider=" + beaconHTTPEndpoint,
 			"--beacon-rpc-provider=" + beaconRPCEndpoint,
-			"--wallet-dir=" + validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
-			"--wallet-password-file=" + prysmPasswordTxtSharedPath.GetAbsPathOnServiceContainer(),
-			"--datadir=" + rootDirpath,
+			"--wallet-dir=" + prysmKeystoreDirpath,
+			"--wallet-password-file=" + prysmPasswordFilepath,
+			"--datadir=" + consensusDataDirpath,
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
 			"--verbosity=" + logLevel,
@@ -369,7 +302,11 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			validatorNodeUsedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).Build()
+		).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
+			keystoreFiles.FilesArtifactID:             validatorKeysMountDirpathOnServiceContainer,
+			launcher.prysmPasswordArtifactId:          prysmPasswordMountDirpathOnServiceContainer,
+		}).Build()
 
 		return containerConfig, nil
 	}

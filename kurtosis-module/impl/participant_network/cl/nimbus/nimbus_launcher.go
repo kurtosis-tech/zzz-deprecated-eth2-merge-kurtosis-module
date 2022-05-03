@@ -1,22 +1,24 @@
 package nimbus
-
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	cl_client_rest_client2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	recursive_copy "github.com/otiai10/copy"
+	"path"
 	"strings"
 	"time"
 )
 
 const (
+	genesisDataMountpointOnClient = "/genesis-data"
+
+	validatorKeysMountpointOnClient = "/validator-keys"
 
 	// Port IDs
 	tcpDiscoveryPortID = "tcpDiscovery"
@@ -29,8 +31,6 @@ const (
 	httpPortNum             = 4000
 	metricsPortNum          = 8008
 
-	configDataDirpathRelToSharedDirRoot = "config-data"
-
 	// Nimbus requires that its data directory already exists (because it expects you to bind-mount it), so we
 	//  have to to create it
 	consensusDataDirpathInServiceContainer = "$HOME/consensus-data"
@@ -39,12 +39,6 @@ const (
 	// The entrypoint the image normally starts with (we need to override the entrypoint to create the
 	//  consensus data directory on the image before it starts)
 	defaultImageEntrypoint = "/home/user/nimbus-eth2/build/nimbus_beacon_node"
-
-	validatorKeysDirpathRelToSharedDirRoot    = "validator-keys"
-	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
-	validatorSecretsDirPerms                  = 0600 // If we don't set these when we copy, Nimbus will burn a bunch of time doing it for us
-
-	jwtSecretFilepathRelToSharedDirRoot = "jwtsecret"
 
 	// Nimbus needs write access to the validator keys/secrets directories, and b/c the module container runs as root
 	//  while the Nimbus container does not, we can't just point the Nimbus binary to the paths in the shared dir because
@@ -74,17 +68,14 @@ var nimbusLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type NimbusLauncher struct {
-	// The dirpath on the module container where the config data directory exists
-	configDataDirpathOnModuleContainer string
-
-	jwtSecretFilepathOnModuleContainer string
+	genesisData *cl_genesis.CLGenesisData
 
 	// NOTE: This launcher does NOT take in the expected number of peers because doing so causes the Beacon node not to peer at all
 	// See: https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/26
 }
 
-func NewNimbusLauncher(configDataDirpathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string) *NimbusLauncher {
-	return &NimbusLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer}
+func NewNimbusLauncher(genesisData *cl_genesis.CLGenesisData) *NimbusLauncher {
+	return &NimbusLauncher{genesisData: genesisData}
 }
 
 func (launcher NimbusLauncher) Launch(
@@ -95,7 +86,7 @@ func (launcher NimbusLauncher) Launch(
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
@@ -111,8 +102,7 @@ func (launcher NimbusLauncher) Launch(
 		bootnodeContext,
 		elClientContext,
 		logLevel,
-		nodeKeystoreDirpaths.NimbusKeysDirpath,
-		nodeKeystoreDirpaths.RawSecretsDirpath,
+		keystoreFiles,
 		extraParams,
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
@@ -167,48 +157,21 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel string,
-	validatorKeysDirpathOnModuleContainer string,
-	validatorSecretsDirpathOnModuleContainer string,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(configDataDirpathRelToSharedDirRoot)
-
-		destConfigDataDirpathOnModule := configDataDirpathOnServiceSharedPath.GetAbsPathOnThisContainer()
-		if err := recursive_copy.Copy(launcher.configDataDirpathOnModuleContainer, destConfigDataDirpathOnModule); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the config data directory on the module, '%v', into the service container, '%v'",
-				launcher.configDataDirpathOnModuleContainer,
-				destConfigDataDirpathOnModule,
-			)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretFilepathRelToSharedDirRoot)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretFilepathRelToSharedDirRoot)
-		}
-
-		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
-		if err := recursive_copy.Copy(validatorKeysDirpathOnModuleContainer, validatorKeysSharedPath.GetAbsPathOnThisContainer()); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
-		}
-
-		validatorSecretsSharedPath := sharedDir.GetChildPath(validatorSecretsDirpathRelToSharedDirRoot)
-		if err := recursive_copy.Copy(
-			validatorSecretsDirpathOnModuleContainer,
-			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
-			recursive_copy.Options{AddPermission: validatorSecretsDirPerms},
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
-		}
-
+) func(string) (*services.ContainerConfig, error) {
+	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		elClientEngineRpcUrlStr := fmt.Sprintf(
 			"ws://%v:%v",
 			elClientContext.GetIPAddress(),
 			elClientContext.GetEngineRPCPortNum(),
 		)
+
+		// For some reason, Nimbus takes in the parent directory of the config file (rather than the path to the config file itself)
+		genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClient, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
+		jwtSecretFilepath := path.Join(genesisDataMountpointOnClient, launcher.genesisData.GetJWTSecretRelativeFilepath())
+		validatorKeysDirpath := path.Join(validatorKeysMountpointOnClient, keystoreFiles.NimbusKeysRelativeDirpath)
+		validatorSecretsDirpath := path.Join(validatorKeysMountpointOnClient, keystoreFiles.RawSecretsRelativeDirpath)
 
 		// Sources for these flags:
 		//  1) https://github.com/status-im/nimbus-eth2/blob/stable/scripts/launch_local_testnet.sh
@@ -221,14 +184,15 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"-m",
 			consensusDataDirPermsStr,
 			"&&",
+			// TODO COMMENT THIS OUT?
 			"cp",
 			"-R",
-			validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
+			validatorKeysDirpath,
 			validatorKeysDirpathOnServiceContainer,
 			"&&",
 			"cp",
 			"-R",
-			validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			validatorSecretsDirpath,
 			validatorSecretsDirpathOnServiceContainer,
 			"&&",
 			// If we don't do this chmod, Nimbus will spend a crazy amount of time manually correcting them
@@ -240,7 +204,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			defaultImageEntrypoint,
 			"--non-interactive=true",
 			"--log-level=" + logLevel,
-			"--network=" + configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer(),
+			"--network=" + genesisConfigParentDirpathOnClient,
 			"--data-dir=" + consensusDataDirpathInServiceContainer,
 			"--web3-url=" + elClientEngineRpcUrlStr,
 			"--nat=extip:" + privateIpAddr,
@@ -258,7 +222,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"--subscribe-all-subnets=true",
 			// Nimbus can handle a max of 256 threads, if the host has more then nimbus crashes. Setting it to 4 so it doesn't crash on build servers
 			"--num-threads=4",
-			fmt.Sprintf("--jwt-secret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics",
 			"--metrics-address=" + privateIpAddr,
@@ -285,6 +249,9 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"sh", "-c",
 		}).WithCmdOverride([]string{
 			cmdStr,
+		}).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataMountpointOnClient,
+			keystoreFiles.FilesArtifactID: validatorKeysMountpointOnClient,
 		}).Build()
 
 		return containerConfig, nil

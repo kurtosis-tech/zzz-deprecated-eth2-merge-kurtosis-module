@@ -28,7 +28,10 @@ func LaunchTransanctionSpammer(enclaveCtx *enclaves.EnclaveContext, prefundedAdd
 	return nil
 }
 
-func getContainerConfigSupplier(prefundedAddresses []*genesis_consts.PrefundedAccount, elClientCtx *el.ELClientContext) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
+func getContainerConfigSupplier(
+	prefundedAddresses []*genesis_consts.PrefundedAccount,
+	elClientCtx *el.ELClientContext,
+) func(string) (*services.ContainerConfig, error) {
 	privateKeysStrs := []string{}
 	addressStrs := []string{}
 
@@ -39,7 +42,7 @@ func getContainerConfigSupplier(prefundedAddresses []*genesis_consts.PrefundedAc
 
 	commaSeparatedPrivateKeys := strings.Join(privateKeysStrs, ",")
 	commaSeparatedAddresses := strings.Join(addressStrs, ",")
-	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+	return func(privateIpAddr string) (*services.ContainerConfig, error) {
 		result := services.NewContainerConfigBuilder(
 			imageName,
 		).WithCmdOverride([]string{

@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prometheus"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
@@ -27,10 +27,6 @@ import (
 const (
 	responseJsonLinePrefixStr = ""
 	responseJsonLineIndentStr = "  "
-
-	// TODO uncomment these when the module can either start a private network OR connect to an existing devnet
-	// mergeDevnet3NetworkId = "1337602"
-	// mergeDevnet3ClClientBootnodeEnr = "enr:-Iq4QKuNB_wHmWon7hv5HntHiSsyE1a6cUTK1aT7xDSU_hNTLW3R4mowUboCsqYoh1kN9v3ZoSu_WuvW9Aw0tQ0Dxv6GAXxQ7Nv5gmlkgnY0gmlwhLKAlv6Jc2VjcDI1NmsxoQK6S-Cii_KmfFdUJL2TANL3ksaKUnNXvTCv1tLwXs0QgIN1ZHCCIyk"
 
 	// On mainnet, finalization will be head - 2
 	// However, according to Pari, on these small testnets with genesis very close there's more churn so 4 epochs is possible
@@ -53,6 +49,8 @@ func NewEth2KurtosisModule() *Eth2KurtosisModule {
 }
 
 func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, serializedParams string) (serializedResult string, resultError error) {
+	ctx := context.Background()
+
 	logrus.Infof("Deserializing the following execute params:\n%v", serializedParams)
 	paramsObj, err := module_io.DeserializeAndValidateParams(serializedParams)
 	if err != nil {
@@ -76,23 +74,10 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		return "", stacktrace.Propagate(err, "An error occurred parsing prometheus config template file '%v'", static_files.PrometheusConfigTemplateFilepath)
 	}
 
-	logrus.Info("Creating prelaunch data generator...")
-	prelaunchDataGeneratorCtx, err := prelaunch_data_generator.LaunchPrelaunchDataGenerator(
-		enclaveCtx,
-		networkParams.NetworkID,
-		networkParams.DepositContractAddress,
-		networkParams.TotalTerminalDifficulty,
-		networkParams.PreregisteredValidatorKeysMnemonic,
-	)
-	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred launching the prelaunch data-generating container")
-	}
-	logrus.Info("Successfully created prelaunch data generator")
-
 	logrus.Infof("Adding %v participants logging at level '%v'...", numParticipants, paramsObj.ClientLogLevel)
 	participants, clGenesisUnixTimestamp, err := participant_network.LaunchParticipantNetwork(
+		ctx,
 		enclaveCtx,
-		prelaunchDataGeneratorCtx,
 		networkParams,
 		paramsObj.Participants,
 		paramsObj.ClientLogLevel,

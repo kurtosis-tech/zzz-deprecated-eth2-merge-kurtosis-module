@@ -1,6 +1,7 @@
 package participant_network
 
 import (
+	"context"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
@@ -13,7 +14,9 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/besu"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/nethermind"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
@@ -48,8 +51,8 @@ const (
 var clClientContextForBootClClients *cl.CLClientContext = nil
 
 func LaunchParticipantNetwork(
+	ctx context.Context,
 	enclaveCtx *enclaves.EnclaveContext,
-	prelaunchDataGeneratorCtx *prelaunch_data_generator.PrelaunchDataGeneratorContext,
 	networkParams *module_io.NetworkParams,
 	allParticipantSpecs []*module_io.ParticipantParams,
 	globalLogLevel module_io.GlobalClientLogLevel,
@@ -78,7 +81,10 @@ func LaunchParticipantNetwork(
 	// CL validator key generation is CPU-intensive, so we want to do the generation before any EL clients start mining
 	//  (even though we only start the CL clients after the EL network is fully up & mining)
 	logrus.Info("Generating validator keys....")
-	clValidatorData, err := prelaunchDataGeneratorCtx.GenerateCLValidatorData(
+	clValidatorData, err := cl_validator_keystores.GenerateCLValidatorKeystores(
+		ctx,
+		enclaveCtx,
+		networkParams.PreregisteredValidatorKeysMnemonic,
 		numParticipants,
 		networkParams.NumValidatorKeysPerNode,
 	)
@@ -91,31 +97,41 @@ func LaunchParticipantNetwork(
 	//  we start the CL clients. This matches the real world, where Eth1 definitely exists before Eth2
 	logrus.Info("Generating EL client genesis data...")
 	elGenesisTimestamp := uint64(time.Now().Unix())
-	elGenesisData, err := prelaunchDataGeneratorCtx.GenerateELGenesisData(
+	elGenesisData, err := el_genesis.GenerateELGenesisData(
+		ctx,
+		enclaveCtx,
 		elGenesisGenerationConfigTemplate,
 		elGenesisTimestamp,
+		networkParams.NetworkID,
+		networkParams.DepositContractAddress,
+		networkParams.TotalTerminalDifficulty,
 	)
 	if err != nil {
 		return nil, 0, stacktrace.Propagate(err, "An error occurred generating EL client genesis data")
 	}
 	logrus.Info("Successfully generated EL client genesis data")
 
+	logrus.Info("Uploading Geth prefunded keys...")
+	gethPrefundedKeysArtifactId, err := enclaveCtx.UploadFiles(static_files.GethPrefundedKeysDirpath)
+	if err != nil {
+		return nil, 0, stacktrace.Propagate(err, "An error occurred uploading the Geth prefunded keys to the enclave")
+	}
+	logrus.Info("Successfully uploaded Geth prefunded keys")
+
 	logrus.Infof("Adding %v EL clients...", numParticipants)
 	elClientLaunchers := map[module_io.ParticipantELClientType]el.ELClientLauncher{
 		module_io.ParticipantELClientType_Geth: geth.NewGethELClientLauncher(
-			elGenesisData.GetGethGenesisJsonFilepath(),
-			elGenesisData.GetJWTSecretFilepath(),
+			elGenesisData,
+			gethPrefundedKeysArtifactId,
 			genesis_consts.PrefundedAccounts,
 			networkParams.NetworkID,
 		),
 		module_io.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
-			elGenesisData.GetNethermindGenesisJsonFilepath(),
-			elGenesisData.GetJWTSecretFilepath(),
+			elGenesisData,
 			networkParams.TotalTerminalDifficulty,
 		),
 		module_io.ParticipantELClientType_Besu: besu.NewBesuELClientLauncher(
-			elGenesisData.GetBesuGenesisJsonFilepath(),
-			elGenesisData.GetJWTSecretFilepath(),
+			elGenesisData,
 			networkParams.NetworkID,
 		),
 	}
@@ -180,15 +196,20 @@ func LaunchParticipantNetwork(
 	clGenesisTimestamp := uint64(time.Now().Unix()) +
 		uint64(clGenesisDataGenerationTime.Seconds()) +
 		uint64(numParticipants)*uint64(clNodeStartupTime.Seconds())
-	clGenesisData, err := prelaunchDataGeneratorCtx.GenerateCLGenesisData(
+	clGenesisData, err := cl_genesis.GenerateCLGenesisData(
+		ctx,
+		enclaveCtx,
 		clGenesisConfigTemplate,
 		clGenesisMnemonicsYmlTemplate,
-		elGenesisData.GetJWTSecretFilepath(),
+		elGenesisData,
 		clGenesisTimestamp,
+		networkParams.NetworkID,
+		networkParams.DepositContractAddress,
+		networkParams.TotalTerminalDifficulty,
 		networkParams.SecondsPerSlot,
 		networkParams.AltairForkEpoch,
 		networkParams.MergeForkEpoch,
-		numParticipants,
+		networkParams.PreregisteredValidatorKeysMnemonic,
 		networkParams.NumValidatorKeysPerNode,
 	)
 	if err != nil {
@@ -199,32 +220,24 @@ func LaunchParticipantNetwork(
 	logrus.Infof("Adding %v CL clients...", numParticipants)
 	clClientLaunchers := map[module_io.ParticipantCLClientType]cl.CLClientLauncher{
 		module_io.ParticipantCLClientType_Teku: teku.NewTekuCLClientLauncher(
-			clGenesisData.GetConfigYMLFilepath(),
-			clGenesisData.GetGenesisSSZFilepath(),
-			clGenesisData.GetJWTSecretFilepath(),
-			numParticipants,
+			clGenesisData,
 		),
 		module_io.ParticipantCLClientType_Nimbus: nimbus.NewNimbusLauncher(
-			clGenesisData.GetParentDirpath(),
-			clGenesisData.GetJWTSecretFilepath(),
+			clGenesisData,
 		),
 		module_io.ParticipantCLClientType_Lodestar: lodestar.NewLodestarClientLauncher(
-			clGenesisData.GetConfigYMLFilepath(),
-			clGenesisData.GetGenesisSSZFilepath(),
-			clGenesisData.GetJWTSecretFilepath(),
+			clGenesisData,
 		),
 		module_io.ParticipantCLClientType_Lighthouse: lighthouse.NewLighthouseCLClientLauncher(
-			clGenesisData.GetParentDirpath(),
-			clGenesisData.GetJWTSecretFilepath(),
+			clGenesisData,
 		),
 		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLClientLauncher(
-			clGenesisData.GetConfigYMLFilepath(),
-			clGenesisData.GetGenesisSSZFilepath(),
-			clGenesisData.GetJWTSecretFilepath(),
-			clValidatorData.PrysmPassword,
+			clGenesisData,
+			clValidatorData.PrysmPasswordArtifactId,
+			clValidatorData.PrysmPasswordRelativeFilepath,
 		),
 	}
-	preregisteredValidatorKeysForNodes := clValidatorData.PerNodeKeystoreDirpaths
+	preregisteredValidatorKeysForNodes := clValidatorData.PerNodeKeystores
 	allClClientContexts := []*cl.CLClientContext{}
 	for idx, participantSpec := range allParticipantSpecs {
 		clClientType := participantSpec.CLClientType

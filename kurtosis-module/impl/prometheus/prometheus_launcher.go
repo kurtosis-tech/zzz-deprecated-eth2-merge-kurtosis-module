@@ -7,6 +7,7 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	"path"
 	"text/template"
 )
 
@@ -17,8 +18,9 @@ const (
 	httpPortId            = "http"
 	httpPortNumber uint16 = 9090
 
-	// The filepath, relative to the root of the shared dir, where we'll generate the config file
-	configRelFilepathInSharedDir = "prometheus.yml"
+	configFilepathOnModule = "/tmp/prometheus-config.yml"
+
+	configDirMountpointOnPrometheus = "/config"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -38,10 +40,25 @@ func LaunchPrometheus(
 	configTemplate *template.Template,
 	clClientContexts []*cl.CLClientContext,
 ) (string, string, error) {
-	containerConfigSupplier, err := getContainerConfigSupplier(clClientContexts, configTemplate)
-	if err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred getting the container config supplier")
+	allCLNodesMetricsInfo := []*cl.CLNodeMetricsInfo{}
+	for _, clClientCtx := range clClientContexts {
+		if clClientCtx.GetNodesMetricsInfo() != nil {
+			allCLNodesMetricsInfo = append(allCLNodesMetricsInfo, clClientCtx.GetNodesMetricsInfo()...)
+		}
 	}
+
+	templateData := configTemplateData{
+		CLNodesMetricsInfo: allCLNodesMetricsInfo,
+	}
+	if err := service_launch_utils.FillTemplateToPath(configTemplate, templateData, configFilepathOnModule); err != nil {
+		return "", "", stacktrace.Propagate(err, "An error occurred filling the Prometheus config file template to file '%v'", configFilepathOnModule)
+	}
+	configArtifactId, err := enclaveCtx.UploadFiles(configFilepathOnModule)
+	if err != nil {
+		return "", "", stacktrace.Propagate(err, "An error occurred uploading the Prometheus config file at '%v'", configFilepathOnModule)
+	}
+
+	containerConfigSupplier := getContainerConfigSupplier(configArtifactId)
 	serviceCtx, err := enclaveCtx.AddService(serviceID, containerConfigSupplier)
 	if err != nil {
 		return "", "", stacktrace.Propagate(err, "An error occurred launching the prometheus service")
@@ -69,35 +86,18 @@ func LaunchPrometheus(
 //                                       Private Helper Functions
 // ====================================================================================================
 func getContainerConfigSupplier(
-	clClientContexts []*cl.CLClientContext,
-	configTemplate *template.Template,
+	configFileArtifactId services.FilesArtifactID,
 ) (
-	func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error),
-	error,
+	func(privateIpAddr string) (*services.ContainerConfig, error),
 ) {
-	allCLNodesMetricsInfo := []*cl.CLNodeMetricsInfo{}
-	for _, clClientCtx := range clClientContexts {
-		if clClientCtx.GetNodesMetricsInfo() != nil {
-			allCLNodesMetricsInfo = append(allCLNodesMetricsInfo, clClientCtx.GetNodesMetricsInfo()...)
-		}
-	}
-
-	templateData := configTemplateData{
-		CLNodesMetricsInfo: allCLNodesMetricsInfo,
-	}
-
-	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		configFileSharedPath := sharedDir.GetChildPath(configRelFilepathInSharedDir)
-		if err := service_launch_utils.FillTemplateToSharedPath(configTemplate, templateData, configFileSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred filling the config file template")
-		}
-
+	return func(privateIpAddr string) (*services.ContainerConfig, error) {
+		configFilepath := path.Join(configDirMountpointOnPrometheus, path.Base(configFilepathOnModule))
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithCmdOverride([]string{
 			//You can check all the cli flags starting the container and going to the flags section
 			//in Prometheus admin page "{{prometheusPublicURL}}/flags" section
-			"--config.file=" + configFileSharedPath.GetAbsPathOnServiceContainer(),
+			"--config.file=" + configFilepath,
 			"--storage.tsdb.path=/prometheus",
 			"--storage.tsdb.retention.time=1d",
 			"--storage.tsdb.retention.size=512MB",
@@ -107,10 +107,10 @@ func getContainerConfigSupplier(
 			"--web.enable-lifecycle",
 		}).WithUsedPorts(
 			usedPorts,
-		).Build()
+		).WithFiles(map[services.FilesArtifactID]string{
+			configFileArtifactId: configDirMountpointOnPrometheus,
+		}).Build()
 
 		return containerConfig, nil
 	}
-
-	return containerConfigSupplier, nil
 }

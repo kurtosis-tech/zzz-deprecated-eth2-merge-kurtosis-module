@@ -7,6 +7,7 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	"path"
 	"text/template"
 )
 
@@ -17,8 +18,9 @@ const (
 	httpPortId = "http"
 	httpPortNumber = uint16(80)
 
-	// The filepath, relative to the root of the shared dir, where we'll generate the config file
-	configRelFilepathInSharedDir = "config.toml"
+	forkmonConfigFilepathOnModule = "/tmp/forkmon-config.toml"
+
+	forkmonConfigMountDirpathOnService = "/config"
 )
 var usedPorts = map[string]*services.PortSpec{
 	httpPortId: services.NewPortSpec(httpPortNumber, services.PortProtocol_TCP),
@@ -45,13 +47,30 @@ func LaunchForkmon(
 	secondsPerSlot uint32,
 	slotsPerEpoch uint32,
 ) (string, error) {
-	containerConfigSupplier, err := getContainerConfigSupplier(
-		configTemplate,
-		clClientContexts,
-		genesisUnixTimestamp,
-		secondsPerSlot,
-		slotsPerEpoch,
-	)
+	allClClientInfo := []*clClientInfo{}
+	for _, clClientCtx := range clClientContexts {
+		info := &clClientInfo{
+			IPAddr:  clClientCtx.GetIPAddress(),
+			PortNum: clClientCtx.GetHTTPPortNum(),
+		}
+		allClClientInfo = append(allClClientInfo, info)
+	}
+	templateData := configTemplateData{
+		ListenPortNum:        httpPortNumber,
+		CLClientInfo:         allClClientInfo,
+		SecondsPerSlot:       secondsPerSlot,
+		SlotsPerEpoch:        slotsPerEpoch,
+		GenesisUnixTimestamp: genesisUnixTimestamp,
+	}
+	if err := service_launch_utils.FillTemplateToPath(configTemplate, templateData, forkmonConfigFilepathOnModule); err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred filling the config file template")
+	}
+	configArtifactId, err := enclaveCtx.UploadFiles(forkmonConfigFilepathOnModule)
+	if err != nil {
+		return "", stacktrace.Propagate(err, "An error occurred uploading Forkmon config file at '%v'", forkmonConfigFilepathOnModule)
+	}
+
+	containerConfigSupplier := getContainerConfigSupplier(configArtifactId)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred getting the container config supplier")
 	}
@@ -72,48 +91,23 @@ func LaunchForkmon(
 }
 
 func getContainerConfigSupplier(
-	configTemplate *template.Template,
-	clClientContexts []*cl.CLClientContext,
-	genesisUnixTimestamp uint64,
-	secondsPerSlot uint32,
-	slotsPerEpoch uint32,
+	configArtifactId services.FilesArtifactID,
 ) (
-	func (privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error),
-	error,
+	func (privateIpAddr string) (*services.ContainerConfig, error),
 ) {
-	allClClientInfo := []*clClientInfo{}
-	for _, clClientCtx := range clClientContexts {
-		info := &clClientInfo{
-			IPAddr:  clClientCtx.GetIPAddress(),
-			PortNum: clClientCtx.GetHTTPPortNum(),
-		}
-		allClClientInfo = append(allClClientInfo, info)
-	}
-	templateData := configTemplateData{
-		ListenPortNum:        httpPortNumber,
-		CLClientInfo:         allClClientInfo,
-		SecondsPerSlot:       secondsPerSlot,
-		SlotsPerEpoch:        slotsPerEpoch,
-		GenesisUnixTimestamp: genesisUnixTimestamp,
-	}
-
-	containerConfigSupplier := func (privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-		configFileSharedPath := sharedDir.GetChildPath(configRelFilepathInSharedDir)
-		if err := service_launch_utils.FillTemplateToSharedPath(configTemplate, templateData, configFileSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred filling the config file template")
-		}
-
+	return func (privateIpAddr string) (*services.ContainerConfig, error) {
+		configFilepath := path.Join(forkmonConfigMountDirpathOnService, path.Base(forkmonConfigFilepathOnModule))
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithCmdOverride([]string{
 			"--config-path",
-			configFileSharedPath.GetAbsPathOnServiceContainer(),
+			configFilepath,
 		}).WithUsedPorts(
 			usedPorts,
-		).Build()
+		).WithFiles(map[services.FilesArtifactID]string{
+			configArtifactId: forkmonConfigMountDirpathOnService,
+		}).Build()
 
 		return containerConfig, nil
 	}
-
-	return containerConfigSupplier, nil
 }

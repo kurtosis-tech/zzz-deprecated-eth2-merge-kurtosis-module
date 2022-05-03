@@ -6,12 +6,12 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	recursive_copy "github.com/otiai10/copy"
+	"path"
 	"strings"
 	"time"
 )
@@ -19,8 +19,14 @@ import (
 const (
 	tekuBinaryFilepathInImage = "/opt/teku/bin/teku"
 
+	genesisDataMountDirpathOnServiceContainer = "/genesis"
+
 	// The Docker container runs as the "teku" user so we can't write to root
 	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
+
+	// These will get mounted as root and Teku needs directory write permissions, so we'll copy this
+	//  into the Teku user's home directory to get around it
+	validatorKeysDirpathOnServiceContainer = "/validator-keys"
 
 	// TODO Get rid of this being hardcoded; should be shared
 	validatingRewardsAccount = "0x0000000000000000000000000000000000000000"
@@ -35,14 +41,6 @@ const (
 	discoveryPortNum uint16 = 9000
 	httpPortNum             = 4000
 	metricsPortNum   uint16 = 8008
-
-	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
-
-	genesisSszRelFilepathInSharedDir = "genesis.ssz"
-	jwtSecretRelFilepathInSharedDir  = "jwtsecret"
-
-	validatorKeysDirpathRelToSharedDirRoot    = "validator-keys"
-	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
 
 	// 1) The Teku container runs as the "teku" user
 	// 2) Teku requires write access to the validator secrets directory, so it can write a lockfile into it as it uses the keys
@@ -78,14 +76,12 @@ var tekuLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type TekuCLClientLauncher struct {
-	genesisConfigYmlFilepathOnModuleContainer string
-	genesisSszFilepathOnModuleContainer       string
-	jwtSecretFilepathOnModuleContainer        string
+	clGenesisData *cl_genesis.CLGenesisData
 	expectedNumBeaconNodes                    uint32
 }
 
-func NewTekuCLClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string, expectedNumBeaconNodes uint32) *TekuCLClientLauncher {
-	return &TekuCLClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer, expectedNumBeaconNodes: expectedNumBeaconNodes}
+func NewTekuCLClientLauncher(clGenesisData *cl_genesis.CLGenesisData) *TekuCLClientLauncher {
+	return &TekuCLClientLauncher{clGenesisData: clGenesisData}
 }
 
 func (launcher *TekuCLClientLauncher) Launch(
@@ -97,7 +93,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
@@ -113,8 +109,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 		bootnodeContext,
 		elClientContext,
 		logLevel,
-		nodeKeystoreDirpaths.TekuKeysDirpath,
-		nodeKeystoreDirpaths.TekuSecretsDirpath,
+		keystoreFiles,
 		extraParams,
 	)
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
@@ -169,53 +164,10 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	logLevel string,
-	validatorKeysDirpathOnModuleContainer string,
-	validatorSecretsDirpathOnModuleContainer string,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				launcher.genesisConfigYmlFilepathOnModuleContainer,
-				genesisConfigYmlRelFilepathInSharedDir,
-			)
-		}
-
-		genesisSszSharedPath := sharedDir.GetChildPath(genesisSszRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis SSZ from '%v' to shared dir relative path '%v'",
-				launcher.genesisSszFilepathOnModuleContainer,
-				genesisSszRelFilepathInSharedDir,
-			)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepathInSharedDir)
-		}
-
-		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
-		if err := recursive_copy.Copy(
-			validatorKeysDirpathOnModuleContainer,
-			validatorKeysSharedPath.GetAbsPathOnThisContainer(),
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
-		}
-
-		validatorSecretsSharedPath := sharedDir.GetChildPath(validatorSecretsDirpathRelToSharedDirRoot)
-		if err := recursive_copy.Copy(
-			validatorSecretsDirpathOnModuleContainer,
-			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
-		}
-
+) func(string) (*services.ContainerConfig, error) {
+	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
@@ -228,23 +180,30 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			elClientContext.GetEngineRPCPortNum(),
 		)
 
+		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetConfigYMLRelativeFilepath())
+		genesisSszFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetGenesisSSZRelativeFilepath())
+		jwtSecretFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetJWTSecretRelativeFilepath())
+		validatorKeysDirpath := path.Join(validatorKeysDirpathOnServiceContainer, keystoreFiles.TekuKeysRelativeDirpath)
+		validatorSecretsDirpath := path.Join(validatorKeysDirpathOnServiceContainer, keystoreFiles.TekuSecretsRelativeDirpath)
 		cmdArgs := []string{
+			// Needed because the generated keys are owned by root and the Teku image runs as the 'teku' user
 			"cp",
 			"-R",
-			validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
+			validatorKeysDirpath,
 			destValidatorKeysDirpathInServiceContainer,
 			"&&",
+			// Needed because the generated keys are owned by root and the Teku image runs as the 'teku' user
 			"cp",
 			"-R",
-			validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			validatorSecretsDirpath,
 			destValidatorSecretsDirpathInServiceContainer,
 			"&&",
 			tekuBinaryFilepathInImage,
 			"--Xee-version kilnv2",
 			"--logging=" + logLevel,
 			"--log-destination=CONSOLE",
-			"--network=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
-			"--initial-state=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
+			"--network=" + genesisConfigFilepath,
+			"--initial-state=" + genesisSszFilepath,
 			"--data-path=" + consensusDataDirpathOnServiceContainer,
 			"--data-storage-mode=PRUNE",
 			"--p2p-enabled=true",
@@ -264,7 +223,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 				destValidatorKeysDirpathInServiceContainer,
 				destValidatorSecretsDirpathInServiceContainer,
 			),
-			fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretFilepath),
 			"--ee-endpoint=" + elClientEngineRpcUrlStr,
 			"--validators-proposer-default-fee-recipient=" + validatingRewardsAccount,
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
@@ -291,6 +250,9 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			"sh", "-c",
 		}).WithCmdOverride([]string{
 			cmdStr,
+		}).WithFiles(map[services.FilesArtifactID]string{
+			launcher.clGenesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
+			keystoreFiles.FilesArtifactID: validatorKeysDirpathOnServiceContainer,
 		}).Build()
 
 		return containerConfig, nil
