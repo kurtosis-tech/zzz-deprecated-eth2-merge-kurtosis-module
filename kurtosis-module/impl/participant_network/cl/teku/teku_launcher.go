@@ -19,12 +19,14 @@ import (
 const (
 	tekuBinaryFilepathInImage = "/opt/teku/bin/teku"
 
-	genesisDataMountDirpathOnServiceContainer = "/opt/teku/genesis"
+	genesisDataMountDirpathOnServiceContainer = "/genesis"
 
 	// The Docker container runs as the "teku" user so we can't write to root
 	consensusDataDirpathOnServiceContainer = "/opt/teku/consensus-data"
 
-	validatorKeysDirpathOnServiceContainer = "/opt/teku/validator-keys"
+	// These will get mounted as root and Teku needs directory write permissions, so we'll copy this
+	//  into the Teku user's home directory to get around it
+	validatorKeysDirpathOnServiceContainer = "/validator-keys"
 
 	// TODO Get rid of this being hardcoded; should be shared
 	validatingRewardsAccount = "0x0000000000000000000000000000000000000000"
@@ -39,9 +41,6 @@ const (
 	discoveryPortNum uint16 = 9000
 	httpPortNum             = 4000
 	metricsPortNum   uint16 = 8008
-
-	validatorKeysDirpathRelToSharedDirRoot    = "validator-keys"
-	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
 
 	// 1) The Teku container runs as the "teku" user
 	// 2) Teku requires write access to the validator secrets directory, so it can write a lockfile into it as it uses the keys
@@ -235,13 +234,13 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 		validatorKeysDirpath := path.Join(validatorKeysDirpathOnServiceContainer, keystoreFiles.TekuKeysRelativeDirpath)
 		validatorSecretsDirpath := path.Join(validatorKeysDirpathOnServiceContainer, keystoreFiles.TekuSecretsRelativeDirpath)
 		cmdArgs := []string{
-			// TODO DELETE?
+			// Needed because the generated keys are owned by root and the Teku image runs as the 'teku' user
 			"cp",
 			"-R",
 			validatorKeysDirpath,
 			destValidatorKeysDirpathInServiceContainer,
 			"&&",
-			// TODO DELETE?
+			// Needed because the generated keys are owned by root and the Teku image runs as the 'teku' user
 			"cp",
 			"-R",
 			validatorSecretsDirpath,
@@ -272,6 +271,13 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 				destValidatorKeysDirpathInServiceContainer,
 				destValidatorSecretsDirpathInServiceContainer,
 			),
+			/*
+			fmt.Sprintf(
+				"--validator-keys=%v:%v",
+				validatorKeysDirpath,
+				validatorSecretsDirpath,
+			),
+			 */
 			fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretFilepath),
 			"--ee-endpoint=" + elClientEngineRpcUrlStr,
 			"--validators-proposer-default-fee-recipient=" + validatingRewardsAccount,
