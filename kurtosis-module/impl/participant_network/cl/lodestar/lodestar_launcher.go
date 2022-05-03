@@ -6,8 +6,8 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -17,6 +17,8 @@ import (
 
 const (
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
+	genesisDataMountDirpathOnServiceContainer = "/genesis"
+	validatorKeysMountDirpathOnServiceContainer = "/validator-keys"
 
 	// Port IDs
 	tcpDiscoveryPortID = "tcpDiscovery"
@@ -28,10 +30,6 @@ const (
 	discoveryPortNum uint16 = 9000
 	httpPortNum             = 4000
 	metricsPortNum   uint16 = 8008
-
-	genesisConfigYmlRelFilepathInSharedDir = "genesis-config.yml"
-	genesisSszRelFilepathInSharedDir       = "genesis.ssz"
-	jwtSecretRelFilepathInSharedDir        = "jwtsecret"
 
 	maxNumHealthcheckRetries      = 30
 	timeBetweenHealthcheckRetries = 2 * time.Second
@@ -57,13 +55,11 @@ var lodestarLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type LodestarClientLauncher struct {
-	genesisConfigYmlFilepathOnModuleContainer string
-	genesisSszFilepathOnModuleContainer       string
-	jwtSecretFilepathOnModuleContainer        string
+	genesisData *cl_genesis.CLGenesisData
 }
 
-func NewLodestarClientLauncher(genesisConfigYmlFilepathOnModuleContainer string, genesisSszFilepathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string) *LodestarClientLauncher {
-	return &LodestarClientLauncher{genesisConfigYmlFilepathOnModuleContainer: genesisConfigYmlFilepathOnModuleContainer, genesisSszFilepathOnModuleContainer: genesisSszFilepathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer}
+func NewLodestarClientLauncher(genesisData *cl_genesis.CLGenesisData) *LodestarClientLauncher {
+	return &LodestarClientLauncher{genesisData: genesisData}
 }
 
 func (launcher *LodestarClientLauncher) Launch(
@@ -74,7 +70,7 @@ func (launcher *LodestarClientLauncher) Launch(
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	keystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
@@ -115,14 +111,12 @@ func (launcher *LodestarClientLauncher) Launch(
 
 	beaconHttpUrl := fmt.Sprintf("http://%v:%v", beaconServiceCtx.GetPrivateIPAddress(), httpPortNum)
 
-	validatorContainerConfigSupplier := getValidatorContainerConfigSupplier(
+	validatorContainerConfigSupplier := launcher.getValidatorContainerConfigSupplier(
 		validatorNodeServiceId,
 		image,
 		logLevel,
+		keystoreFiles,
 		beaconHttpUrl,
-		launcher.genesisConfigYmlFilepathOnModuleContainer,
-		nodeKeystoreDirpaths.RawKeysDirpath,
-		nodeKeystoreDirpaths.LodestarSecretsDirpath,
 		extraValidatorParams,
 	)
 	_, err = enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
@@ -160,34 +154,8 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 	elClientContext *el.ELClientContext,
 	logLevel string,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				launcher.genesisConfigYmlFilepathOnModuleContainer,
-				genesisConfigYmlRelFilepathInSharedDir,
-			)
-		}
-
-		genesisSszSharedPath := sharedDir.GetChildPath(genesisSszRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis SSZ from '%v' to shared dir relative path '%v'",
-				launcher.genesisSszFilepathOnModuleContainer,
-				genesisSszRelFilepathInSharedDir,
-			)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepathInSharedDir)
-		}
-
+) func(string) (*services.ContainerConfig, error) {
+	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
@@ -200,14 +168,17 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			elClientContext.GetEngineRPCPortNum(),
 		)
 
+		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())
+		genesisSszFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetGenesisSSZRelativeFilepath())
+		jwtSecretFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetJWTSecretRelativeFilepath())
 		cmdArgs := []string{
 			"beacon",
 			"--logLevel=" + logLevel,
 			fmt.Sprintf("--port=%v", discoveryPortNum),
 			fmt.Sprintf("--discoveryPort=%v", discoveryPortNum),
 			"--rootDir=" + consensusDataDirpathOnServiceContainer,
-			"--paramsFile=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
-			"--genesisStateFile=" + genesisSszSharedPath.GetAbsPathOnServiceContainer(),
+			"--paramsFile=" + genesisConfigFilepath,
+			"--genesisStateFile=" + genesisSszFilepath,
 			"--eth1.depositContractDeployBlock=0",
 			"--network.connectToDiscv5Bootnodes=true",
 			"--network.discv5.enabled=true",
@@ -223,7 +194,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			fmt.Sprintf("--enr.udp=%v", discoveryPortNum),
 			// Set per Pari's recommendation to reduce noise in the logs
 			"--network.subscribeAllSubnets=true",
-			fmt.Sprintf("--jwt-secret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics.enabled",
 			"--metrics.listenAddr=" + privateIpAddr,
@@ -243,45 +214,37 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			usedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).Build()
+		).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
+		}).Build()
 
 		return containerConfig, nil
 	}
 	return containerConfigSupplier
 }
 
-func getValidatorContainerConfigSupplier(
+func (launcher *LodestarClientLauncher) getValidatorContainerConfigSupplier(
 	serviceId services.ServiceID,
 	image string,
 	logLevel string,
+	keystoreFiles *cl2.KeystoreFiles,
 	beaconEndpoint string,
-	genesisConfigYmlFilepathOnModuleContainer string,
-	validatorKeysDirpathOnModuleContainer string,
-	validatorSecretsDirpathOnModuleContainer string,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				genesisConfigYmlFilepathOnModuleContainer,
-				genesisConfigYmlRelFilepathInSharedDir,
-			)
-		}
-
+) func(string) (*services.ContainerConfig, error) {
+	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		rootDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
 
+		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())
+		validatorKeysDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.RawKeysRelativeDirpath)
+		validatorSecretsDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.LodestarSecretsRelativeDirpath)
 		cmdArgs := []string{
 			"validator",
 			"--logLevel=" + logLevel,
 			"--rootDir=" + rootDirpath,
-			"--paramsFile=" + genesisConfigYmlSharedPath.GetAbsPathOnServiceContainer(),
+			"--paramsFile=" + genesisConfigFilepath,
 			"--server=" + beaconEndpoint,
-			"--keystoresDir=" + validatorKeysDirpathOnModuleContainer,
-			"--secretsDir=" + validatorSecretsDirpathOnModuleContainer,
+			"--keystoresDir=" + validatorKeysDirpath,
+			"--secretsDir=" + validatorSecretsDirpath,
 		}
 		if len(cmdArgs) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)
@@ -293,7 +256,10 @@ func getValidatorContainerConfigSupplier(
 			usedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).Build()
+		).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
+			keystoreFiles.FilesArtifactID: validatorKeysMountDirpathOnServiceContainer,
+		}).Build()
 
 		return containerConfig, nil
 	}

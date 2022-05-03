@@ -6,12 +6,12 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/genesis_consts"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"os"
 	"path"
 	"strings"
 	"time"
@@ -38,15 +38,13 @@ const (
 	// TODO Scale this dynamically based on CPUs available and Geth nodes mining
 	numMiningThreads = 1
 
-	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
-	sharedGenesisJsonRelFilepath = "genesis.json"
-	sharedJWTSecretRelFilepath   = "jwtsecret"
+	genesisDataMountDirpath = "/genesis"
+
+	prefundedKeysMountDirpath = "/prefunded-keys"
 
 	// The dirpath of the execution data directory on the client container
 	executionDataDirpathOnClientContainer = "/execution-data"
 	keystoreDirpathOnClientContainer      = executionDataDirpathOnClientContainer + "/keystore"
-
-	gethKeysRelDirpathInSharedDir = "geth-keys"
 
 	expectedSecondsForGethInit                              = 10
 	expectedSecondsPerKeyImport                             = 8
@@ -74,14 +72,14 @@ var verbosityLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type GethELClientLauncher struct {
-	genesisJsonFilepathOnModuleContainer string
-	jwtSecretFilepathOnModuleContainer   string
+	genesisData *el_genesis.ELGenesisData
+	prefundedGethKeysArtifactId services.FilesArtifactID
 	prefundedAccountInfo                 []*genesis_consts.PrefundedAccount
 	networkId                            string
 }
 
-func NewGethELClientLauncher(genesisJsonFilepathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *GethELClientLauncher {
-	return &GethELClientLauncher{genesisJsonFilepathOnModuleContainer: genesisJsonFilepathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer, prefundedAccountInfo: prefundedAccountInfo, networkId: networkId}
+func NewGethELClientLauncher(genesisData *el_genesis.ELGenesisData, prefundedGethKeysArtifactId services.FilesArtifactID, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *GethELClientLauncher {
+	return &GethELClientLauncher{genesisData: genesisData, prefundedGethKeysArtifactId: prefundedGethKeysArtifactId, prefundedAccountInfo: prefundedAccountInfo, networkId: networkId}
 }
 
 func (launcher *GethELClientLauncher) Launch(
@@ -101,7 +99,6 @@ func (launcher *GethELClientLauncher) Launch(
 
 	containerConfigSupplier := launcher.getContainerConfigSupplier(
 		image,
-		launcher.networkId,
 		existingElClients,
 		logLevel,
 		extraParams,
@@ -143,51 +140,33 @@ func (launcher *GethELClientLauncher) Launch(
 // ====================================================================================================
 func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	image string,
-	networkId string,
 	// NOTE: If this is nil, the node will be configured as a bootnode
 	existingElClients []*el.ELClientContext,
 	verbosityLevel string,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		genesisJsonSharedPath := sharedDir.GetChildPath(sharedGenesisJsonRelFilepath)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModuleContainer, genesisJsonSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying genesis JSON file '%v' into shared directory path '%v'", launcher.genesisJsonFilepathOnModuleContainer, sharedGenesisJsonRelFilepath)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(sharedJWTSecretRelFilepath)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, sharedJWTSecretRelFilepath)
-		}
-
-		gethKeysDirSharedPath := sharedDir.GetChildPath(gethKeysRelDirpathInSharedDir)
-		if err := os.Mkdir(gethKeysDirSharedPath.GetAbsPathOnThisContainer(), os.ModePerm); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred creating the Geth keys directory in the shared dir")
-		}
+) func(string) (*services.ContainerConfig, error) {
+	result := func(privateIpAddr string) (*services.ContainerConfig, error) {
+		genesisJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetGethGenesisJsonRelativeFilepath())
+		jwtSecretJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetJWTSecretRelativeFilepath())
 
 		accountAddressesToUnlock := []string{}
 		for _, prefundedAccount := range launcher.prefundedAccountInfo {
-			keyFilepathOnModuleContainer := prefundedAccount.GethKeyFilepath
-			keyFilename := path.Base(keyFilepathOnModuleContainer)
-			keyRelFilepathInSharedDir := path.Join(gethKeysRelDirpathInSharedDir, keyFilename)
-			keyFileSharedPath := sharedDir.GetChildPath(keyRelFilepathInSharedDir)
-			if err := service_launch_utils.CopyFileToSharedPath(keyFilepathOnModuleContainer, keyFileSharedPath); err != nil {
-				return nil, stacktrace.Propagate(err, "An error occurred copying key file '%v' to the shared directory", keyFilepathOnModuleContainer)
-			}
-
 			accountAddressesToUnlock = append(accountAddressesToUnlock, prefundedAccount.Address)
 		}
+		accountsToUnlockStr := strings.Join(accountAddressesToUnlock, ",")
 
 		initDatadirCmdStr := fmt.Sprintf(
 			"geth init --datadir=%v %v",
 			executionDataDirpathOnClientContainer,
-			genesisJsonSharedPath.GetAbsPathOnServiceContainer(),
+			genesisJsonFilepathOnClient,
 		)
 
+		// We need to put the keys into the right spot
 		copyKeysIntoKeystoreCmdStr := fmt.Sprintf(
 			"cp -r %v/* %v/",
-			gethKeysDirSharedPath.GetAbsPathOnServiceContainer(),
+			// TODO We have to do this because Kurtosis' current method for storing directories in files artifacts
+			//  We can remove this when Kurtosis can "flatten" directories when storing files artifacts
+			path.Join(prefundedKeysMountDirpath, path.Base(static_files.GethPrefundedKeysDirpath)),
 			keystoreDirpathOnClientContainer,
 		)
 
@@ -198,7 +177,6 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			gethAccountPasswordsFile,
 		)
 
-		accountsToUnlockStr := strings.Join(accountAddressesToUnlock, ",")
 		launchNodeCmdArgs := []string{
 			"geth",
 			"--verbosity=" + verbosityLevel,
@@ -208,7 +186,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--miner.etherbase=" + miningRewardsAccount,
 			fmt.Sprintf("--miner.threads=%v", numMiningThreads),
 			"--datadir=" + executionDataDirpathOnClientContainer,
-			"--networkid=" + networkId,
+			"--networkid=" + launcher.networkId,
 			"--http",
 			"--http.addr=0.0.0.0",
 			// WARNING: The admin info endpoint is enabled so that we can easily get ENR/enode, which means
@@ -224,7 +202,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--authrpc.port=%v", engineRpcPortNum),
 			"--authrpc.addr=0.0.0.0",
 			"--authrpc.vhosts=*",
-			fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretJsonFilepathOnClient),
 		}
 		if len(existingElClients) > 0 {
 			bootnodeContext := existingElClients[0]
@@ -254,6 +232,9 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			entrypointArgs,
 		).WithCmdOverride([]string{
 			commandStr,
+		}).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpath,
+			launcher.prefundedGethKeysArtifactId:      prefundedKeysMountDirpath,
 		}).Build()
 
 		return containerConfig, nil

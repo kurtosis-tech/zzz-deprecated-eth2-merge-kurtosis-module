@@ -6,10 +6,11 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
+	"path"
 	"time"
 )
 
@@ -17,9 +18,7 @@ const (
 	// The dirpath of the execution data directory on the client container
 	executionDataDirpathOnClientContainer = "/execution-data"
 
-	// The filepath of the genesis JSON file in the shared directory, relative to the shared directory root
-	sharedNethermindGenesisJsonRelFilepath = "nethermind_genesis.json"
-	sharedJWTSecretRelFilepath             = "jwtsecret"
+	genesisDataMountDirpath = "/genesis"
 
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
 
@@ -56,13 +55,12 @@ var nethermindLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type NethermindELClientLauncher struct {
-	genesisJsonFilepathOnModule        string
-	jwtSecretFilepathOnModuleContainer string
+	genesisData *el_genesis.ELGenesisData
 	totalTerminalDifficulty            uint64
 }
 
-func NewNethermindELClientLauncher(genesisJsonFilepathOnModule string, jwtSecretFilepathOnModuleContainer string, totalTerminalDifficulty uint64) *NethermindELClientLauncher {
-	return &NethermindELClientLauncher{genesisJsonFilepathOnModule: genesisJsonFilepathOnModule, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer, totalTerminalDifficulty: totalTerminalDifficulty}
+func NewNethermindELClientLauncher(genesisData *el_genesis.ELGenesisData, totalTerminalDifficulty uint64) *NethermindELClientLauncher {
+	return &NethermindELClientLauncher{genesisData: genesisData, totalTerminalDifficulty: totalTerminalDifficulty}
 }
 
 func (launcher *NethermindELClientLauncher) Launch(
@@ -120,8 +118,8 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 	existingElClients []*el.ELClientContext,
 	logLevel string,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+) func(string) (*services.ContainerConfig, error) {
+	result := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		if len(existingElClients) == 0 {
 			return nil, stacktrace.NewError("Nethermind nodes cannot be boot nodes")
 		}
@@ -130,26 +128,15 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 		}
 		bootnode1ElContext := existingElClients[0]
 		bootnode2ElContext := existingElClients[1]
-
-		nethermindGenesisJsonSharedPath := sharedDir.GetChildPath(sharedNethermindGenesisJsonRelFilepath)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisJsonFilepathOnModule, nethermindGenesisJsonSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the Nethermind genesis JSON file from '%v' into the Nethermind node being started",
-				launcher.genesisJsonFilepathOnModule,
-			)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(sharedJWTSecretRelFilepath)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, sharedJWTSecretRelFilepath)
-		}
+		
+		genesisJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetNethermindGenesisJsonRelativeFilepath())
+		jwtSecretJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetJWTSecretRelativeFilepath())
 
 		commandArgs := []string{
 			"--config=kiln",
 			"--log=" + logLevel,
 			"--datadir=" + executionDataDirpathOnClientContainer,
-			"--Init.ChainSpecPath=" + nethermindGenesisJsonSharedPath.GetAbsPathOnServiceContainer(),
+			"--Init.ChainSpecPath=" + genesisJsonFilepathOnClient,
 			"--Init.WebSocketsEnabled=true",
 			"--Init.DiagnosticMode=None",
 			"--JsonRpc.Enabled=true",
@@ -165,7 +152,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			"--Merge.Enabled=true",
 			fmt.Sprintf("--Merge.TerminalTotalDifficulty=%v", launcher.totalTerminalDifficulty),
 			"--Merge.FeeRecipient=" + miningRewardsAccount,
-			fmt.Sprintf("--JsonRpc.JwtSecretFile=%v", jwtSecretSharedPath.GetAbsPathOnServiceContainer()),
+			fmt.Sprintf("--JsonRpc.JwtSecretFile=%v", jwtSecretJsonFilepathOnClient),
 			fmt.Sprintf("--JsonRpc.AdditionalRpcUrls=[\"http://0.0.0.0:%v|http;ws|net;eth;subscribe;engine;web3;client\"]", engineRpcPortNum),
 			fmt.Sprintf(
 				 "--Discovery.Bootnodes=%v,%v",
@@ -183,7 +170,9 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			usedPorts,
 		).WithCmdOverride(
 			commandArgs,
-		).Build()
+		).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpath,
+		}).Build()
 
 		return containerConfig, nil
 	}

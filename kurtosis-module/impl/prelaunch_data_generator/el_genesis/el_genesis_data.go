@@ -1,35 +1,35 @@
 package el_genesis
 
+import "github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
+
 // Represents the paths to the EL genesis files *on the module container*
 type ELGenesisData struct {
-	// Path to the directory holding all the EL genesis files
-	parentDirpath string
+	// The ID of the files artifact containing EL genesis information
+	filesArtifactId services.FilesArtifactID
 
-	jwtSecretFilepath string
-	
-	gethGenesisJsonFilepath string
-
-	nethermindGenesisJsonFilepath string
-
-	besuGenesisJsonFilepath string
+	// Relative filepaths inside the files artifact where various files can be found
+	jwtSecretRelativeFilepath string
+	gethGenesisJsonRelativeFilepath string
+	nethermindGenesisJsonRelativeFilepath string
+	besuGenesisJsonRelativeFilepath string
 }
 
-func newELGenesisData(parentDirpath string, jwtSecretFilepath string, gethGenesisJsonFilepath string, nethermindGenesisJsonFilepath string, besuGenesisJsonFilepath string) *ELGenesisData {
-	return &ELGenesisData{parentDirpath: parentDirpath, jwtSecretFilepath: jwtSecretFilepath, gethGenesisJsonFilepath: gethGenesisJsonFilepath, nethermindGenesisJsonFilepath: nethermindGenesisJsonFilepath, besuGenesisJsonFilepath: besuGenesisJsonFilepath}
+func newELGenesisData(filesArtifactId services.FilesArtifactID, jwtSecretRelativeFilepath string, gethGenesisJsonRelativeFilepath string, nethermindGenesisJsonRelativeFilepath string, besuGenesisJsonRelativeFilepath string) *ELGenesisData {
+	return &ELGenesisData{filesArtifactId: filesArtifactId, jwtSecretRelativeFilepath: jwtSecretRelativeFilepath, gethGenesisJsonRelativeFilepath: gethGenesisJsonRelativeFilepath, nethermindGenesisJsonRelativeFilepath: nethermindGenesisJsonRelativeFilepath, besuGenesisJsonRelativeFilepath: besuGenesisJsonRelativeFilepath}
 }
 
-func (paths *ELGenesisData) GetParentDirpath() string {
-	return paths.parentDirpath
+func (data *ELGenesisData) GetFilesArtifactID() services.FilesArtifactID {
+	return data.filesArtifactId
 }
-func (paths *ELGenesisData) GetJWTSecretFilepath() string {
-	return paths.jwtSecretFilepath
+func (data *ELGenesisData) GetJWTSecretRelativeFilepath() string {
+	return data.jwtSecretRelativeFilepath
 }
-func (paths *ELGenesisData) GetGethGenesisJsonFilepath() string {
-	return paths.gethGenesisJsonFilepath
+func (data *ELGenesisData) GetGethGenesisJsonRelativeFilepath() string {
+	return data.gethGenesisJsonRelativeFilepath
 }
-func (paths *ELGenesisData) GetNethermindGenesisJsonFilepath() string {
-	return paths.nethermindGenesisJsonFilepath
+func (data *ELGenesisData) GetNethermindGenesisJsonRelativeFilepath() string {
+	return data.nethermindGenesisJsonRelativeFilepath
 }
-func (paths *ELGenesisData) GetBesuGenesisJsonFilepath() string {
-	return paths.besuGenesisJsonFilepath
+func (data *ELGenesisData) GetBesuGenesisJsonRelativeFilepath() string {
+	return data.besuGenesisJsonRelativeFilepath
 }

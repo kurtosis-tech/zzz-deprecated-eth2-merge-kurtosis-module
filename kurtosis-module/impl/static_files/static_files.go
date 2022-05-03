@@ -20,6 +20,10 @@ const (
 	CLGenesisGenerationConfigTemplateFilepath    = clGenesisGenerationConfigDirpath + "/config.yaml.tmpl"
 	CLGenesisGenerationMnemonicsTemplateFilepath = clGenesisGenerationConfigDirpath + "/mnemonics.yaml.tmpl"
 
+	// Prefunded keys
+	prefundedKeysDirpath = staticFilesDirpath + "/genesis-prefunded-keys"
+	GethPrefundedKeysDirpath = prefundedKeysDirpath + "/geth"
+
 	// Forkmon config
 	ForkmonConfigTemplateFilepath = staticFilesDirpath + "/forkmon-config/config.toml.tmpl"
 

@@ -6,23 +6,24 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	recursive_copy "github.com/otiai10/copy"
-	"os"
+	"path"
 	"time"
 )
 
 const (
 	lighthouseBinaryCommand = "lighthouse"
 
+	genesisDataMountpointOnClients = "/genesis"
+
+	validatorKeysMountpointOnClients = "/validator-keys"
+
 	// ---------------------------------- Beacon client -------------------------------------
 	consensusDataDirpathOnBeaconServiceContainer = "/consensus-data"
-	beaconConfigDataDirpathRelToSharedDirRoot    = "config-data"
-	jwtSecretFilepathRelToSharedDirRoot          = "jwtsecret"
 
 	// Port IDs
 	beaconTcpDiscoveryPortID = "tcpDiscovery"
@@ -39,11 +40,6 @@ const (
 	timeBetweenHealthcheckRetries = 1 * time.Second
 
 	// ---------------------------------- Validator client -------------------------------------
-	validatorConfigDataDirpathRelToSharedDirRoot = "config-data"
-
-	validatorKeysRelDirpathInSharedDir    = "validator-keys"
-	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
-
 	validatingRewardsAccount = "0x0000000000000000000000000000000000000000"
 
 	validatorHttpPortID     = "http"
@@ -76,13 +72,11 @@ var lighthouseLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type LighthouseCLClientLauncher struct {
-	// The dirpath on the module container where the CL genesis config data directory exists
-	configDataDirpathOnModuleContainer string
-	jwtSecretFilepathOnModuleContainer string
+	genesisData *cl_genesis.CLGenesisData
 }
 
-func NewLighthouseCLClientLauncher(configDataDirpathOnModuleContainer string, jwtSecretFilepathOnModuleContainer string) *LighthouseCLClientLauncher {
-	return &LighthouseCLClientLauncher{configDataDirpathOnModuleContainer: configDataDirpathOnModuleContainer, jwtSecretFilepathOnModuleContainer: jwtSecretFilepathOnModuleContainer}
+func NewLighthouseCLClientLauncher(genesisData *cl_genesis.CLGenesisData) *LighthouseCLClientLauncher {
+	return &LighthouseCLClientLauncher{genesisData: genesisData}
 }
 
 func (launcher *LighthouseCLClientLauncher) Launch(
@@ -93,7 +87,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
-	nodeKeystoreDirpaths *cl2.NodeTypeKeystoreDirpaths,
+	nodeKeystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
 ) (resultClientCtx *cl.CLClientContext, resultErr error) {
@@ -135,8 +129,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 		image,
 		logLevel,
 		beaconHttpUrl,
-		nodeKeystoreDirpaths.RawKeysDirpath,
-		nodeKeystoreDirpaths.RawSecretsDirpath,
+		nodeKeystoreFiles,
 		extraValidatorParams,
 	)
 	validatorServiceCtx, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
@@ -188,26 +181,8 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 	elClientCtx *el.ELClientContext,
 	logLevel string,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(beaconConfigDataDirpathRelToSharedDirRoot)
-
-		destConfigDataDirpathOnModule := configDataDirpathOnServiceSharedPath.GetAbsPathOnThisContainer()
-		if err := recursive_copy.Copy(launcher.configDataDirpathOnModuleContainer, destConfigDataDirpathOnModule); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the config data directory on the module, '%v', into the service container, '%v'",
-				launcher.configDataDirpathOnModuleContainer,
-				destConfigDataDirpathOnModule,
-			)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretFilepathRelToSharedDirRoot)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretFilepathRelToSharedDirRoot)
-		}
-
+) func(string) (*services.ContainerConfig, error) {
+	return func(privateIpAddr string) (*services.ContainerConfig, error) {
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientCtx.GetIPAddress(),
@@ -220,7 +195,10 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			elClientCtx.GetEngineRPCPortNum(),
 		)
 
-		configDataDirpathOnService := configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer()
+		// For some reason, Lighthouse takes in the parent directory of the config file (rather than the path to the config file itself)
+		genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClients, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
+		jwtSecretFilepath := path.Join(genesisDataMountpointOnClients, launcher.genesisData.GetJWTSecretRelativeFilepath())
+
 		// NOTE: If connecting to the merge devnet remotely we DON'T want the following flags; when they're not set, the node's external IP address is auto-detected
 		//  from the peers it communicates with but when they're set they basically say "override the autodetection and
 		//  use what I specify instead." This requires having a know external IP address and port, which we definitely won't
@@ -234,7 +212,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			"beacon_node",
 			"--debug-level=" + logLevel,
 			"--datadir=" + consensusDataDirpathOnBeaconServiceContainer,
-			"--testnet-dir=" + configDataDirpathOnService,
+			"--testnet-dir=" + genesisConfigParentDirpathOnClient,
 			"--eth1",
 			// vvvvvvvvvvvvvvvvvvv REMOVE THESE WHEN CONNECTING TO EXTERNAL NET vvvvvvvvvvvvvvvvvvvvv
 			"--disable-enr-auto-update",
@@ -255,7 +233,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--disable-packet-filter",
 			"--execution-endpoints=" + elClientEngineRpcUrlStr,
 			"--eth1-endpoints=" + elClientRpcUrlStr,
-			"--jwt-secrets=" + jwtSecretSharedPath.GetAbsPathOnServiceContainer(),
+			"--jwt-secrets=" + jwtSecretFilepath,
 			"--suggested-fee-recipient=" + validatingRewardsAccount,
 			// Set per Paris' recommendation to reduce noise in the logs
 			"--subscribe-all-subnets",
@@ -279,7 +257,9 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			beaconUsedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).Build()
+		).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataMountpointOnClients,
+		}).Build()
 		return containerConfig, nil
 	}
 }
@@ -288,53 +268,22 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 	image string,
 	logLevel string,
 	beaconClientHttpUrl string,
-	validatorKeysDirpathOnModuleContainer string,
-	validatorSecretsDirpathOnModuleContainer string,
+	nodeKeystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(validatorConfigDataDirpathRelToSharedDirRoot)
-
-		destConfigDataDirpathOnModule := configDataDirpathOnServiceSharedPath.GetAbsPathOnThisContainer()
-		if err := recursive_copy.Copy(launcher.configDataDirpathOnModuleContainer, destConfigDataDirpathOnModule); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the config data directory on the module, '%v', into the service container, '%v'",
-				launcher.configDataDirpathOnModuleContainer,
-				destConfigDataDirpathOnModule,
-			)
-		}
-
-		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysRelDirpathInSharedDir)
-		if err := recursive_copy.Copy(
-			validatorKeysDirpathOnModuleContainer,
-			validatorKeysSharedPath.GetAbsPathOnThisContainer(),
-			// NOTE: We have to add this because the Lighthouse validator node wants to write a slashing-protection.sqlite
-			//  file to the validator keys directory, but it runs as the 'lighthouse' user (rather than 'root') so doesn't
-			//  have default write access to the validator keys directory
-			recursive_copy.Options{AddPermission: os.ModePerm},
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
-		}
-
-		validatorSecretsSharedPath := sharedDir.GetChildPath(validatorSecretsRelDirpathInSharedDir)
-		if err := recursive_copy.Copy(
-			validatorSecretsDirpathOnModuleContainer,
-			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
-		}
-
-		configDataDirpathOnService := configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer()
+) func(string) (*services.ContainerConfig, error) {
+	return func(privateIpAddr string) (*services.ContainerConfig, error) {
+		// For some reason, Lighthouse takes in the parent directory of the config file (rather than the path to the config file itself)
+		genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClients, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
+		validatorKeysDirpath := path.Join(validatorKeysMountpointOnClients, nodeKeystoreFiles.RawKeysRelativeDirpath)
+		validatorSecretsDirpath := path.Join(validatorKeysMountpointOnClients, nodeKeystoreFiles.RawSecretsRelativeDirpath)
 		cmdArgs := []string{
 			"lighthouse",
 			"validator_client",
 			"--debug-level=" + logLevel,
-			"--testnet-dir=" + configDataDirpathOnService,
-			"--validators-dir=" + validatorKeysSharedPath.GetAbsPathOnServiceContainer(),
+			"--testnet-dir=" + genesisConfigParentDirpathOnClient,
+			"--validators-dir=" + validatorKeysDirpath,
 			// NOTE: When secrets-dir is specified, we can't add the --data-dir flag
-			"--secrets-dir=" + validatorSecretsSharedPath.GetAbsPathOnServiceContainer(),
+			"--secrets-dir=" + validatorSecretsDirpath,
 			// The node won't have a slashing protection database and will fail to start otherwise
 			"--init-slashing-protection",
 			"--http",
@@ -360,7 +309,10 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 			validatorUsedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).Build()
+		).WithFiles(map[services.FilesArtifactID]string{
+			launcher.genesisData.GetFilesArtifactID(): genesisDataMountpointOnClients,
+			nodeKeystoreFiles.FilesArtifactID: validatorKeysMountpointOnClients,
+		}).Build()
 		return containerConfig, nil
 	}
 }

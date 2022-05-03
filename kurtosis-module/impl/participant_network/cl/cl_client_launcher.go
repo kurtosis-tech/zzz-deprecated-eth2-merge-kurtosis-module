@@ -19,7 +19,7 @@ type CLClientLauncher interface {
 		// If nil, the node will be launched as a bootnode
 		bootnodeContext *CLClientContext,
 		elClientContext *el.ELClientContext,
-		nodeKeystoreDirpaths *cl_validator_keystores.NodeTypeKeystoreDirpaths,
+		nodeKeystoreFiles *cl_validator_keystores.KeystoreFiles,
 		extraBeaconParams []string,
 		extraValidatorParams []string,
 	) (
