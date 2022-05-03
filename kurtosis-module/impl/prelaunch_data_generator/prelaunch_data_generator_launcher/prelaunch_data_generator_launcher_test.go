@@ -1,4 +1,4 @@
-package prelaunch_data_generator
+package prelaunch_data_generator_launcher
 
 import (
 	"context"
@@ -85,20 +85,6 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 
 	executeParams := module_io.GetDefaultExecuteParams()
 	networkParams := executeParams.Network
-
-	/*
-	participantParams := executeParams.Participants
-
-	dataGeneratorCtx, err := LaunchPrelaunchDataGenerator(
-		enclaveCtx,
-		networkParams.NetworkID,
-		networkParams.DepositContractAddress,
-		networkParams.TotalTerminalDifficulty,
-		networkParams.PreregisteredValidatorKeysMnemonic,
-	)
-	require.NoError(t, err)
-
-	 */
 
 	elGenesisData, err := el_genesis.GenerateELGenesisData(
 		context.Background(),

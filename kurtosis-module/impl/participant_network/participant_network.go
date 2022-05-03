@@ -14,7 +14,6 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/besu"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/nethermind"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
@@ -54,8 +53,6 @@ var clClientContextForBootClClients *cl.CLClientContext = nil
 func LaunchParticipantNetwork(
 	ctx context.Context,
 	enclaveCtx *enclaves.EnclaveContext,
-	// TODO Remove this param
-	prelaunchDataGeneratorCtx *prelaunch_data_generator.PrelaunchDataGeneratorContext,
 	networkParams *module_io.NetworkParams,
 	allParticipantSpecs []*module_io.ParticipantParams,
 	globalLogLevel module_io.GlobalClientLogLevel,

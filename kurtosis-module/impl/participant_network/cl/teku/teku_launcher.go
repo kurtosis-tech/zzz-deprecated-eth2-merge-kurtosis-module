@@ -168,54 +168,6 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		/*
-		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				launcher.genesisConfigYmlFilepathOnModuleContainer,
-				genesisConfigYmlRelFilepathInSharedDir,
-			)
-		}
-
-		genesisSszSharedPath := sharedDir.GetChildPath(genesisSszRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis SSZ from '%v' to shared dir relative path '%v'",
-				launcher.genesisSszFilepathOnModuleContainer,
-				genesisSszRelFilepathInSharedDir,
-			)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepathInSharedDir)
-		}
-
-		 */
-
-		/*
-		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
-		if err := recursive_copy.Copy(
-			validatorKeysDirpathOnModuleContainer,
-			validatorKeysSharedPath.GetAbsPathOnThisContainer(),
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
-		}
-
-		validatorSecretsSharedPath := sharedDir.GetChildPath(validatorSecretsDirpathRelToSharedDirRoot)
-		if err := recursive_copy.Copy(
-			validatorSecretsDirpathOnModuleContainer,
-			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
-		}
-
-		 */
-
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
@@ -271,13 +223,6 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 				destValidatorKeysDirpathInServiceContainer,
 				destValidatorSecretsDirpathInServiceContainer,
 			),
-			/*
-			fmt.Sprintf(
-				"--validator-keys=%v:%v",
-				validatorKeysDirpath,
-				validatorSecretsDirpath,
-			),
-			 */
 			fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretFilepath),
 			"--ee-endpoint=" + elClientEngineRpcUrlStr,
 			"--validators-proposer-default-fee-recipient=" + validatingRewardsAccount,

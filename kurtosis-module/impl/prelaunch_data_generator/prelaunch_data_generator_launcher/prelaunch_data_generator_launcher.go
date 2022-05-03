@@ -1,4 +1,4 @@
-package new_launcher_TODO
+package prelaunch_data_generator_launcher
 
 import (
 	"fmt"
