@@ -11,8 +11,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"io/ioutil"
-	"os"
 	"path"
 	"strings"
 	"time"
@@ -25,6 +23,7 @@ const (
 	consensusDataDirpathOnServiceContainer = "/consensus-data"
 	genesisDataMountDirpathOnServiceContainer = "/genesis"
 	validatorKeysMountDirpathOnServiceContainer = "/validator-keys"
+	prysmPasswordMountDirpathOnServiceContainer = "/prysm-password"
 
 	// Port IDs
 	tcpDiscoveryPortID        = "tcpDiscovery"
@@ -76,11 +75,12 @@ var prysmLogLevels = map[module_io.GlobalClientLogLevel]string{
 
 type PrysmCLClientLauncher struct {
 	genesisData *cl_genesis.CLGenesisData
-	prysmPassword                             string
+	prysmPasswordArtifactId services.FilesArtifactID
+	prysmPasswordRelativeFilepath string
 }
 
-func NewPrysmCLClientLauncher(genesisData *cl_genesis.CLGenesisData, prysmPassword string) *PrysmCLClientLauncher {
-	return &PrysmCLClientLauncher{genesisData: genesisData, prysmPassword: prysmPassword}
+func NewPrysmCLClientLauncher(genesisData *cl_genesis.CLGenesisData, prysmPasswordArtifactId services.FilesArtifactID, prysmPasswordRelativeFilepath string) *PrysmCLClientLauncher {
+	return &PrysmCLClientLauncher{genesisData: genesisData, prysmPasswordArtifactId: prysmPasswordArtifactId, prysmPasswordRelativeFilepath: prysmPasswordRelativeFilepath}
 }
 
 func (launcher *PrysmCLClientLauncher) Launch(
@@ -204,8 +204,8 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 	elClientContext *el.ELClientContext,
 	logLevel string,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+) func(string) (*services.ContainerConfig, error) {
+	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		elClientEngineRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
@@ -270,16 +270,20 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 	beaconHTTPEndpoint string,
 	keystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+) func(string) (*services.ContainerConfig, error) {
+	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
+		/*
 		prysmPasswordTxtSharedPath := sharedDir.GetChildPath(prysmPasswordTxtRelFilepathInSharedDir)
 		prysmPasswordTxtFilepathOnModuleContainer := prysmPasswordTxtSharedPath.GetAbsPathOnThisContainer()
 		if err := ioutil.WriteFile(prysmPasswordTxtFilepathOnModuleContainer, []byte(launcher.prysmPassword), os.ModePerm); err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred writing the Prysm keystore password to file '%v'", prysmPasswordTxtFilepathOnModuleContainer)
 		}
 
+		 */
+
 		consensusDataDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
 		prysmKeystoreDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.PrysmRelativeDirpath)
+		prysmPasswordFilepath := path.Join(prysmPasswordMountDirpathOnServiceContainer, launcher.prysmPasswordRelativeFilepath)
 
 		cmdArgs := []string{
 			"--accept-terms-of-use=true", //it's mandatory in order to run the node
@@ -287,7 +291,7 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			"--beacon-rpc-gateway-provider=" + beaconHTTPEndpoint,
 			"--beacon-rpc-provider=" + beaconRPCEndpoint,
 			"--wallet-dir=" + prysmKeystoreDirpath,
-			"--wallet-password-file=" + prysmPasswordTxtSharedPath.GetAbsPathOnServiceContainer(),
+			"--wallet-password-file=" + prysmPasswordFilepath,
 			"--datadir=" + consensusDataDirpath,
 			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
@@ -311,7 +315,8 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			cmdArgs,
 		).WithFiles(map[services.FilesArtifactID]string{
 			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
-			keystoreFiles.FilesArtifactID: validatorKeysMountDirpathOnServiceContainer,
+			keystoreFiles.FilesArtifactID:             validatorKeysMountDirpathOnServiceContainer,
+			launcher.prysmPasswordArtifactId:          prysmPasswordMountDirpathOnServiceContainer,
 		}).Build()
 
 		return containerConfig, nil

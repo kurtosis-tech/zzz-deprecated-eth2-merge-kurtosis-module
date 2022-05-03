@@ -233,7 +233,8 @@ func LaunchParticipantNetwork(
 		),
 		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLClientLauncher(
 			clGenesisData,
-			clValidatorData.PrysmPassword,
+			clValidatorData.PrysmPasswordArtifactId,
+			clValidatorData.PrysmPasswordRelativeFilepath,
 		),
 	}
 	preregisteredValidatorKeysForNodes := clValidatorData.PerNodeKeystores

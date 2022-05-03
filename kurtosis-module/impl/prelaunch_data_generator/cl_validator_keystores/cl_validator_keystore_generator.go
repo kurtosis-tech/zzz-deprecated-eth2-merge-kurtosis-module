@@ -16,7 +16,8 @@ const (
 	nodeKeystoresOutputDirpathFormatStr = "/node-%v-keystores"
 
 	// Prysm keystores are encrypted with a password
-	prysmPassword = "password"
+	prysmPassword                    = "password"
+	prysmPasswordFilepathOnGenerator = "/tmp/prysm-password.txt"
 
 	keystoresGenerationToolName = "eth2-val-tools"
 
@@ -96,7 +97,7 @@ func GenerateCLValidatorKeystores(
 	// Store outputs into files artifacts
 	keystoreFiles := []*KeystoreFiles{}
 	for idx, outputDirpath := range allOutputDirpaths {
-		artifactId, err := enclaveCtx.StoreFilesFromService(ctx, serviceCtx.GetServiceID(), outputDirpath)
+		artifactId, err := enclaveCtx.StoreServiceFiles(ctx, serviceCtx.GetServiceID(), outputDirpath)
 		if err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred storing keystore files at '%v' for node #%v", outputDirpath, idx)
 		}
@@ -117,8 +118,26 @@ func GenerateCLValidatorKeystores(
 		keystoreFiles = append(keystoreFiles, toAdd)
 	}
 
+	writePrysmPasswordFileCmd := []string{
+		"sh",
+		"-c",
+		fmt.Sprintf(
+			"echo '%v' > %v",
+			prysmPassword,
+			prysmPasswordFilepathOnGenerator,
+		),
+	}
+	if err := execCommand(serviceCtx, writePrysmPasswordFileCmd); err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred writing the Prysm password to file '%v' on the generator", prysmPasswordFilepathOnGenerator)
+	}
+	prysmPasswordArtifactId, err := enclaveCtx.StoreServiceFiles(ctx, serviceCtx.GetServiceID(), prysmPasswordFilepathOnGenerator)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred storing the Prysm password file at '%v'", prysmPasswordFilepathOnGenerator)
+	}
+
 	result := NewGenerateKeystoresResult(
-		prysmPassword,
+		prysmPasswordArtifactId,
+		path.Base(prysmPasswordFilepathOnGenerator),
 		keystoreFiles,
 	)
 

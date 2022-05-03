@@ -144,8 +144,8 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	existingElClients []*el.ELClientContext,
 	verbosityLevel string,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	result := func(privateIpAddr string, _ *services.SharedPath) (*services.ContainerConfig, error) {
+) func(string) (*services.ContainerConfig, error) {
+	result := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		genesisJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetGethGenesisJsonRelativeFilepath())
 		jwtSecretJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetJWTSecretRelativeFilepath())
 

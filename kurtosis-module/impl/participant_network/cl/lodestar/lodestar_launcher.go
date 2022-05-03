@@ -154,8 +154,8 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 	elClientContext *el.ELClientContext,
 	logLevel string,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+) func(string) (*services.ContainerConfig, error) {
+	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
@@ -230,8 +230,8 @@ func (launcher *LodestarClientLauncher) getValidatorContainerConfigSupplier(
 	keystoreFiles *cl2.KeystoreFiles,
 	beaconEndpoint string,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+) func(string) (*services.ContainerConfig, error) {
+	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		rootDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
 
 		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())

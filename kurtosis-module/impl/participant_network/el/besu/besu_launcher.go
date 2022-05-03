@@ -131,8 +131,8 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 	existingElClients []*el.ELClientContext, // NOTE: If this is nil, the node will be configured as a bootnode
 	logLevel string,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	result := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+) func(string) (*services.ContainerConfig, error) {
+	result := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		genesisJsonFilepathOnClient := path.Join(genesisDataDirpathOnClientContainer, launcher.genesisData.GetBesuGenesisJsonRelativeFilepath())
 		jwtSecretJsonFilepathOnClient := path.Join(genesisDataDirpathOnClientContainer, launcher.genesisData.GetJWTSecretRelativeFilepath())
 

@@ -118,8 +118,8 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 	existingElClients []*el.ELClientContext,
 	logLevel string,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	result := func(privateIpAddr string, _ *services.SharedPath) (*services.ContainerConfig, error) {
+) func(string) (*services.ContainerConfig, error) {
+	result := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		if len(existingElClients) == 0 {
 			return nil, stacktrace.NewError("Nethermind nodes cannot be boot nodes")
 		}

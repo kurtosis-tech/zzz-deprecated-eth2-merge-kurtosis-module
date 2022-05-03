@@ -181,8 +181,8 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 	elClientCtx *el.ELClientContext,
 	logLevel string,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+) func(string) (*services.ContainerConfig, error) {
+	return func(privateIpAddr string) (*services.ContainerConfig, error) {
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientCtx.GetIPAddress(),
@@ -270,8 +270,8 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 	beaconClientHttpUrl string,
 	nodeKeystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+) func(string) (*services.ContainerConfig, error) {
+	return func(privateIpAddr string) (*services.ContainerConfig, error) {
 		// For some reason, Lighthouse takes in the parent directory of the config file (rather than the path to the config file itself)
 		genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClients, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
 		validatorKeysDirpath := path.Join(validatorKeysMountpointOnClients, nodeKeystoreFiles.RawKeysRelativeDirpath)
