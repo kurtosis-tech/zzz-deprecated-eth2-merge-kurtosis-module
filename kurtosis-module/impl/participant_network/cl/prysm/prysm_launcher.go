@@ -41,8 +41,6 @@ const (
 	beaconMonitoringPortNum    uint16 = 8080
 	validatorMonitoringPortNum uint16 = 8081
 
-	prysmPasswordTxtRelFilepathInSharedDir = "prysm-password.txt"
-
 	maxNumHealthcheckRetries      = 100
 	timeBetweenHealthcheckRetries = 5 * time.Second
 
@@ -272,15 +270,6 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 	extraParams []string,
 ) func(string) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
-		/*
-		prysmPasswordTxtSharedPath := sharedDir.GetChildPath(prysmPasswordTxtRelFilepathInSharedDir)
-		prysmPasswordTxtFilepathOnModuleContainer := prysmPasswordTxtSharedPath.GetAbsPathOnThisContainer()
-		if err := ioutil.WriteFile(prysmPasswordTxtFilepathOnModuleContainer, []byte(launcher.prysmPassword), os.ModePerm); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred writing the Prysm keystore password to file '%v'", prysmPasswordTxtFilepathOnModuleContainer)
-		}
-
-		 */
-
 		consensusDataDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
 		prysmKeystoreDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.PrysmRelativeDirpath)
 		prysmPasswordFilepath := path.Join(prysmPasswordMountDirpathOnServiceContainer, launcher.prysmPasswordRelativeFilepath)

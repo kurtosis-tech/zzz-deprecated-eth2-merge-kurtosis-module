@@ -10,9 +10,6 @@ import (
 
 
 const (
-	// Though this is a Kurtosis image, it's actually built from the original repo:
-	//  https://github.com/skylenet/ethereum-genesis-generator
-	// It's only a Kurtosis image because the original repo doesn't publish Docker images
 	image = "skylenet/ethereum-genesis-generator:latest"
 
 	serviceIdPrefix = "prelaunch-data-generator-"

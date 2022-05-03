@@ -68,7 +68,6 @@ var allGenesisGenerationCmds = map[string]genesisGenerationCmd{
 func GenerateELGenesisData(
 	ctx context.Context,
 	enclaveCtx *enclaves.EnclaveContext,
-	// serviceCtx *services.ServiceContext,
 	genesisGenerationConfigTemplate *template.Template,
 	genesisUnixTimestamp uint64,
 	networkId string,
