@@ -156,7 +156,8 @@ func getContainerConfigSupplier(
 ) (
 	func(privateIpAddr string) (*services.ContainerConfig, error),
 ) {
-	configDirpath := path.Join(grafanaConfigDirpathOnService, path.Base(grafanaConfigDirpathOnService))
+	// We need the path.Base() here because Kurtosis doesn't flatten directories yet
+	configDirpath := path.Join(grafanaConfigDirpathOnService, path.Base(grafanaConfigDirpathOnModule))
 	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
