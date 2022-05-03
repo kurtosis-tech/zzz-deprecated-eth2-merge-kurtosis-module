@@ -44,9 +44,6 @@ const (
 
 	prysmPasswordTxtRelFilepathInSharedDir = "prysm-password.txt"
 
-	validatorKeysRelDirpathInSharedDir    = "validator-keys"
-	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
-
 	maxNumHealthcheckRetries      = 100
 	timeBetweenHealthcheckRetries = 5 * time.Second
 
@@ -89,8 +86,8 @@ func NewPrysmCLClientLauncher(genesisData *cl_genesis.CLGenesisData, prysmPasswo
 func (launcher *PrysmCLClientLauncher) Launch(
 	enclaveCtx *enclaves.EnclaveContext,
 	serviceId services.ServiceID,
-// NOTE: Because Prysm has separate images for Beacon and validator, this string will actually be a delimited
-//  combination of both Beacon & validator images
+	// NOTE: Because Prysm has separate images for Beacon and validator, this string will actually be a delimited
+	//  combination of both Beacon & validator images
 	delimitedImagesStr string,
 	participantLogLevel string,
 	globalLogLevel module_io.GlobalClientLogLevel,
@@ -209,35 +206,6 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		/*
-		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				genesisConfigYmlFilepathOnModuleContainer,
-				genesisConfigYmlRelFilepathInSharedDir,
-			)
-		}
-
-		genesisSszSharedPath := sharedDir.GetChildPath(genesisSszRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis SSZ from '%v' to shared dir relative path '%v'",
-				genesisSszFilepathOnModuleContainer,
-				genesisSszRelFilepathInSharedDir,
-			)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepathInSharedDir)
-		}
-
-		 */
-
 		elClientEngineRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
@@ -304,39 +272,6 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		/*
-		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				launcher.genesisConfigYmlFilepathOnModuleContainer,
-				genesisConfigYmlRelFilepathInSharedDir,
-			)
-		}
-
-		 */
-
-		/*
-		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysRelDirpathInSharedDir)
-		if err := recursive_copy.Copy(
-			validatorKeysDirpathOnModuleContainer,
-			validatorKeysSharedPath.GetAbsPathOnThisContainer(),
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
-		}
-
-		validatorSecretsSharedPath := sharedDir.GetChildPath(validatorSecretsRelDirpathInSharedDir)
-		if err := recursive_copy.Copy(
-			validatorSecretsDirpathOnModuleContainer,
-			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
-		}
-
-		 */
-
 		prysmPasswordTxtSharedPath := sharedDir.GetChildPath(prysmPasswordTxtRelFilepathInSharedDir)
 		prysmPasswordTxtFilepathOnModuleContainer := prysmPasswordTxtSharedPath.GetAbsPathOnThisContainer()
 		if err := ioutil.WriteFile(prysmPasswordTxtFilepathOnModuleContainer, []byte(launcher.prysmPassword), os.ModePerm); err != nil {

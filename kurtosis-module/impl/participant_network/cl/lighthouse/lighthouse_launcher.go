@@ -24,8 +24,6 @@ const (
 
 	// ---------------------------------- Beacon client -------------------------------------
 	consensusDataDirpathOnBeaconServiceContainer = "/consensus-data"
-	beaconConfigDataDirpathRelToSharedDirRoot    = "config-data"
-	jwtSecretFilepathRelToSharedDirRoot          = "jwtsecret"
 
 	// Port IDs
 	beaconTcpDiscoveryPortID = "tcpDiscovery"
@@ -42,11 +40,6 @@ const (
 	timeBetweenHealthcheckRetries = 1 * time.Second
 
 	// ---------------------------------- Validator client -------------------------------------
-	validatorConfigDataDirpathRelToSharedDirRoot = "config-data"
-
-	validatorKeysRelDirpathInSharedDir    = "validator-keys"
-	validatorSecretsRelDirpathInSharedDir = "validator-secrets"
-
 	validatingRewardsAccount = "0x0000000000000000000000000000000000000000"
 
 	validatorHttpPortID     = "http"
@@ -190,27 +183,6 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		/*
-		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(beaconConfigDataDirpathRelToSharedDirRoot)
-
-		destConfigDataDirpathOnModule := configDataDirpathOnServiceSharedPath.GetAbsPathOnThisContainer()
-		if err := recursive_copy.Copy(launcher.configDataDirpathOnModuleContainer, destConfigDataDirpathOnModule); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the config data directory on the module, '%v', into the service container, '%v'",
-				launcher.configDataDirpathOnModuleContainer,
-				destConfigDataDirpathOnModule,
-			)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretFilepathRelToSharedDirRoot)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretFilepathRelToSharedDirRoot)
-		}
-
-		 */
-
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientCtx.GetIPAddress(),
@@ -222,8 +194,6 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			elClientCtx.GetIPAddress(),
 			elClientCtx.GetEngineRPCPortNum(),
 		)
-
-		// configDataDirpathOnService := configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer()
 
 		// For some reason, Lighthouse takes in the parent directory of the config file (rather than the path to the config file itself)
 		genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClients, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
@@ -302,46 +272,6 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		/*
-		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(validatorConfigDataDirpathRelToSharedDirRoot)
-
-		destConfigDataDirpathOnModule := configDataDirpathOnServiceSharedPath.GetAbsPathOnThisContainer()
-		if err := recursive_copy.Copy(launcher.configDataDirpathOnModuleContainer, destConfigDataDirpathOnModule); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the config data directory on the module, '%v', into the service container, '%v'",
-				launcher.configDataDirpathOnModuleContainer,
-				destConfigDataDirpathOnModule,
-			)
-		}
-
-		 */
-
-		/*
-		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysRelDirpathInSharedDir)
-		if err := recursive_copy.Copy(
-			validatorKeysDirpathOnModuleContainer,
-			validatorKeysSharedPath.GetAbsPathOnThisContainer(),
-			// NOTE: We have to add this because the Lighthouse validator node wants to write a slashing-protection.sqlite
-			//  file to the validator keys directory, but it runs as the 'lighthouse' user (rather than 'root') so doesn't
-			//  have default write access to the validator keys directory
-			recursive_copy.Options{AddPermission: os.ModePerm},
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
-		}
-
-		validatorSecretsSharedPath := sharedDir.GetChildPath(validatorSecretsRelDirpathInSharedDir)
-		if err := recursive_copy.Copy(
-			validatorSecretsDirpathOnModuleContainer,
-			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
-		}
-
-		 */
-
-		// configDataDirpathOnService := configDataDirpathOnServiceSharedPath.GetAbsPathOnServiceContainer()
 		// For some reason, Lighthouse takes in the parent directory of the config file (rather than the path to the config file itself)
 		genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClients, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
 		validatorKeysDirpath := path.Join(validatorKeysMountpointOnClients, nodeKeystoreFiles.RawKeysRelativeDirpath)

@@ -46,8 +46,6 @@ const (
 	executionDataDirpathOnClientContainer = "/execution-data"
 	keystoreDirpathOnClientContainer      = executionDataDirpathOnClientContainer + "/keystore"
 
-	gethKeysRelDirpathInSharedDir = "geth-keys"
-
 	expectedSecondsForGethInit                              = 10
 	expectedSecondsPerKeyImport                             = 8
 	expectedSecondsAfterNodeStartUntilHttpServerIsAvailable = 20

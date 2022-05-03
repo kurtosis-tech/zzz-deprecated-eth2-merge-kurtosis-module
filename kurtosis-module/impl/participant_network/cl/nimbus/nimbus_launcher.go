@@ -1,5 +1,4 @@
 package nimbus
-
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
@@ -32,8 +31,6 @@ const (
 	httpPortNum             = 4000
 	metricsPortNum          = 8008
 
-	configDataDirpathRelToSharedDirRoot = "config-data"
-
 	// Nimbus requires that its data directory already exists (because it expects you to bind-mount it), so we
 	//  have to to create it
 	consensusDataDirpathInServiceContainer = "$HOME/consensus-data"
@@ -42,12 +39,6 @@ const (
 	// The entrypoint the image normally starts with (we need to override the entrypoint to create the
 	//  consensus data directory on the image before it starts)
 	defaultImageEntrypoint = "/home/user/nimbus-eth2/build/nimbus_beacon_node"
-
-	validatorKeysDirpathRelToSharedDirRoot    = "validator-keys"
-	validatorSecretsDirpathRelToSharedDirRoot = "validator-secrets"
-	validatorSecretsDirPerms                  = 0600 // If we don't set these when we copy, Nimbus will burn a bunch of time doing it for us
-
-	jwtSecretFilepathRelToSharedDirRoot = "jwtsecret"
 
 	// Nimbus needs write access to the validator keys/secrets directories, and b/c the module container runs as root
 	//  while the Nimbus container does not, we can't just point the Nimbus binary to the paths in the shared dir because
@@ -170,44 +161,6 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		/*
-		configDataDirpathOnServiceSharedPath := sharedDir.GetChildPath(configDataDirpathRelToSharedDirRoot)
-
-		destConfigDataDirpathOnModule := configDataDirpathOnServiceSharedPath.GetAbsPathOnThisContainer()
-		if err := recursive_copy.Copy(launcher.configDataDirpathOnModuleContainer, destConfigDataDirpathOnModule); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the config data directory on the module, '%v', into the service container, '%v'",
-				launcher.configDataDirpathOnModuleContainer,
-				destConfigDataDirpathOnModule,
-			)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretFilepathRelToSharedDirRoot)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretFilepathRelToSharedDirRoot)
-		}
-
-		 */
-
-		/*
-		validatorKeysSharedPath := sharedDir.GetChildPath(validatorKeysDirpathRelToSharedDirRoot)
-		if err := recursive_copy.Copy(validatorKeysDirpathOnModuleContainer, validatorKeysSharedPath.GetAbsPathOnThisContainer()); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator keys into the shared directory so the node can consume them")
-		}
-
-		validatorSecretsSharedPath := sharedDir.GetChildPath(validatorSecretsDirpathRelToSharedDirRoot)
-		if err := recursive_copy.Copy(
-			validatorSecretsDirpathOnModuleContainer,
-			validatorSecretsSharedPath.GetAbsPathOnThisContainer(),
-			recursive_copy.Options{AddPermission: validatorSecretsDirPerms},
-		); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying the validator secrets into the shared directory so the node can consume them")
-		}
-
-		 */
-
 		elClientEngineRpcUrlStr := fmt.Sprintf(
 			"ws://%v:%v",
 			elClientContext.GetIPAddress(),

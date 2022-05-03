@@ -156,35 +156,6 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		/*
-		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				launcher.genesisConfigYmlFilepathOnModuleContainer,
-				genesisConfigYmlRelFilepathInSharedDir,
-			)
-		}
-
-		genesisSszSharedPath := sharedDir.GetChildPath(genesisSszRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.genesisSszFilepathOnModuleContainer, genesisSszSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis SSZ from '%v' to shared dir relative path '%v'",
-				launcher.genesisSszFilepathOnModuleContainer,
-				genesisSszRelFilepathInSharedDir,
-			)
-		}
-
-		jwtSecretSharedPath := sharedDir.GetChildPath(jwtSecretRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(launcher.jwtSecretFilepathOnModuleContainer, jwtSecretSharedPath); err != nil {
-			return nil, stacktrace.Propagate(err, "An error occurred copying JWT secret file '%v' into shared directory path '%v'", launcher.jwtSecretFilepathOnModuleContainer, jwtSecretRelFilepathInSharedDir)
-		}
-
-		 */
-
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),
@@ -261,20 +232,6 @@ func (launcher *LodestarClientLauncher) getValidatorContainerConfigSupplier(
 	extraParams []string,
 ) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
-
-		/*
-		genesisConfigYmlSharedPath := sharedDir.GetChildPath(genesisConfigYmlRelFilepathInSharedDir)
-		if err := service_launch_utils.CopyFileToSharedPath(genesisConfigYmlFilepathOnModuleContainer, genesisConfigYmlSharedPath); err != nil {
-			return nil, stacktrace.Propagate(
-				err,
-				"An error occurred copying the genesis config YML from '%v' to shared dir relative path '%v'",
-				genesisConfigYmlFilepathOnModuleContainer,
-				genesisConfigYmlRelFilepathInSharedDir,
-			)
-		}
-
-		 */
-
 		rootDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
 
 		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())

@@ -97,13 +97,6 @@ func LaunchParticipantNetwork(
 	//  we start the CL clients. This matches the real world, where Eth1 definitely exists before Eth2
 	logrus.Info("Generating EL client genesis data...")
 	elGenesisTimestamp := uint64(time.Now().Unix())
-	/*
-	elGenesisData, err := prelaunchDataGeneratorCtx.GenerateELGenesisData(
-		elGenesisGenerationConfigTemplate,
-		elGenesisTimestamp,
-	)
-
-	 */
 	elGenesisData, err := el_genesis.GenerateELGenesisData(
 		ctx,
 		enclaveCtx,
