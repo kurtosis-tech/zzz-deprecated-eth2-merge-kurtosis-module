@@ -176,7 +176,7 @@ func GenerateELGenesisData(
 		return nil, stacktrace.Propagate(err, "An error occurred executing the JWT secret generation command")
 	}
 
-	elGenesisDataArtifactId, err := enclaveCtx.StoreFilesFromService(ctx, serviceCtx.GetServiceID(), outputDirpathOnGenerator)
+	elGenesisDataArtifactId, err := enclaveCtx.StoreServiceFiles(ctx, serviceCtx.GetServiceID(), outputDirpathOnGenerator)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred storing the generated EL genesis data in the enclave")
 	}

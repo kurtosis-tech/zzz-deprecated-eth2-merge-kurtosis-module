@@ -166,8 +166,8 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 	logLevel string,
 	keystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
-) func(string, *services.SharedPath) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string, sharedDir *services.SharedPath) (*services.ContainerConfig, error) {
+) func(string) (*services.ContainerConfig, error) {
+	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		elClientRpcUrlStr := fmt.Sprintf(
 			"http://%v:%v",
 			elClientContext.GetIPAddress(),

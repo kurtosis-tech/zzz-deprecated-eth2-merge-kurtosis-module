@@ -216,7 +216,7 @@ func GenerateCLGenesisData(
 		)
 	}
 
-	clGenesisDataArtifactId, err := enclaveCtx.StoreFilesFromService(ctx, serviceCtx.GetServiceID(), outputDirpathOnGenerator)
+	clGenesisDataArtifactId, err := enclaveCtx.StoreServiceFiles(ctx, serviceCtx.GetServiceID(), outputDirpathOnGenerator)
 	if err != nil {
 		return nil, stacktrace.Propagate(
 			err,
