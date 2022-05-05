@@ -158,14 +158,10 @@ func (launcher *ErigonELClientLauncher) getContainerConfigSupplier(
 			////  that users should NOT store private information in these Kurtosis nodes!
 			"--http.api=admin,engine,net,eth",
 			"--ws",
-			"--ws.addr=0.0.0.0",
-			fmt.Sprintf("--ws.port=%v", wsPortNum),
-			"--ws.api=engine,net,eth",
 			"--allow-insecure-unlock",
 			"--nat=extip:" + privateIpAddr,
-			fmt.Sprintf("--authrpc.port=%v", engineRpcPortNum),
-			"--authrpc.addr=0.0.0.0",
-			"--authrpc.vhosts=*",
+			fmt.Sprintf("--engine.port=%v", engineRpcPortNum),
+			"--engine.addr=0.0.0.0",
 			fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretJsonFilepathOnClient),
 		}
 		if len(existingElClients) > 0 {
