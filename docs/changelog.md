@@ -1,4 +1,7 @@
-# TBD
+# 0.4.18
+### Features
+* Added support for Erigon as an EL client option (`elType: "erigon"`)
+    * Default Erigon docker image (`elImage` module option) is set to [thorax/erigon:alpha](https://hub.docker.com/layers/erigon/thorax/erigon/alpha/images/sha256-6f52dfec4e32a6935ae8de1cc655bb3c453bd0513490f2c1b3a88a4b2582081a)
 
 # 0.4.17
 ### Changes
