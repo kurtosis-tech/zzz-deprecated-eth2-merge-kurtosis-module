@@ -51,7 +51,7 @@ You can find the latest Kiln compatible docker images here: https://notes.ethere
             // The Docker image that should be used for the EL client; leave blank to use the default for the client type
             // Defaults by client:
             // - geth: parithoshj/geth:master
-            // - erigon: thorax/erigon:alpha
+            // - erigon: thorax/erigon:devel
             // - nethermind: nethermindeth/nethermind:kiln_0.11
             // - besu: hyperledger/besu:22.4.0-RC2-SNAPSHOT
             "elImage": "",
