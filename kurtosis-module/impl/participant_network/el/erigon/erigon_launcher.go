@@ -27,7 +27,6 @@ const (
 	tcpDiscoveryPortId = "tcpDiscovery"
 	udpDiscoveryPortId = "udpDiscovery"
 	engineRpcPortId    = "engineRpc"
-	engineWsPortId     = "engineWs"
 
 	// NOTE: This can't be 0x00000....000
 	// See: https://github.com/ethereum/go-ethereum/issues/19547
@@ -35,14 +34,11 @@ const (
 
 	genesisDataMountDirpath = "/genesis"
 
-	prefundedKeysMountDirpath = "/prefunded-keys"
-
 	// The dirpath of the execution data directory on the client container.
 	// NOTE: Container user must have permission to write to this directory.
 	executionDataDirpathOnClientContainer = "/home/erigon/execution-data"
 
 	expectedSecondsForErigonInit                            = 10
-	expectedSecondsPerKeyImport                             = 8
 	expectedSecondsAfterNodeStartUntilHttpServerIsAvailable = 20
 	getNodeInfoTimeBetweenRetries                           = 1 * time.Second
 )
@@ -65,7 +61,7 @@ var verbosityLevels = map[module_io.GlobalClientLogLevel]string{
 
 type ErigonELClientLauncher struct {
 	genesisData *el_genesis.ELGenesisData
-	networkId                            string
+	networkId   string
 }
 
 func NewErigonELClientLauncher(genesisData *el_genesis.ELGenesisData, networkId string) *ErigonELClientLauncher {
