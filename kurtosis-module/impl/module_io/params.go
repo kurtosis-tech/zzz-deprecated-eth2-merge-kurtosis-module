@@ -32,6 +32,7 @@ const (
 	//               2) update the default_params for the type you modified
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantELClientType_Geth       ParticipantELClientType = "geth"
+	ParticipantELClientType_Erigon     ParticipantELClientType = "erigon"
 	ParticipantELClientType_Nethermind ParticipantELClientType = "nethermind"
 	ParticipantELClientType_Besu       ParticipantELClientType = "besu"
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -42,8 +43,9 @@ const (
 )
 var validParticipantELClientTypes = map[ParticipantELClientType]bool{
 	ParticipantELClientType_Geth:       true,
+	ParticipantELClientType_Erigon:     true,
 	ParticipantELClientType_Nethermind: true,
-	ParticipantELClientType_Besu: true,
+	ParticipantELClientType_Besu: 		true,
 }
 
 // Participant CL client type "enum"
