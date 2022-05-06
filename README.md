@@ -50,7 +50,8 @@ You can find the latest Kiln compatible docker images here: https://notes.ethere
 
             // The Docker image that should be used for the EL client; leave blank to use the default for the client type
             // Defaults by client:
-            // - geth: parithoshj/geth:master"
+            // - geth: parithoshj/geth:master
+            // - erigon: thorax/erigon:devel
             // - nethermind: nethermindeth/nethermind:kiln_0.11
             // - besu: hyperledger/besu:22.4.0-RC2-SNAPSHOT
             "elImage": "",
@@ -71,7 +72,7 @@ You can find the latest Kiln compatible docker images here: https://notes.ethere
 
             // The Docker image that should be used for the EL client; leave blank to use the default for the client type
             // Defaults by client (note that Prysm is different in that it requires two images - a Beacon and a validator - separated by a comma):
-            // - lighthouse: sigp/lighthouse:latest-unstable
+            // - lighthouse: sigp/lighthouse:latest
             // - teku: consensys/teku:latest
             // - nimbus: parithoshj/nimbus:merge-97cefaa
             // - prysm: gcr.io/prysmaticlabs/prysm/beacon-chain:latest,gcr.io/prysmaticlabs/prysm/validator:latest

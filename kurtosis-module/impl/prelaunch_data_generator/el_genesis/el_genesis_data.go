@@ -10,12 +10,13 @@ type ELGenesisData struct {
 	// Relative filepaths inside the files artifact where various files can be found
 	jwtSecretRelativeFilepath string
 	gethGenesisJsonRelativeFilepath string
+	erigonGenesisJsonRelativeFilepath string
 	nethermindGenesisJsonRelativeFilepath string
 	besuGenesisJsonRelativeFilepath string
 }
 
-func newELGenesisData(filesArtifactId services.FilesArtifactID, jwtSecretRelativeFilepath string, gethGenesisJsonRelativeFilepath string, nethermindGenesisJsonRelativeFilepath string, besuGenesisJsonRelativeFilepath string) *ELGenesisData {
-	return &ELGenesisData{filesArtifactId: filesArtifactId, jwtSecretRelativeFilepath: jwtSecretRelativeFilepath, gethGenesisJsonRelativeFilepath: gethGenesisJsonRelativeFilepath, nethermindGenesisJsonRelativeFilepath: nethermindGenesisJsonRelativeFilepath, besuGenesisJsonRelativeFilepath: besuGenesisJsonRelativeFilepath}
+func newELGenesisData(filesArtifactId services.FilesArtifactID, jwtSecretRelativeFilepath string, gethGenesisJsonRelativeFilepath string, erigonGenesisJsonRelativeFilepath string, nethermindGenesisJsonRelativeFilepath string, besuGenesisJsonRelativeFilepath string) *ELGenesisData {
+	return &ELGenesisData{filesArtifactId: filesArtifactId, jwtSecretRelativeFilepath: jwtSecretRelativeFilepath, gethGenesisJsonRelativeFilepath: gethGenesisJsonRelativeFilepath, erigonGenesisJsonRelativeFilepath: erigonGenesisJsonRelativeFilepath, nethermindGenesisJsonRelativeFilepath: nethermindGenesisJsonRelativeFilepath, besuGenesisJsonRelativeFilepath: besuGenesisJsonRelativeFilepath}
 }
 
 func (data *ELGenesisData) GetFilesArtifactID() services.FilesArtifactID {
@@ -26,6 +27,9 @@ func (data *ELGenesisData) GetJWTSecretRelativeFilepath() string {
 }
 func (data *ELGenesisData) GetGethGenesisJsonRelativeFilepath() string {
 	return data.gethGenesisJsonRelativeFilepath
+}
+func (data *ELGenesisData) GetErigonGenesisJsonRelativeFilepath() string {
+	return data.erigonGenesisJsonRelativeFilepath
 }
 func (data *ELGenesisData) GetNethermindGenesisJsonRelativeFilepath() string {
 	return data.nethermindGenesisJsonRelativeFilepath

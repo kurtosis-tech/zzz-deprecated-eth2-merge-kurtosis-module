@@ -1,4 +1,10 @@
-# TBD
+# 0.4.18
+### Features
+* Added support for Erigon as an EL client option (`elType: "erigon"`)
+    * Default Erigon docker image (`elImage` module option) is set to [thorax/erigon:devel](https://hub.docker.com/layers/erigon/thorax/erigon/devel/images/sha256-8d1c07fb8b88f8bde6ca2a2d42ff0e0cb0206a0009dacbf9b3571721aaa921d7)
+
+### Changes
+* Switched the default `clImage` for Lighthouse client to `sigp/lighthouse:latest` from `sigp/lighthouse:latest-unstable`
 
 # 0.4.17
 ### Changes
