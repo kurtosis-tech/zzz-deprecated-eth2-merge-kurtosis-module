@@ -1,4 +1,7 @@
 # TBD
+### Features
+* Lighthouse images are run with `RUST_BACKTRACE=full`
+
 ### Changes
 * Upgraded to module-api-lib 0.15.0 for latest Kurtosis compatibility
 
