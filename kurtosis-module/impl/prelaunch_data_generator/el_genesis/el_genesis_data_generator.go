@@ -22,6 +22,7 @@ const (
 	outputDirpathOnGenerator = "/output"
 
 	gethGenesisFilename = "geth.json"
+	erigonGenesisFilename = "erigon.json"
 	nethermindGenesisFilename = "nethermind.json"
 	besuGenesisFilename = "besu.json"
 
@@ -44,6 +45,16 @@ var allGenesisGenerationCmds = map[string]genesisGenerationCmd{
 	gethGenesisFilename: func(genesisConfigFilepathOnGenerator string)[]string{
 		return []string{
 			"python3",
+			"/apps/el-gen/genesis_geth.py",
+			genesisConfigFilepathOnGenerator,
+		}
+	},
+	erigonGenesisFilename: func(genesisConfigFilepathOnGenerator string)[]string{
+		return []string{
+			"python3",
+			// TODO Erigon uses the same genesis as Geth.
+			// 	Change to dedicated script once the genesis generator for Erigon is added upstream.
+			//  https://github.com/skylenet/ethereum-genesis-generator/tree/master/apps/el-gen
 			"/apps/el-gen/genesis_geth.py",
 			genesisConfigFilepathOnGenerator,
 		}
@@ -184,6 +195,7 @@ func GenerateELGenesisData(
 		elGenesisDataArtifactId,
 		path.Join(path.Base(outputDirpathOnGenerator), jwtSecretFilename),
 		genesisFilenameToRelativeFilepathInArtifact[gethGenesisFilename],
+		genesisFilenameToRelativeFilepathInArtifact[erigonGenesisFilename],
 		genesisFilenameToRelativeFilepathInArtifact[nethermindGenesisFilename],
 		genesisFilenameToRelativeFilepathInArtifact[besuGenesisFilename],
 	)

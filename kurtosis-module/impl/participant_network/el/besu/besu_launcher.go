@@ -27,17 +27,18 @@ const (
 
 	rpcPortNum       uint16 = 8545
 	wsPortNum        uint16 = 8546
-	discoveryPortNum uint16 = 30303
-	engineRpcPortNum uint16 = 8550
+	discoveryPortNum     uint16 = 30303
+	engineHttpRpcPortNum uint16 = 8550
+	engineWsRpcPortNum uint16 = 8551
 
 
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
 	tcpDiscoveryPortId = "tcpDiscovery"
-	udpDiscoveryPortId = "udpDiscovery"
-	engineRpcPortId    = "engineRpc"
-	engineWsPortId     = "engineWs"
+	udpDiscoveryPortId  = "udpDiscovery"
+	engineHttpRpcPortId = "engineHttpRpc"
+	engineWsRpcPortId   = "engineWsRpc"
 
 	getNodeInfoMaxRetries         = 20
 	getNodeInfoTimeBetweenRetries = 1 * time.Second
@@ -48,8 +49,9 @@ var usedPorts = map[string]*services.PortSpec{
 	wsPortId:           services.NewPortSpec(wsPortNum, services.PortProtocol_TCP),
 	tcpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
 	// TODO Remove if there's no UDP discovery port?????
-	udpDiscoveryPortId: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
-	engineRpcPortId:    services.NewPortSpec(engineRpcPortNum, services.PortProtocol_TCP),
+	udpDiscoveryPortId:  services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
+	engineHttpRpcPortId: services.NewPortSpec(engineHttpRpcPortNum, services.PortProtocol_TCP),
+	engineWsRpcPortId: services.NewPortSpec(engineWsRpcPortNum, services.PortProtocol_TCP),
 }
 var entrypointArgs = []string{"sh", "-c"}
 var besuLogLevels = map[module_io.GlobalClientLogLevel]string{
@@ -115,7 +117,7 @@ func (launcher *BesuELClientLauncher) Launch(
 		serviceCtx.GetPrivateIPAddress(),
 		rpcPortNum,
 		wsPortNum,
-		engineRpcPortNum,
+		engineHttpRpcPortNum,
 		miningWaiter,
 	)
 
@@ -161,8 +163,8 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 			"--engine-jwt-enabled=true",
 			fmt.Sprintf("--engine-jwt-secret=%v", jwtSecretJsonFilepathOnClient),
 			"--engine-host-allowlist=*",
-			fmt.Sprintf("--engine-rpc-http-port=%v", engineRpcPortNum),
-			fmt.Sprintf("--engine-rpc-ws-port=%v", engineRpcPortNum),
+			fmt.Sprintf("--engine-rpc-http-port=%v", engineHttpRpcPortNum),
+			fmt.Sprintf("--engine-rpc-ws-port=%v", engineWsRpcPortNum),
 		}
 		if len(existingElClients) > 0 {
 			bootnodeContext := existingElClients[0]
