@@ -22,6 +22,9 @@ const (
 
 	validatorKeysMountpointOnClients = "/validator-keys"
 
+	rustBacktraceEnvvarName = "RUST_BACKTRACE"
+	rustFullBacktraceKeyword = "full"
+
 	// ---------------------------------- Beacon client -------------------------------------
 	consensusDataDirpathOnBeaconServiceContainer = "/consensus-data"
 
@@ -259,6 +262,8 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			cmdArgs,
 		).WithFiles(map[services.FilesArtifactID]string{
 			launcher.genesisData.GetFilesArtifactID(): genesisDataMountpointOnClients,
+		}).WithEnvironmentVariableOverrides(map[string]string{
+			rustBacktraceEnvvarName: rustFullBacktraceKeyword,
 		}).Build()
 		return containerConfig, nil
 	}
@@ -312,6 +317,8 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 		).WithFiles(map[services.FilesArtifactID]string{
 			launcher.genesisData.GetFilesArtifactID(): genesisDataMountpointOnClients,
 			nodeKeystoreFiles.FilesArtifactID: validatorKeysMountpointOnClients,
+		}).WithEnvironmentVariableOverrides(map[string]string{
+			rustBacktraceEnvvarName: rustFullBacktraceKeyword,
 		}).Build()
 		return containerConfig, nil
 	}
