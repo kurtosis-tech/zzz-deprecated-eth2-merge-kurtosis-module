@@ -99,7 +99,7 @@ workflows:
             {
               "replacementPatterns": [
                 {
-                  "pattern": "^https://notes.ethereum.org.*$",
+                  "pattern": "^https://notes.ethereum.org.*$"
                 }
               ]
             }
