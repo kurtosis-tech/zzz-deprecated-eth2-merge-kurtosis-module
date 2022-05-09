@@ -97,7 +97,7 @@ workflows:
       - kurtosis-docs-checker/check-docs:
           markdown-link-check-config-json: |
             {
-              "replacementPatterns": [
+              "ignorePatterns": [
                 {
                   "pattern": "^https://notes.ethereum.org.*$"
                 }
