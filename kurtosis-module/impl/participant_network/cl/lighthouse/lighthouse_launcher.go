@@ -242,7 +242,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			"--subscribe-all-subnets",
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics",
-			"--metrics-address=" + privateIpAddr,
+			"--metrics-address=0.0.0.0",
 			"--metrics-allow-origin=*",
 			fmt.Sprintf("--metrics-port=%v", beaconMetricsPortNum),
 			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^

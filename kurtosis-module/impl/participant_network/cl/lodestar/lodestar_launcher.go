@@ -197,7 +197,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics.enabled",
-			"--metrics.listenAddr=" + privateIpAddr,
+			"--metrics.listenAddr=0.0.0.0",
 			fmt.Sprintf("--metrics.serverPort=%v", metricsPortNum),
 			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}

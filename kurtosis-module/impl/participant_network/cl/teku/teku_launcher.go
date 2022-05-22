@@ -228,7 +228,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			"--validators-proposer-default-fee-recipient=" + validatingRewardsAccount,
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics-enabled",
-			"--metrics-interface=" + privateIpAddr,
+			"--metrics-interface=0.0.0.0",
 			"--metrics-host-allowlist='*'",
 			"--metrics-categories=BEACON,PROCESS,LIBP2P,JVM,NETWORK,PROCESS",
 			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
