@@ -1,5 +1,9 @@
 # TBD
 
+# 0.4.20
+### Changes
+* Switch service port IDs to be Kubernetes-friendly
+
 # 0.4.19
 ### Features
 * Lighthouse images are run with `RUST_BACKTRACE=full`

@@ -26,8 +26,8 @@ const (
 	prysmPasswordMountDirpathOnServiceContainer = "/prysm-password"
 
 	// Port IDs
-	tcpDiscoveryPortID        = "tcpDiscovery"
-	udpDiscoveryPortID        = "udpDiscovery"
+	tcpDiscoveryPortID        = "tcp-discovery"
+	udpDiscoveryPortID        = "udp-discovery"
 	rpcPortID                 = "rpc"
 	httpPortID                = "http"
 	beaconMonitoringPortID    = "monitoring"
