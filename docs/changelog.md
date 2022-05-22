@@ -1,4 +1,6 @@
 # TBD
+
+# 0.4.21
 ### Fixes
 * Fixed metrics listeners erroneously listening on their private IP address rather than 0.0.0.0
 
