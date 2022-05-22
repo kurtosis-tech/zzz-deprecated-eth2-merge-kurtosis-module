@@ -21,8 +21,8 @@ const (
 	validatorKeysMountpointOnClient = "/validator-keys"
 
 	// Port IDs
-	tcpDiscoveryPortID = "tcpDiscovery"
-	udpDiscoveryPortID = "udpDiscovery"
+	tcpDiscoveryPortID = "tcp-discovery"
+	udpDiscoveryPortID = "udp-discovery"
 	httpPortID         = "http"
 	metricsPortID      = "metrics"
 

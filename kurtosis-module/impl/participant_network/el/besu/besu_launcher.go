@@ -35,8 +35,8 @@ const (
 	// Port IDs
 	rpcPortId          = "rpc"
 	wsPortId           = "ws"
-	tcpDiscoveryPortId = "tcpDiscovery"
-	udpDiscoveryPortId  = "udpDiscovery"
+	tcpDiscoveryPortId = "tcp-discovery"
+	udpDiscoveryPortId  = "udp-discovery"
 	engineHttpRpcPortId = "engineHttpRpc"
 	engineWsRpcPortId   = "engineWsRpc"
 

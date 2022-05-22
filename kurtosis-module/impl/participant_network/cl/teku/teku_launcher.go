@@ -32,8 +32,8 @@ const (
 	validatingRewardsAccount = "0x0000000000000000000000000000000000000000"
 
 	// Port IDs
-	tcpDiscoveryPortID = "tcpDiscovery"
-	udpDiscoveryPortID = "udpDiscovery"
+	tcpDiscoveryPortID = "tcp-discovery"
+	udpDiscoveryPortID = "udp-discovery"
 	httpPortID         = "http"
 	metricsPortID      = "metrics"
 
