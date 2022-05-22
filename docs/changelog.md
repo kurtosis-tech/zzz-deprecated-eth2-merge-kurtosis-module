@@ -1,4 +1,6 @@
 # TBD
+### Changes
+* Switch service port IDs to be Kubernetes-friendly
 
 # 0.4.19
 ### Features
