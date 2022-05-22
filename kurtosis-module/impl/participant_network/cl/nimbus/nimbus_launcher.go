@@ -225,7 +225,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
 			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics",
-			"--metrics-address=" + privateIpAddr,
+			"--metrics-address=0.0.0.0",
 			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
 			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 		}
