@@ -1,5 +1,9 @@
 # TBD
 
+# 0.5.1
+### Fixes
+* Fix one last listening-on-private-IP
+
 # 0.5.0
 ### Breaking Changes
 * `ExecuteResponse` no longer returns public URLs for services in the module
