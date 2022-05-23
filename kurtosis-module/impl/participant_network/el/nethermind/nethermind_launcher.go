@@ -55,8 +55,8 @@ var nethermindLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type NethermindELClientLauncher struct {
-	genesisData *el_genesis.ELGenesisData
-	totalTerminalDifficulty            uint64
+	genesisData             *el_genesis.ELGenesisData
+	totalTerminalDifficulty uint64
 }
 
 func NewNethermindELClientLauncher(genesisData *el_genesis.ELGenesisData, totalTerminalDifficulty uint64) *NethermindELClientLauncher {
@@ -128,7 +128,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 		}
 		bootnode1ElContext := existingElClients[0]
 		bootnode2ElContext := existingElClients[1]
-		
+
 		genesisJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetNethermindGenesisJsonRelativeFilepath())
 		jwtSecretJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetJWTSecretRelativeFilepath())
 
@@ -151,13 +151,13 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--Network.P2PPort=%v", discoveryPortNum),
 			"--Merge.Enabled=true",
 			fmt.Sprintf("--Merge.TerminalTotalDifficulty=%v", launcher.totalTerminalDifficulty),
-			"--Merge.FeeRecipient=" + miningRewardsAccount,
+			"--Merge.TerminalBlockNumber=null",
 			fmt.Sprintf("--JsonRpc.JwtSecretFile=%v", jwtSecretJsonFilepathOnClient),
 			fmt.Sprintf("--JsonRpc.AdditionalRpcUrls=[\"http://0.0.0.0:%v|http;ws|net;eth;subscribe;engine;web3;client\"]", engineRpcPortNum),
 			fmt.Sprintf(
-				 "--Discovery.Bootnodes=%v,%v",
-				 bootnode1ElContext.GetEnode(),
-				 bootnode2ElContext.GetEnode(),
+				"--Discovery.Bootnodes=%v,%v",
+				bootnode1ElContext.GetEnode(),
+				bootnode2ElContext.GetEnode(),
 			),
 		}
 		if len(extraParams) > 0 {

@@ -15,9 +15,9 @@ var defaultElImages = map[ParticipantELClientType]string{
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantELClientType_Geth:       "parithoshj/geth:master", // From around 2022-03-03
-	ParticipantELClientType_Erigon:     "thorax/erigon:devel",
-	ParticipantELClientType_Nethermind: "nethermindeth/nethermind:kiln_0.11",
-	ParticipantELClientType_Besu:       "hyperledger/besu:22.4.0-RC2-SNAPSHOT",
+	ParticipantELClientType_Erigon:     "parithoshj/erigon:merge-2da927b",
+	ParticipantELClientType_Nethermind: "nethermindeth/nethermind:kiln_shadowfork",
+	ParticipantELClientType_Besu:       "hyperledger/besu:develop",
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -29,7 +29,7 @@ var defaultClImages = map[ParticipantCLClientType]string{
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantCLClientType_Lighthouse: "sigp/lighthouse:latest",
 	ParticipantCLClientType_Teku:       "consensys/teku:latest",
-	ParticipantCLClientType_Nimbus:     "parithoshj/nimbus:merge-97cefaa",
+	ParticipantCLClientType_Nimbus:     "parithoshj/nimbus:merge-79452b7",
 	// NOTE: Prysm actually has two images - a Beacon and a validator - so we pass in a comma-separated
 	//  "beacon_image,validator_image" string
 	ParticipantCLClientType_Prysm:    "gcr.io/prysmaticlabs/prysm/beacon-chain:latest,gcr.io/prysmaticlabs/prysm/validator:latest",
