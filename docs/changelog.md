@@ -1,5 +1,9 @@
 # TBD
 
+# 0.5.0
+### Breaking Changes
+* `ExecuteResponse` no longer returns public URLs for services in the module
+
 # 0.4.21
 ### Fixes
 * Fixed metrics listeners erroneously listening on their private IP address rather than 0.0.0.0

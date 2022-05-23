@@ -1,7 +1,6 @@
 package grafana
 
 import (
-	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
@@ -17,7 +16,7 @@ const (
 	serviceID = "grafana"
 	imageName = "grafana/grafana-enterprise:latest" //TODO I'm not sure if we should use latest version or ping an specific version instead
 
-	httpPortId = "http"
+	httpPortId            = "http"
 	httpPortNumber uint16 = 3000
 
 	configDirectoriesPermission = 0755
@@ -53,7 +52,7 @@ func LaunchGrafana(
 	datasourceConfigTemplate *template.Template,
 	dashboardProvidersConfigTemplate *template.Template,
 	prometheusPrivateUrl string,
-) (string, error) {
+) error {
 	artifactId, err := getGrafanaConfigDirArtifactId(
 		enclaveCtx,
 		datasourceConfigTemplate,
@@ -61,24 +60,16 @@ func LaunchGrafana(
 		prometheusPrivateUrl,
 	)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred getting the Grafana config directory files artifact")
+		return stacktrace.Propagate(err, "An error occurred getting the Grafana config directory files artifact")
 	}
 
 	containerConfigSupplier := getContainerConfigSupplier(artifactId)
-	serviceCtx, err := enclaveCtx.AddService(serviceID, containerConfigSupplier)
+	_, err = enclaveCtx.AddService(serviceID, containerConfigSupplier)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred launching the grafana service")
+		return stacktrace.Propagate(err, "An error occurred launching the grafana service")
 	}
 
-	publicIpAddr := serviceCtx.GetMaybePublicIPAddress()
-	publicHttpPort, found := serviceCtx.GetPublicPorts()[httpPortId]
-	if !found {
-		return "", stacktrace.NewError("Expected the newly-started grafana service to have a port with ID '%v' but none was found", httpPortId)
-	}
-
-	publicUrl := fmt.Sprintf("http://%v:%v", publicIpAddr, publicHttpPort.GetNumber())
-
-	return publicUrl, nil
+	return nil
 }
 
 // ====================================================================================================
@@ -121,7 +112,6 @@ func getGrafanaConfigDirArtifactId(
 		return "", stacktrace.Propagate(err, "An error occurred filling the datasource config template")
 	}
 
-
 	dashboardProvidersTemplateData := dashboardProvidersConfigTemplateData{
 		// Grafana needs to know where the dashboards config file will be on disk, which means we need to feed
 		//  it the *mounted* location on disk (on the Grafana container) when we generate this on the module container
@@ -153,9 +143,7 @@ func getGrafanaConfigDirArtifactId(
 
 func getContainerConfigSupplier(
 	configDirArtifactId services.FilesArtifactID,
-) (
-	func(privateIpAddr string) (*services.ContainerConfig, error),
-) {
+) func(privateIpAddr string) (*services.ContainerConfig, error) {
 	// We need the path.Base() here because Kurtosis doesn't flatten directories yet
 	configDirpath := path.Join(grafanaConfigDirpathOnService, path.Base(grafanaConfigDirpathOnModule))
 	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
