@@ -39,7 +39,7 @@ func LaunchPrometheus(
 	enclaveCtx *enclaves.EnclaveContext,
 	configTemplate *template.Template,
 	clClientContexts []*cl.CLClientContext,
-) (string, string, error) {
+) (string, error) {
 	allCLNodesMetricsInfo := []*cl.CLNodeMetricsInfo{}
 	for _, clClientCtx := range clClientContexts {
 		if clClientCtx.GetNodesMetricsInfo() != nil {
@@ -51,35 +51,27 @@ func LaunchPrometheus(
 		CLNodesMetricsInfo: allCLNodesMetricsInfo,
 	}
 	if err := service_launch_utils.FillTemplateToPath(configTemplate, templateData, configFilepathOnModule); err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred filling the Prometheus config file template to file '%v'", configFilepathOnModule)
+		return "", stacktrace.Propagate(err, "An error occurred filling the Prometheus config file template to file '%v'", configFilepathOnModule)
 	}
 	configArtifactId, err := enclaveCtx.UploadFiles(configFilepathOnModule)
 	if err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred uploading the Prometheus config file at '%v'", configFilepathOnModule)
+		return "", stacktrace.Propagate(err, "An error occurred uploading the Prometheus config file at '%v'", configFilepathOnModule)
 	}
 
 	containerConfigSupplier := getContainerConfigSupplier(configArtifactId)
 	serviceCtx, err := enclaveCtx.AddService(serviceID, containerConfigSupplier)
 	if err != nil {
-		return "", "", stacktrace.Propagate(err, "An error occurred launching the prometheus service")
+		return "", stacktrace.Propagate(err, "An error occurred launching the prometheus service")
 	}
-
-	publicIpAddr := serviceCtx.GetMaybePublicIPAddress()
-	publicHttpPort, found := serviceCtx.GetPublicPorts()[httpPortId]
-	if !found {
-		return "", "", stacktrace.NewError("Expected the newly-started prometheus service to have a public port with ID '%v' but none was found", httpPortId)
-	}
-
-	publicUrl := fmt.Sprintf("http://%v:%v", publicIpAddr, publicHttpPort.GetNumber())
 
 	privateIpAddr := serviceCtx.GetPrivateIPAddress()
 	privateHttpPort, found := serviceCtx.GetPrivatePorts()[httpPortId]
 	if !found {
-		return "", "", stacktrace.NewError("Expected the newly-started prometheus service to have a private port with ID '%v' but none was found", httpPortId)
+		return "", stacktrace.NewError("Expected the newly-started prometheus service to have a private port with ID '%v' but none was found", httpPortId)
 	}
 
 	privateUrl := fmt.Sprintf("http://%v:%v", privateIpAddr, privateHttpPort.GetNumber())
-	return publicUrl, privateUrl, nil
+	return privateUrl, nil
 }
 
 // ====================================================================================================
