@@ -299,7 +299,7 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 			"--enable-doppelganger-protection=false",
 			// vvvvvvvvvvvvvvvvvvv PROMETHEUS CONFIG vvvvvvvvvvvvvvvvvvvvv
 			"--metrics",
-			"--metrics-address=" + privateIpAddr,
+			"--metrics-address=0.0.0.0",
 			"--metrics-allow-origin=*",
 			fmt.Sprintf("--metrics-port=%v", validatorMetricsPortNum),
 			// ^^^^^^^^^^^^^^^^^^^ PROMETHEUS CONFIG ^^^^^^^^^^^^^^^^^^^^^
