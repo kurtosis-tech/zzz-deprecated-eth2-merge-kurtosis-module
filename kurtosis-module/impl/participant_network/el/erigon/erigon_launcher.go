@@ -150,6 +150,7 @@ func (launcher *ErigonELClientLauncher) getContainerConfigSupplier(
 			"--networkid=" + launcher.networkId,
 			"--http",
 			"--http.addr=0.0.0.0",
+			"--http.corsdomain=*",
 			//// WARNING: The admin info endpoint is enabled so that we can easily get ENR/enode, which means
 			////  that users should NOT store private information in these Kurtosis nodes!
 			"--http.api=admin,engine,net,eth",

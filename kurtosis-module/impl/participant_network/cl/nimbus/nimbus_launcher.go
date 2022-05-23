@@ -1,4 +1,5 @@
 package nimbus
+
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
@@ -162,7 +163,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 ) func(string) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		elClientEngineRpcUrlStr := fmt.Sprintf(
-			"ws://%v:%v",
+			"http://%v:%v",
 			elClientContext.GetIPAddress(),
 			elClientContext.GetEngineRPCPortNum(),
 		)
@@ -251,7 +252,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			cmdStr,
 		}).WithFiles(map[services.FilesArtifactID]string{
 			launcher.genesisData.GetFilesArtifactID(): genesisDataMountpointOnClient,
-			keystoreFiles.FilesArtifactID: validatorKeysMountpointOnClient,
+			keystoreFiles.FilesArtifactID:             validatorKeysMountpointOnClient,
 		}).Build()
 
 		return containerConfig, nil
