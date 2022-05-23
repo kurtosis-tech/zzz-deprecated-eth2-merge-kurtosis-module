@@ -1,4 +1,6 @@
 # TBD
+
+# 0.5.2
 * Update besu params
 * Update default images
 * Update Nimbus to use HTTP instead of WS
