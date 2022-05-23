@@ -25,17 +25,16 @@ const (
 	// See: https://github.com/ethereum/go-ethereum/issues/19547
 	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
 
-	rpcPortNum       uint16 = 8545
-	wsPortNum        uint16 = 8546
+	rpcPortNum           uint16 = 8545
+	wsPortNum            uint16 = 8546
 	discoveryPortNum     uint16 = 30303
 	engineHttpRpcPortNum uint16 = 8550
-	engineWsRpcPortNum uint16 = 8551
-
+	engineWsRpcPortNum   uint16 = 8551
 
 	// Port IDs
-	rpcPortId          = "rpc"
-	wsPortId           = "ws"
-	tcpDiscoveryPortId = "tcp-discovery"
+	rpcPortId           = "rpc"
+	wsPortId            = "ws"
+	tcpDiscoveryPortId  = "tcp-discovery"
 	udpDiscoveryPortId  = "udp-discovery"
 	engineHttpRpcPortId = "engineHttpRpc"
 	engineWsRpcPortId   = "engineWsRpc"
@@ -51,7 +50,7 @@ var usedPorts = map[string]*services.PortSpec{
 	// TODO Remove if there's no UDP discovery port?????
 	udpDiscoveryPortId:  services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
 	engineHttpRpcPortId: services.NewPortSpec(engineHttpRpcPortNum, services.PortProtocol_TCP),
-	engineWsRpcPortId: services.NewPortSpec(engineWsRpcPortNum, services.PortProtocol_TCP),
+	engineWsRpcPortId:   services.NewPortSpec(engineWsRpcPortNum, services.PortProtocol_TCP),
 }
 var entrypointArgs = []string{"sh", "-c"}
 var besuLogLevels = map[module_io.GlobalClientLogLevel]string{
@@ -64,7 +63,7 @@ var besuLogLevels = map[module_io.GlobalClientLogLevel]string{
 
 type BesuELClientLauncher struct {
 	genesisData *el_genesis.ELGenesisData
-	networkId                            string
+	networkId   string
 }
 
 func NewBesuELClientLauncher(genesisData *el_genesis.ELGenesisData, networkId string) *BesuELClientLauncher {
@@ -145,26 +144,24 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 			"--genesis-file=" + genesisJsonFilepathOnClient,
 			"--network-id=" + networkId,
 			"--host-allowlist=*",
-			"--Xmerge-support=true",
 			"--miner-enabled=true",
 			"--miner-coinbase=" + miningRewardsAccount,
 			"--rpc-http-enabled=true",
 			"--rpc-http-host=0.0.0.0",
 			fmt.Sprintf("--rpc-http-port=%v", rpcPortNum),
-			"--rpc-http-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL",
+			"--rpc-http-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,ENGINE",
 			"--rpc-http-cors-origins=*",
 			"--rpc-ws-enabled=true",
 			"--rpc-ws-host=0.0.0.0",
 			fmt.Sprintf("--rpc-ws-port=%v", wsPortNum),
-			"--rpc-ws-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL",
+			"--rpc-ws-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,ENGINE",
 			"--p2p-enabled=true",
 			"--p2p-host=" + privateIpAddr,
 			fmt.Sprintf("--p2p-port=%v", discoveryPortNum),
-			"--engine-jwt-enabled=true",
+			"--engine-rpc-enabled=true",
 			fmt.Sprintf("--engine-jwt-secret=%v", jwtSecretJsonFilepathOnClient),
 			"--engine-host-allowlist=*",
-			fmt.Sprintf("--engine-rpc-http-port=%v", engineHttpRpcPortNum),
-			fmt.Sprintf("--engine-rpc-ws-port=%v", engineWsRpcPortNum),
+			fmt.Sprintf("--engine-rpc-port=%v", engineHttpRpcPortNum),
 		}
 		if len(existingElClients) > 0 {
 			bootnodeContext := existingElClients[0]
