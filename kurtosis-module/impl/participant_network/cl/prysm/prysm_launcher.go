@@ -282,7 +282,6 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			"--wallet-dir=" + prysmKeystoreDirpath,
 			"--wallet-password-file=" + prysmPasswordFilepath,
 			"--datadir=" + consensusDataDirpath,
-			"--monitoring-host=" + privateIpAddr,
 			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
 			"--verbosity=" + logLevel,
 			// TODO SOMETHING ABOUT JWT
