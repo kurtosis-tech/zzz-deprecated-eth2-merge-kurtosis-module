@@ -1,6 +1,7 @@
 # TBD
 ### Changes
 * Upgraded to module-api-lib 0.16.0, core 1.54.1 and engine 1.26.1 for latest Kurtosis compatibility
+* Upgraded Ubuntu machine image in Circle CI configuration to version `ubuntu-2004:202201-02`
 
 # 0.5.2
 * Update besu params
