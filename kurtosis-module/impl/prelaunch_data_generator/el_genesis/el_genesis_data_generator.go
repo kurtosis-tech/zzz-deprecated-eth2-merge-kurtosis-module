@@ -102,7 +102,7 @@ func GenerateELGenesisData(
 	); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred creating the genesis config file at '%v'", genesisConfigFilepathOnModule)
 	}
-	genesisGenerationConfigArtifactId, err := enclaveCtx.UploadFiles(genesisConfigFilepathOnModule)
+	genesisGenerationConfigArtifactUuid, err := enclaveCtx.UploadFiles(genesisConfigFilepathOnModule)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred uploading the genesis config filepath from '%v'", genesisConfigFilepathOnModule)
 	}
@@ -110,8 +110,8 @@ func GenerateELGenesisData(
 	// TODO Make this the actual data generator
 	serviceCtx, err := prelaunch_data_generator_launcher.LaunchPrelaunchDataGenerator(
 		enclaveCtx,
-		map[services.FilesArtifactID]string{
-			genesisGenerationConfigArtifactId: configDirpathOnGenerator,
+		map[services.FilesArtifactUUID]string{
+			genesisGenerationConfigArtifactUuid: configDirpathOnGenerator,
 		},
 	)
 	if err != nil {
@@ -186,13 +186,13 @@ func GenerateELGenesisData(
 		return nil, stacktrace.Propagate(err, "An error occurred executing the JWT secret generation command")
 	}
 
-	elGenesisDataArtifactId, err := enclaveCtx.StoreServiceFiles(ctx, serviceCtx.GetServiceID(), outputDirpathOnGenerator)
+	elGenesisDataArtifactUuid, err := enclaveCtx.StoreServiceFiles(ctx, serviceCtx.GetServiceID(), outputDirpathOnGenerator)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred storing the generated EL genesis data in the enclave")
 	}
 
 	result := newELGenesisData(
-		elGenesisDataArtifactId,
+		elGenesisDataArtifactUuid,
 		path.Join(path.Base(outputDirpathOnGenerator), jwtSecretFilename),
 		genesisFilenameToRelativeFilepathInArtifact[gethGenesisFilename],
 		genesisFilenameToRelativeFilepathInArtifact[erigonGenesisFilename],

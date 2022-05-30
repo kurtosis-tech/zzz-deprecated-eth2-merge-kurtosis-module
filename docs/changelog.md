@@ -1,4 +1,6 @@
 # TBD
+### Changes
+* Upgraded to module-api-lib 0.16.0, core 1.54.1 and engine 1.26.1 for latest Kurtosis compatibility
 
 # 0.5.2
 * Update besu params

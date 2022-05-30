@@ -238,7 +238,7 @@ func LaunchParticipantNetwork(
 		),
 		module_io.ParticipantCLClientType_Prysm: prysm.NewPrysmCLClientLauncher(
 			clGenesisData,
-			clValidatorData.PrysmPasswordArtifactId,
+			clValidatorData.PrysmPasswordArtifactUUid,
 			clValidatorData.PrysmPasswordRelativeFilepath,
 		),
 	}

@@ -53,7 +53,7 @@ func LaunchGrafana(
 	dashboardProvidersConfigTemplate *template.Template,
 	prometheusPrivateUrl string,
 ) error {
-	artifactId, err := getGrafanaConfigDirArtifactId(
+	artifactUuid, err := getGrafanaConfigDirArtifactUuid(
 		enclaveCtx,
 		datasourceConfigTemplate,
 		dashboardProvidersConfigTemplate,
@@ -63,7 +63,7 @@ func LaunchGrafana(
 		return stacktrace.Propagate(err, "An error occurred getting the Grafana config directory files artifact")
 	}
 
-	containerConfigSupplier := getContainerConfigSupplier(artifactId)
+	containerConfigSupplier := getContainerConfigSupplier(artifactUuid)
 	_, err = enclaveCtx.AddService(serviceID, containerConfigSupplier)
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred launching the grafana service")
@@ -75,12 +75,12 @@ func LaunchGrafana(
 // ====================================================================================================
 //                                       Private Helper Functions
 // ====================================================================================================
-func getGrafanaConfigDirArtifactId(
+func getGrafanaConfigDirArtifactUuid(
 	enclaveCtx *enclaves.EnclaveContext,
 	datasourceConfigTemplate *template.Template,
 	dashboardProvidersConfigTemplate *template.Template,
 	prometheusPrivateUrl string,
-) (services.FilesArtifactID, error) {
+) (services.FilesArtifactUUID, error) {
 	datasourcesConfigDirpathOnModule := path.Join(grafanaConfigDirpathOnModule, datasourcesConfigDirname)
 	datasourceConfigFilepath := path.Join(datasourcesConfigDirpathOnModule, datasourceConfigFilename)
 	dashboardsConfigDirpathOnModule := path.Join(grafanaConfigDirpathOnModule, dashboardsConfigDirname)
@@ -133,16 +133,16 @@ func getGrafanaConfigDirArtifactId(
 		)
 	}
 
-	artifactId, err := enclaveCtx.UploadFiles(grafanaConfigDirpathOnModule)
+	artifactUuid, err := enclaveCtx.UploadFiles(grafanaConfigDirpathOnModule)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred uploading Grafana config dir at '%v'", grafanaConfigDirpathOnModule)
 	}
 
-	return artifactId, nil
+	return artifactUuid, nil
 }
 
 func getContainerConfigSupplier(
-	configDirArtifactId services.FilesArtifactID,
+	configDirArtifactUuid services.FilesArtifactUUID,
 ) func(privateIpAddr string) (*services.ContainerConfig, error) {
 	// We need the path.Base() here because Kurtosis doesn't flatten directories yet
 	configDirpath := path.Join(grafanaConfigDirpathOnService, path.Base(grafanaConfigDirpathOnModule))
@@ -153,8 +153,8 @@ func getContainerConfigSupplier(
 			usedPorts,
 		).WithEnvironmentVariableOverrides(map[string]string{
 			configDirpathEnvVar: configDirpath,
-		}).WithFiles(map[services.FilesArtifactID]string{
-			configDirArtifactId: grafanaConfigDirpathOnService,
+		}).WithFiles(map[services.FilesArtifactUUID]string{
+			configDirArtifactUuid: grafanaConfigDirpathOnService,
 		}).Build()
 
 		return containerConfig, nil

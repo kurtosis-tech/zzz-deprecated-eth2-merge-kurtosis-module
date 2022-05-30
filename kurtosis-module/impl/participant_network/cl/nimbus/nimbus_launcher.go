@@ -250,9 +250,9 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			"sh", "-c",
 		}).WithCmdOverride([]string{
 			cmdStr,
-		}).WithFiles(map[services.FilesArtifactID]string{
-			launcher.genesisData.GetFilesArtifactID(): genesisDataMountpointOnClient,
-			keystoreFiles.FilesArtifactID:             validatorKeysMountpointOnClient,
+		}).WithFiles(map[services.FilesArtifactUUID]string{
+			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountpointOnClient,
+			keystoreFiles.FilesArtifactUUID:             validatorKeysMountpointOnClient,
 		}).Build()
 
 		return containerConfig, nil

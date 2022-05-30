@@ -260,8 +260,8 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 			beaconUsedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).WithFiles(map[services.FilesArtifactID]string{
-			launcher.genesisData.GetFilesArtifactID(): genesisDataMountpointOnClients,
+		).WithFiles(map[services.FilesArtifactUUID]string{
+			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountpointOnClients,
 		}).WithEnvironmentVariableOverrides(map[string]string{
 			rustBacktraceEnvvarName: rustFullBacktraceKeyword,
 		}).Build()
@@ -314,9 +314,9 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 			validatorUsedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).WithFiles(map[services.FilesArtifactID]string{
-			launcher.genesisData.GetFilesArtifactID(): genesisDataMountpointOnClients,
-			nodeKeystoreFiles.FilesArtifactID: validatorKeysMountpointOnClients,
+		).WithFiles(map[services.FilesArtifactUUID]string{
+			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountpointOnClients,
+			nodeKeystoreFiles.FilesArtifactUUID:         validatorKeysMountpointOnClients,
 		}).WithEnvironmentVariableOverrides(map[string]string{
 			rustBacktraceEnvvarName: rustFullBacktraceKeyword,
 		}).Build()
