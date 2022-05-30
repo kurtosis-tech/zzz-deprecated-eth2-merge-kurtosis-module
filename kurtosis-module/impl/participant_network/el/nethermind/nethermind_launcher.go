@@ -170,8 +170,8 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			usedPorts,
 		).WithCmdOverride(
 			commandArgs,
-		).WithFiles(map[services.FilesArtifactID]string{
-			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpath,
+		).WithFiles(map[services.FilesArtifactUUID]string{
+			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpath,
 		}).Build()
 
 		return containerConfig, nil

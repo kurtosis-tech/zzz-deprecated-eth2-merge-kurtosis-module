@@ -49,7 +49,7 @@ func GenerateCLValidatorKeystores(
 ) {
 	serviceCtx, err := prelaunch_data_generator_launcher.LaunchPrelaunchDataGenerator(
 		enclaveCtx,
-		map[services.FilesArtifactID]string{},
+		map[services.FilesArtifactUUID]string{},
 	)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the generator container")
@@ -97,7 +97,7 @@ func GenerateCLValidatorKeystores(
 	// Store outputs into files artifacts
 	keystoreFiles := []*KeystoreFiles{}
 	for idx, outputDirpath := range allOutputDirpaths {
-		artifactId, err := enclaveCtx.StoreServiceFiles(ctx, serviceCtx.GetServiceID(), outputDirpath)
+		artifactUuid, err := enclaveCtx.StoreServiceFiles(ctx, serviceCtx.GetServiceID(), outputDirpath)
 		if err != nil {
 			return nil, stacktrace.Propagate(err, "An error occurred storing keystore files at '%v' for node #%v", outputDirpath, idx)
 		}
@@ -105,7 +105,7 @@ func GenerateCLValidatorKeystores(
 		// This is necessary because the way Kurtosis currently implements artifact-storing is
 		baseDirnameInArtifact := path.Base(outputDirpath)
 		toAdd := NewKeystoreFiles(
-			artifactId,
+			artifactUuid,
 			path.Join(baseDirnameInArtifact, rawKeysDirname),
 			path.Join(baseDirnameInArtifact, rawSecretsDirname),
 			path.Join(baseDirnameInArtifact, lodestarSecretsDirname),
@@ -130,13 +130,13 @@ func GenerateCLValidatorKeystores(
 	if err := execCommand(serviceCtx, writePrysmPasswordFileCmd); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred writing the Prysm password to file '%v' on the generator", prysmPasswordFilepathOnGenerator)
 	}
-	prysmPasswordArtifactId, err := enclaveCtx.StoreServiceFiles(ctx, serviceCtx.GetServiceID(), prysmPasswordFilepathOnGenerator)
+	prysmPasswordArtifactUuid, err := enclaveCtx.StoreServiceFiles(ctx, serviceCtx.GetServiceID(), prysmPasswordFilepathOnGenerator)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred storing the Prysm password file at '%v'", prysmPasswordFilepathOnGenerator)
 	}
 
 	result := NewGenerateKeystoresResult(
-		prysmPasswordArtifactId,
+		prysmPasswordArtifactUuid,
 		path.Base(prysmPasswordFilepathOnGenerator),
 		keystoreFiles,
 	)

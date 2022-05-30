@@ -250,9 +250,9 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 			"sh", "-c",
 		}).WithCmdOverride([]string{
 			cmdStr,
-		}).WithFiles(map[services.FilesArtifactID]string{
-			launcher.clGenesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
-			keystoreFiles.FilesArtifactID: validatorKeysDirpathOnServiceContainer,
+		}).WithFiles(map[services.FilesArtifactUUID]string{
+			launcher.clGenesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
+			keystoreFiles.FilesArtifactUUID:               validatorKeysDirpathOnServiceContainer,
 		}).Build()
 
 		return containerConfig, nil

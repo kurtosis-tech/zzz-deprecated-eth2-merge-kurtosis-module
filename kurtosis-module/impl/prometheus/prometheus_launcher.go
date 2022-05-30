@@ -53,12 +53,12 @@ func LaunchPrometheus(
 	if err := service_launch_utils.FillTemplateToPath(configTemplate, templateData, configFilepathOnModule); err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred filling the Prometheus config file template to file '%v'", configFilepathOnModule)
 	}
-	configArtifactId, err := enclaveCtx.UploadFiles(configFilepathOnModule)
+	configArtifactUuid, err := enclaveCtx.UploadFiles(configFilepathOnModule)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred uploading the Prometheus config file at '%v'", configFilepathOnModule)
 	}
 
-	containerConfigSupplier := getContainerConfigSupplier(configArtifactId)
+	containerConfigSupplier := getContainerConfigSupplier(configArtifactUuid)
 	serviceCtx, err := enclaveCtx.AddService(serviceID, containerConfigSupplier)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the prometheus service")
@@ -78,7 +78,7 @@ func LaunchPrometheus(
 //                                       Private Helper Functions
 // ====================================================================================================
 func getContainerConfigSupplier(
-	configFileArtifactId services.FilesArtifactID,
+	configFileArtifactUuid services.FilesArtifactUUID,
 ) (
 	func(privateIpAddr string) (*services.ContainerConfig, error),
 ) {
@@ -99,8 +99,8 @@ func getContainerConfigSupplier(
 			"--web.enable-lifecycle",
 		}).WithUsedPorts(
 			usedPorts,
-		).WithFiles(map[services.FilesArtifactID]string{
-			configFileArtifactId: configDirMountpointOnPrometheus,
+		).WithFiles(map[services.FilesArtifactUUID]string{
+			configFileArtifactUuid: configDirMountpointOnPrometheus,
 		}).Build()
 
 		return containerConfig, nil

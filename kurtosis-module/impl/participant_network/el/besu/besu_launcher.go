@@ -183,8 +183,8 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 			entrypointArgs,
 		).WithCmdOverride([]string{
 			launchNodeCmdStr,
-		}).WithFiles(map[services.FilesArtifactID]string{
-			launcher.genesisData.GetFilesArtifactID(): genesisDataDirpathOnClientContainer,
+		}).WithFiles(map[services.FilesArtifactUUID]string{
+			launcher.genesisData.GetFilesArtifactUUID(): genesisDataDirpathOnClientContainer,
 		}).Build()
 
 		return containerConfig, nil

@@ -65,12 +65,12 @@ func LaunchForkmon(
 	if err := service_launch_utils.FillTemplateToPath(configTemplate, templateData, forkmonConfigFilepathOnModule); err != nil {
 		return stacktrace.Propagate(err, "An error occurred filling the config file template")
 	}
-	configArtifactId, err := enclaveCtx.UploadFiles(forkmonConfigFilepathOnModule)
+	configArtifactUuid, err := enclaveCtx.UploadFiles(forkmonConfigFilepathOnModule)
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred uploading Forkmon config file at '%v'", forkmonConfigFilepathOnModule)
 	}
 
-	containerConfigSupplier := getContainerConfigSupplier(configArtifactId)
+	containerConfigSupplier := getContainerConfigSupplier(configArtifactUuid)
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred getting the container config supplier")
 	}
@@ -83,7 +83,7 @@ func LaunchForkmon(
 }
 
 func getContainerConfigSupplier(
-	configArtifactId services.FilesArtifactID,
+	configArtifactUuid services.FilesArtifactUUID,
 ) func(privateIpAddr string) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string) (*services.ContainerConfig, error) {
 		configFilepath := path.Join(forkmonConfigMountDirpathOnService, path.Base(forkmonConfigFilepathOnModule))
@@ -94,8 +94,8 @@ func getContainerConfigSupplier(
 			configFilepath,
 		}).WithUsedPorts(
 			usedPorts,
-		).WithFiles(map[services.FilesArtifactID]string{
-			configArtifactId: forkmonConfigMountDirpathOnService,
+		).WithFiles(map[services.FilesArtifactUUID]string{
+			configArtifactUuid: forkmonConfigMountDirpathOnService,
 		}).Build()
 
 		return containerConfig, nil
