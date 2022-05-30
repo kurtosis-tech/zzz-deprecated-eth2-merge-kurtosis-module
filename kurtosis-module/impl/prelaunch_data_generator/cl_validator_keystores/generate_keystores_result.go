@@ -5,8 +5,8 @@ import "github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 // Package object containing information about the keystores that were generated for validators
 //  during genesis creation
 type GenerateKeystoresResult struct {
-	// Files artifact ID where the Prysm password is stored
-	PrysmPasswordArtifactId services.FilesArtifactID
+	// Files artifact UUID where the Prysm password is stored
+	PrysmPasswordArtifactUUid services.FilesArtifactUUID
 
 	// Relative to root of files artifact
 	PrysmPasswordRelativeFilepath string
@@ -15,6 +15,6 @@ type GenerateKeystoresResult struct {
 	PerNodeKeystores []*KeystoreFiles
 }
 
-func NewGenerateKeystoresResult(prysmPasswordArtifactId services.FilesArtifactID, prysmPasswordRelativeFilepath string, perNodeKeystores []*KeystoreFiles) *GenerateKeystoresResult {
-	return &GenerateKeystoresResult{PrysmPasswordArtifactId: prysmPasswordArtifactId, PrysmPasswordRelativeFilepath: prysmPasswordRelativeFilepath, PerNodeKeystores: perNodeKeystores}
+func NewGenerateKeystoresResult(prysmPasswordArtifactUuid services.FilesArtifactUUID, prysmPasswordRelativeFilepath string, perNodeKeystores []*KeystoreFiles) *GenerateKeystoresResult {
+	return &GenerateKeystoresResult{PrysmPasswordArtifactUUid: prysmPasswordArtifactUuid, PrysmPasswordRelativeFilepath: prysmPasswordRelativeFilepath, PerNodeKeystores: perNodeKeystores}
 }

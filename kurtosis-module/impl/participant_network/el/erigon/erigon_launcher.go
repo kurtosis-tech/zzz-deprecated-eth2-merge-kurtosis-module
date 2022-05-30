@@ -187,8 +187,8 @@ func (launcher *ErigonELClientLauncher) getContainerConfigSupplier(
 			entrypointArgs,
 		).WithCmdOverride([]string{
 			commandStr,
-		}).WithFiles(map[services.FilesArtifactID]string{
-			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpath,
+		}).WithFiles(map[services.FilesArtifactUUID]string{
+			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpath,
 		}).Build()
 
 		return containerConfig, nil

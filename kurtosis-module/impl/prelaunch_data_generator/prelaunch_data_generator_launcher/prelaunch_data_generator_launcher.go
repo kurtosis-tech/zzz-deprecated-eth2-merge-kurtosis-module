@@ -24,7 +24,7 @@ var entrypointArgs = []string{
 // Launches a prelaunch data generator image, for use in various of the genesis generation
 func LaunchPrelaunchDataGenerator(
 	enclaveCtx *enclaves.EnclaveContext,
-	filesArtifactMountpoints map[services.FilesArtifactID]string,
+	filesArtifactMountpoints map[services.FilesArtifactUUID]string,
 ) (
 	*services.ServiceContext,
 	error,
@@ -46,7 +46,7 @@ func LaunchPrelaunchDataGenerator(
 }
 
 func getContainerConfigSupplier(
-	filesArtifactMountpoints map[services.FilesArtifactID]string,
+	filesArtifactMountpoints map[services.FilesArtifactUUID]string,
 ) func(privateIpAddr string) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string) (*services.ContainerConfig, error) {
 		containerConfig := services.NewContainerConfigBuilder(

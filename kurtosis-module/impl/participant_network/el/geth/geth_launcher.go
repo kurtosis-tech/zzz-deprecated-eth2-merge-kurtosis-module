@@ -72,14 +72,14 @@ var verbosityLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type GethELClientLauncher struct {
-	genesisData *el_genesis.ELGenesisData
-	prefundedGethKeysArtifactId services.FilesArtifactID
-	prefundedAccountInfo                 []*genesis_consts.PrefundedAccount
+	genesisData                   *el_genesis.ELGenesisData
+	prefundedGethKeysArtifactUuid services.FilesArtifactUUID
+	prefundedAccountInfo          []*genesis_consts.PrefundedAccount
 	networkId                            string
 }
 
-func NewGethELClientLauncher(genesisData *el_genesis.ELGenesisData, prefundedGethKeysArtifactId services.FilesArtifactID, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *GethELClientLauncher {
-	return &GethELClientLauncher{genesisData: genesisData, prefundedGethKeysArtifactId: prefundedGethKeysArtifactId, prefundedAccountInfo: prefundedAccountInfo, networkId: networkId}
+func NewGethELClientLauncher(genesisData *el_genesis.ELGenesisData, prefundedGethKeysArtifactUuid services.FilesArtifactUUID, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *GethELClientLauncher {
+	return &GethELClientLauncher{genesisData: genesisData, prefundedGethKeysArtifactUuid: prefundedGethKeysArtifactUuid, prefundedAccountInfo: prefundedAccountInfo, networkId: networkId}
 }
 
 func (launcher *GethELClientLauncher) Launch(
@@ -232,9 +232,9 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			entrypointArgs,
 		).WithCmdOverride([]string{
 			commandStr,
-		}).WithFiles(map[services.FilesArtifactID]string{
-			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpath,
-			launcher.prefundedGethKeysArtifactId:      prefundedKeysMountDirpath,
+		}).WithFiles(map[services.FilesArtifactUUID]string{
+			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpath,
+			launcher.prefundedGethKeysArtifactUuid:      prefundedKeysMountDirpath,
 		}).Build()
 
 		return containerConfig, nil

@@ -72,13 +72,13 @@ var prysmLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type PrysmCLClientLauncher struct {
-	genesisData *cl_genesis.CLGenesisData
-	prysmPasswordArtifactId services.FilesArtifactID
+	genesisData                   *cl_genesis.CLGenesisData
+	prysmPasswordArtifactUuid     services.FilesArtifactUUID
 	prysmPasswordRelativeFilepath string
 }
 
-func NewPrysmCLClientLauncher(genesisData *cl_genesis.CLGenesisData, prysmPasswordArtifactId services.FilesArtifactID, prysmPasswordRelativeFilepath string) *PrysmCLClientLauncher {
-	return &PrysmCLClientLauncher{genesisData: genesisData, prysmPasswordArtifactId: prysmPasswordArtifactId, prysmPasswordRelativeFilepath: prysmPasswordRelativeFilepath}
+func NewPrysmCLClientLauncher(genesisData *cl_genesis.CLGenesisData, prysmPasswordArtifactUuid services.FilesArtifactUUID, prysmPasswordRelativeFilepath string) *PrysmCLClientLauncher {
+	return &PrysmCLClientLauncher{genesisData: genesisData, prysmPasswordArtifactUuid: prysmPasswordArtifactUuid, prysmPasswordRelativeFilepath: prysmPasswordRelativeFilepath}
 }
 
 func (launcher *PrysmCLClientLauncher) Launch(
@@ -251,8 +251,8 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 			beaconNodeUsedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).WithFiles(map[services.FilesArtifactID]string{
-			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
+		).WithFiles(map[services.FilesArtifactUUID]string{
+			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
 		}).Build()
 
 		return containerConfig, nil
@@ -301,10 +301,10 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			validatorNodeUsedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).WithFiles(map[services.FilesArtifactID]string{
-			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
-			keystoreFiles.FilesArtifactID:             validatorKeysMountDirpathOnServiceContainer,
-			launcher.prysmPasswordArtifactId:          prysmPasswordMountDirpathOnServiceContainer,
+		).WithFiles(map[services.FilesArtifactUUID]string{
+			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
+			keystoreFiles.FilesArtifactUUID:             validatorKeysMountDirpathOnServiceContainer,
+			launcher.prysmPasswordArtifactUuid:          prysmPasswordMountDirpathOnServiceContainer,
 		}).Build()
 
 		return containerConfig, nil

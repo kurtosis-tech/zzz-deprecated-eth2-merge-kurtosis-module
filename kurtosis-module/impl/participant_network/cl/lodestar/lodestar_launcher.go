@@ -214,8 +214,8 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 			usedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).WithFiles(map[services.FilesArtifactID]string{
-			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
+		).WithFiles(map[services.FilesArtifactUUID]string{
+			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
 		}).Build()
 
 		return containerConfig, nil
@@ -256,9 +256,9 @@ func (launcher *LodestarClientLauncher) getValidatorContainerConfigSupplier(
 			usedPorts,
 		).WithCmdOverride(
 			cmdArgs,
-		).WithFiles(map[services.FilesArtifactID]string{
-			launcher.genesisData.GetFilesArtifactID(): genesisDataMountDirpathOnServiceContainer,
-			keystoreFiles.FilesArtifactID: validatorKeysMountDirpathOnServiceContainer,
+		).WithFiles(map[services.FilesArtifactUUID]string{
+			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
+			keystoreFiles.FilesArtifactUUID:             validatorKeysMountDirpathOnServiceContainer,
 		}).Build()
 
 		return containerConfig, nil

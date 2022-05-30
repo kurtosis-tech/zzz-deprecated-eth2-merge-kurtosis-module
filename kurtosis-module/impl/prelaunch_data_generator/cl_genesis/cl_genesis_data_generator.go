@@ -100,7 +100,7 @@ func GenerateCLGenesisData(
 		return nil, stacktrace.Propagate(err, "An error occurred filling the CL genesis generation mnemonics YML template")
 	}
 
-	genesisGenerationConfigArtifactId, err := enclaveCtx.UploadFiles(tempDirpath)
+	genesisGenerationConfigArtifactUuid, err := enclaveCtx.UploadFiles(tempDirpath)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred storing the CL genesis generation config files at '%v'", tempDirpath)
 	}
@@ -108,9 +108,9 @@ func GenerateCLGenesisData(
 	// TODO Make this the actual data generator
 	serviceCtx, err := prelaunch_data_generator_launcher.LaunchPrelaunchDataGenerator(
 		enclaveCtx,
-		map[services.FilesArtifactID]string{
-			genesisGenerationConfigArtifactId: configDirpathOnGenerator,
-			elGenesisData.GetFilesArtifactID(): elGenesisDirpathOnGenerator,
+		map[services.FilesArtifactUUID]string{
+			genesisGenerationConfigArtifactUuid:  configDirpathOnGenerator,
+			elGenesisData.GetFilesArtifactUUID(): elGenesisDirpathOnGenerator,
 		},
 	)
 	if err != nil {
@@ -216,7 +216,7 @@ func GenerateCLGenesisData(
 		)
 	}
 
-	clGenesisDataArtifactId, err := enclaveCtx.StoreServiceFiles(ctx, serviceCtx.GetServiceID(), outputDirpathOnGenerator)
+	clGenesisDataArtifactUuid, err := enclaveCtx.StoreServiceFiles(ctx, serviceCtx.GetServiceID(), outputDirpathOnGenerator)
 	if err != nil {
 		return nil, stacktrace.Propagate(
 			err,
@@ -239,7 +239,7 @@ func GenerateCLGenesisData(
 		genesisStateFilename,
 	)
 	result := newCLGenesisData(
-		clGenesisDataArtifactId,
+		clGenesisDataArtifactUuid,
 		jwtSecretRelFilepath,
 		genesisConfigRelFilepath,
 		genesisSszRelFilepath,
