@@ -85,7 +85,7 @@ You can find the latest Kiln compatible docker images here: https://notes.ethere
             //  global `logLevel` = `info` then Teku would receive `INFO`, Prysm would receive `info`, etc.)
             // If this is not emptystring, then this value will override the global `logLevel` setting to allow for fine-grained control
             //  over a specific participant's logging
-            "clLogLevel": ""
+            "clLogLevel": "",
 
             // A list of optional extra params that will be passed to the CL client Beacon container for modifying its behaviour
             // If the client combines the Beacon & validator nodes (e.g. Teku, Nimbus), then this list will be passed to the combined Beacon-validator node
@@ -93,7 +93,7 @@ You can find the latest Kiln compatible docker images here: https://notes.ethere
 
             // A list of optional extra params that will be passed to the CL client validator container for modifying its behaviour
             // If the client combines the Beacon & validator nodes (e.g. Teku, Nimbus), then this list will also be passed to the combined Beacon-validator node
-            "validatorExtraParams": [],
+            "validatorExtraParams": []
         }
     ],
 
