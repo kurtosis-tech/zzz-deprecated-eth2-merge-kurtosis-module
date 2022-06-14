@@ -1,7 +1,7 @@
 package module_io
 
 import (
-	"encoding/json"
+	"gopkg.in/yaml.v3"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
 	"strings"
@@ -18,7 +18,7 @@ const (
 
 func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 	paramsObj := GetDefaultExecuteParams()
-	if err := json.Unmarshal([]byte(paramsStr), paramsObj); err != nil {
+	if err := yaml.Unmarshal([]byte(paramsStr), paramsObj); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred deserializing the serialized params")
 	}
 
