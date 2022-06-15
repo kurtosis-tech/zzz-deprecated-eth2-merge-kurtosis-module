@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"encoding/json"
+	"gopkg.in/yaml.v3"
 	"github.com/kurtosis-tech/kurtosis-module-api-lib/golang/lib/kurtosis_modules"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
@@ -11,10 +11,10 @@ const(
 	defaultLogLevel = "info"
 )
 
-// Parameters that the module accepts when loaded, serializeda as JSON
+// Parameters that the module accepts when loaded, serialized as JSON
 type LoadModuleParams struct {
 	// Indicates the log level for this Kurtosis module implementation
-	LogLevel string `json:"logLevel"`
+	LogLevel string `yaml:"logLevel"`
 }
 
 type Eth2KurtosisModuleConfigurator struct{}
@@ -26,7 +26,7 @@ func NewEth2KurtosisModuleConfigurator() *Eth2KurtosisModuleConfigurator {
 func (t Eth2KurtosisModuleConfigurator) ParseParamsAndCreateExecutableModule(serializedCustomParamsStr string) (kurtosis_modules.ExecutableKurtosisModule, error) {
 	serializedCustomParamsBytes := []byte(serializedCustomParamsStr)
 	var args LoadModuleParams
-	if err := json.Unmarshal(serializedCustomParamsBytes, &args); err != nil {
+	if err := yaml.Unmarshal(serializedCustomParamsBytes, &args); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred deserializing the Kurtosis module serialized custom params with value '%v", serializedCustomParamsStr)
 	}
 

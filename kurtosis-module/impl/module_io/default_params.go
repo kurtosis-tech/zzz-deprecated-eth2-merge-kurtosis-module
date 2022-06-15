@@ -40,7 +40,7 @@ var defaultClImages = map[ParticipantCLClientType]string{
 }
 
 // To see the exact JSON keys needed to override these values, see the ExecuteParams object and look for the
-//  `json:"XXXXXXX"` metadata on the ExecuteParams properties
+//  `yaml:"XXXXXXX"` metadata on the ExecuteParams properties
 func GetDefaultExecuteParams() *ExecuteParams {
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
