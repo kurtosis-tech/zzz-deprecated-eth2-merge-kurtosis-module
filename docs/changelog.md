@@ -1,5 +1,6 @@
 # TBD
 
+* Changed consensus layer fork versions to not conflict with the Prater testnet configuration
 * Add support for YAML in input serialized params
 
 # 0.5.3
