@@ -1,5 +1,6 @@
 # TBD
 
+* Geth: open up vhost/cors configs by adding relevant flags. explicitly set empty bootnode for first node.
 * Add support for YAML in input serialized params
 
 # 0.5.3
