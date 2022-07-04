@@ -8,7 +8,7 @@ CONFIG_NAME: testnet # needs to exist because of Prysm. Otherwise it conflicts w
 # `2**14` (= 16,384)
 MIN_GENESIS_ACTIVE_VALIDATOR_COUNT: {{ .NumValidatorKeysToPreregister }}
 MIN_GENESIS_TIME: {{ .UnixTimestamp }}
-GENESIS_FORK_VERSION: 0x13001020
+GENESIS_FORK_VERSION: 0x10005555
 GENESIS_DELAY: 0
 
 # Forking
@@ -18,10 +18,10 @@ GENESIS_DELAY: 0
 #  - Temporarily set to max uint64 value: 2**64 - 1
 
 # Altair
-ALTAIR_FORK_VERSION: 0x01001020
+ALTAIR_FORK_VERSION: 0x11005555
 ALTAIR_FORK_EPOCH: {{ .AltairForkEpoch }}
 # Merge
-BELLATRIX_FORK_VERSION: 0x02001020
+BELLATRIX_FORK_VERSION: 0x12005555
 BELLATRIX_FORK_EPOCH: {{ .MergeForkEpoch }}
 TERMINAL_TOTAL_DIFFICULTY: {{ .TotalTerminalDifficulty }}
 # 0x0000...000 indicates that we use TERMINAL_TOTAL_DIFFICULTY instead of a block has to trigger the merge
@@ -30,7 +30,7 @@ TERMINAL_BLOCK_HASH: 0x000000000000000000000000000000000000000000000000000000000
 # NOTE: This is commented out because Nimbus warns us that it's an unrecognized parameter
 TERMINAL_BLOCK_HASH_ACTIVATION_EPOCH: 18446744073709551615
 # Sharding
-SHARDING_FORK_VERSION: 0x03001020
+SHARDING_FORK_VERSION: 0x13005555
 SHARDING_FORK_EPOCH: 18446744073709551615
 
 # Time parameters
