@@ -1,5 +1,5 @@
 # TBD
-
+* Geth: open up vhost/cors configs by adding relevant flags. explicitly set empty bootnode for first node.
 * Changed consensus layer fork versions to not conflict with the Prater testnet configuration
 * Add support for YAML in input serialized params
 
