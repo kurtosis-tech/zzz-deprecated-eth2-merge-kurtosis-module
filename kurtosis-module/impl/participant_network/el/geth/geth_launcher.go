@@ -2,6 +2,10 @@ package geth
 
 import (
 	"fmt"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
@@ -12,9 +16,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"path"
-	"strings"
-	"time"
 )
 
 const (
@@ -75,7 +76,7 @@ type GethELClientLauncher struct {
 	genesisData                   *el_genesis.ELGenesisData
 	prefundedGethKeysArtifactUuid services.FilesArtifactUUID
 	prefundedAccountInfo          []*genesis_consts.PrefundedAccount
-	networkId                            string
+	networkId                     string
 }
 
 func NewGethELClientLauncher(genesisData *el_genesis.ELGenesisData, prefundedGethKeysArtifactUuid services.FilesArtifactUUID, prefundedAccountInfo []*genesis_consts.PrefundedAccount, networkId string) *GethELClientLauncher {
@@ -189,6 +190,8 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--networkid=" + launcher.networkId,
 			"--http",
 			"--http.addr=0.0.0.0",
+			"--http.vhosts=*",
+			"--http.corsdomain=*",
 			// WARNING: The admin info endpoint is enabled so that we can easily get ENR/enode, which means
 			//  that users should NOT store private information in these Kurtosis nodes!
 			"--http.api=admin,engine,net,eth",
@@ -196,6 +199,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--ws.addr=0.0.0.0",
 			fmt.Sprintf("--ws.port=%v", wsPortNum),
 			"--ws.api=engine,net,eth",
+			"--ws.origins=*",
 			"--allow-insecure-unlock",
 			"--nat=extip:" + privateIpAddr,
 			"--verbosity=" + verbosityLevel,
@@ -204,13 +208,15 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 			"--authrpc.vhosts=*",
 			fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretJsonFilepathOnClient),
 		}
+		var bootnodeEnode string
 		if len(existingElClients) > 0 {
 			bootnodeContext := existingElClients[0]
-			launchNodeCmdArgs = append(
-				launchNodeCmdArgs,
-				"--bootnodes="+bootnodeContext.GetEnode(),
-			)
+			bootnodeEnode = bootnodeContext.GetEnode()
 		}
+		launchNodeCmdArgs = append(
+			launchNodeCmdArgs,
+			fmt.Sprintf(`--bootnodes="%s"`, bootnodeEnode),
+		)
 		if len(extraParams) > 0 {
 			launchNodeCmdArgs = append(launchNodeCmdArgs, extraParams...)
 		}
