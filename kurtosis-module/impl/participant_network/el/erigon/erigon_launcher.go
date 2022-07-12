@@ -160,12 +160,13 @@ func (launcher *ErigonELClientLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--engine.port=%v", engineRpcPortNum),
 			"--engine.addr=0.0.0.0",
 			fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretJsonFilepathOnClient),
+			"--nodiscover",
 		}
 		if len(existingElClients) > 0 {
 			bootnodeContext := existingElClients[0]
 			launchNodeCmdArgs = append(
 				launchNodeCmdArgs,
-				"--bootnodes="+bootnodeContext.GetEnode(),
+				"--staticpeers="+bootnodeContext.GetEnode(),
 			)
 		}
 		if len(extraParams) > 0 {

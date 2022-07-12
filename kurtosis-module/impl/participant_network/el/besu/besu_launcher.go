@@ -129,11 +129,20 @@ func (launcher *BesuELClientLauncher) Launch(
 func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 	image string,
 	networkId string,
-	existingElClients []*el.ELClientContext, // NOTE: If this is nil, the node will be configured as a bootnode
+	existingElClients []*el.ELClientContext,
 	logLevel string,
 	extraParams []string,
 ) func(string) (*services.ContainerConfig, error) {
 	result := func(privateIpAddr string) (*services.ContainerConfig, error) {
+		if len(existingElClients) == 0 {
+			return nil, stacktrace.NewError("Besu nodes cannot be boot nodes")
+		}
+		if len(existingElClients) < 2 {
+			return nil, stacktrace.NewError("Due to a bug in Besu peering, Besu requires two boot nodes")
+		}
+		bootnode1ElContext := existingElClients[0]
+		bootnode2ElContext := existingElClients[1]
+
 		genesisJsonFilepathOnClient := path.Join(genesisDataDirpathOnClientContainer, launcher.genesisData.GetBesuGenesisJsonRelativeFilepath())
 		jwtSecretJsonFilepathOnClient := path.Join(genesisDataDirpathOnClientContainer, launcher.genesisData.GetJWTSecretRelativeFilepath())
 
@@ -164,10 +173,13 @@ func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--engine-rpc-port=%v", engineHttpRpcPortNum),
 		}
 		if len(existingElClients) > 0 {
-			bootnodeContext := existingElClients[0]
 			launchNodeCmdArgs = append(
 				launchNodeCmdArgs,
-				"--bootnodes="+bootnodeContext.GetEnode(),
+				fmt.Sprintf(
+					"--bootnodes=%v,%v",
+					bootnode1ElContext.GetEnode(),
+					bootnode2ElContext.GetEnode(),
+				),
 			)
 		}
 		if len(extraParams) > 0 {
