@@ -2,6 +2,7 @@
 set -euo pipefail # Bash "strict mode"
 script_dirpath="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root_dirpath="$(dirname "${script_dirpath}")"
+git_repo_dirpath="${root_dirpath}"
 
 # ==================================================================================================
 #                                             Constants
@@ -19,8 +20,12 @@ if ! [ -f "${root_dirpath}"/.dockerignore ]; then
   exit 1
 fi
 
-get_docker_image_tag_script_filepath="${script_dirpath}/${GET_DOCKER_IMAGE_TAG_SCRIPT_FILENAME}"
-if ! docker_tag="$(bash "${get_docker_image_tag_script_filepath}")"; then
+# Generate Docker image tag
+if ! cd "${git_repo_dirpath}"; then
+  echo "Error: Couldn't cd to the git root dirpath '${git_repo_dirpath}'" >&2
+  exit 1
+fi
+if ! docker_tag="$(kudet get-docker-tag)"; then
     echo "Error: Couldn't get the Docker image tag" >&2
     exit 1
 fi
