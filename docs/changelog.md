@@ -1,5 +1,10 @@
 # TBD
 
+### Changes
+* Migrate to using internal cli tool, `kudet`, for new release workflow and getting docker image tags
+* Upgrade core to 1.55.2
+* Upgrade module-api-lib to 0.17.0
+
 # 0.5.4
 * Geth: open up vhost/cors configs by adding relevant flags. explicitly set empty bootnode for first node.
 * Changed consensus layer fork versions to not conflict with the Prater testnet configuration
