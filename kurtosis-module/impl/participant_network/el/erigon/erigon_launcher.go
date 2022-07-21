@@ -28,10 +28,6 @@ const (
 	udpDiscoveryPortId = "udp-discovery"
 	engineRpcPortId    = "engine-rpc"
 
-	// NOTE: This can't be 0x00000....000
-	// See: https://github.com/ethereum/go-ethereum/issues/19547
-	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
-
 	genesisDataMountDirpath = "/genesis"
 
 	// The dirpath of the execution data directory on the client container.
@@ -74,7 +70,7 @@ func (launcher *ErigonELClientLauncher) Launch(
 	image string,
 	participantLogLevel string,
 	globalLogLevel module_io.GlobalClientLogLevel,
-	// If empty then the node will be launched as a bootnode
+// If empty then the node will be launched as a bootnode
 	existingElClients []*el.ELClientContext,
 	extraParams []string,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
@@ -126,7 +122,7 @@ func (launcher *ErigonELClientLauncher) Launch(
 // ====================================================================================================
 func (launcher *ErigonELClientLauncher) getContainerConfigSupplier(
 	image string,
-	// NOTE: If this is nil, the node will be configured as a bootnode
+// NOTE: If this is nil, the node will be configured as a bootnode
 	existingElClients []*el.ELClientContext,
 	verbosityLevel string,
 	extraParams []string,
@@ -144,8 +140,6 @@ func (launcher *ErigonELClientLauncher) getContainerConfigSupplier(
 		launchNodeCmdArgs := []string{
 			"erigon",
 			"--verbosity=" + verbosityLevel,
-			"--mine",
-			"--miner.etherbase=" + miningRewardsAccount,
 			"--datadir=" + executionDataDirpathOnClientContainer,
 			"--networkid=" + launcher.networkId,
 			"--http",
