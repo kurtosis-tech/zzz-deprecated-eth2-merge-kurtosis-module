@@ -157,7 +157,7 @@ func (launcher *ErigonELClientLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretJsonFilepathOnClient),
 			"--nodiscover",
 			fmt.Sprintf(
-				"--staticpeers==%v",
+				"--staticpeers=%v",
 				bootnode1ElContext.GetEnode()),
 		}
 		if len(extraParams) > 0 {
