@@ -70,7 +70,7 @@ func (launcher *ErigonELClientLauncher) Launch(
 	image string,
 	participantLogLevel string,
 	globalLogLevel module_io.GlobalClientLogLevel,
-// If empty then the node will be launched as a bootnode
+	// If empty then the node will be launched as a bootnode
 	existingElClients []*el.ELClientContext,
 	extraParams []string,
 ) (resultClientCtx *el.ELClientContext, resultErr error) {
@@ -122,7 +122,7 @@ func (launcher *ErigonELClientLauncher) Launch(
 // ====================================================================================================
 func (launcher *ErigonELClientLauncher) getContainerConfigSupplier(
 	image string,
-// NOTE: If this is nil, the node will be configured as a bootnode
+	// NOTE: If this is nil, the node will be configured as a bootnode
 	existingElClients []*el.ELClientContext,
 	verbosityLevel string,
 	extraParams []string,
@@ -138,7 +138,6 @@ func (launcher *ErigonELClientLauncher) getContainerConfigSupplier(
 		)
 
 		bootnode1ElContext := existingElClients[0]
-		bootnode2ElContext := existingElClients[1]
 		launchNodeCmdArgs := []string{
 			"erigon",
 			"--verbosity=" + verbosityLevel,
@@ -159,9 +158,7 @@ func (launcher *ErigonELClientLauncher) getContainerConfigSupplier(
 			"--nodiscover",
 			fmt.Sprintf(
 				"--staticpeers==%v,%v",
-				bootnode1ElContext.GetEnode(),
-				bootnode2ElContext.GetEnode(),
-			),
+				bootnode1ElContext.GetEnode()),
 		}
 		if len(extraParams) > 0 {
 			launchNodeCmdArgs = append(launchNodeCmdArgs, extraParams...)
