@@ -37,7 +37,7 @@ Kurtosis will create a new enclave to house the services of the Ethereum network
 
 ### Configuration
 
-To configure the module behaviour, you can modify your `eth2-module-params.json` file. The full JSON schema that can be passed in is as follows with the defaults ([from here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/develop/kurtosis-module/impl/module_io/default_params.go) provided (though note that the `//` comments are for explanation purposes and aren't valid JSON so need to be removed):
+To configure the module behaviour, you can modify your `eth2-module-params.json` file. The full JSON schema that can be passed in is as follows with the defaults ([from here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/module_io/default_params.go) provided (though note that the `//` comments are for explanation purposes and aren't valid JSON so need to be removed):
 
 You can find the latest Kiln compatible docker images here: https://notes.ethereum.org/@launchpad/kiln
 
