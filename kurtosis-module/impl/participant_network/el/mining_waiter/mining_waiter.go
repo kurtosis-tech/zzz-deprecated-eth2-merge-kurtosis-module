@@ -3,6 +3,7 @@ package mining_waiter
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
 	"github.com/kurtosis-tech/stacktrace"
+	"github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -19,6 +20,11 @@ func (waiter *miningWaiter) WaitForMining(numRetries uint32, timeBetweenRetries 
 		blockNumber, err := waiter.restClient.GetBlockNumber()
 		if err == nil && blockNumber > 0 {
 			return nil
+		}
+		if err != nil {
+			logrus.Debugf("An error occurred when getting the block number from the EL client:\n%v", err)
+		} else if blockNumber == 0 {
+			logrus.Debugf("Successfully got a block number from the EL client, but the block number was 0")
 		}
 		time.Sleep(timeBetweenRetries)
 	}
