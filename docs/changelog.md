@@ -4,6 +4,8 @@
 * Migrate to using internal cli tool, `kudet`, for new release workflow and getting docker image tags
 * Upgrade core to 1.55.2
 * Upgrade module-api-lib to 0.17.0
+* Removes miner on Besu
+* Adds static peers for Erigon and Nethermind
 
 # 0.5.4
 * Geth: open up vhost/cors configs by adding relevant flags. explicitly set empty bootnode for first node.
