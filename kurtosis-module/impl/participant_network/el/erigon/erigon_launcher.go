@@ -28,10 +28,6 @@ const (
 	udpDiscoveryPortId = "udp-discovery"
 	engineRpcPortId    = "engine-rpc"
 
-	// NOTE: This can't be 0x00000....000
-	// See: https://github.com/ethereum/go-ethereum/issues/19547
-	miningRewardsAccount = "0x0000000000000000000000000000000000000001"
-
 	genesisDataMountDirpath = "/genesis"
 
 	// The dirpath of the execution data directory on the client container.
@@ -141,11 +137,10 @@ func (launcher *ErigonELClientLauncher) getContainerConfigSupplier(
 			genesisJsonFilepathOnClient,
 		)
 
+		bootnode1ElContext := existingElClients[0]
 		launchNodeCmdArgs := []string{
 			"erigon",
 			"--verbosity=" + verbosityLevel,
-			"--mine",
-			"--miner.etherbase=" + miningRewardsAccount,
 			"--datadir=" + executionDataDirpathOnClientContainer,
 			"--networkid=" + launcher.networkId,
 			"--http",
@@ -160,13 +155,10 @@ func (launcher *ErigonELClientLauncher) getContainerConfigSupplier(
 			fmt.Sprintf("--engine.port=%v", engineRpcPortNum),
 			"--engine.addr=0.0.0.0",
 			fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretJsonFilepathOnClient),
-		}
-		if len(existingElClients) > 0 {
-			bootnodeContext := existingElClients[0]
-			launchNodeCmdArgs = append(
-				launchNodeCmdArgs,
-				"--bootnodes="+bootnodeContext.GetEnode(),
-			)
+			"--nodiscover",
+			fmt.Sprintf(
+				"--staticpeers=%v",
+				bootnode1ElContext.GetEnode()),
 		}
 		if len(extraParams) > 0 {
 			launchNodeCmdArgs = append(launchNodeCmdArgs, extraParams...)

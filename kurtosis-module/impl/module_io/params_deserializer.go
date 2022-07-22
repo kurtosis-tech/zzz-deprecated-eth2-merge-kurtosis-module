@@ -1,15 +1,15 @@
 package module_io
 
 import (
-	"gopkg.in/yaml.v3"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 	"strings"
 )
 
 const (
 	expectedSecondsPerSlot = 12
-	expectedSlotsPerEpoch = 32
+	expectedSlotsPerEpoch  = 32
 
 	// TODO Remove this once Teku fixes its bug with merge fork epoch:
 	//  https://discord.com/channels/697535391594446898/697539289042649190/935029250858299412
@@ -31,8 +31,8 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 		return nil, stacktrace.NewError("At least one participant is required")
 	}
 	for idx, participant := range paramsObj.Participants {
-		if idx == 0 && participant.ELClientType == ParticipantELClientType_Nethermind {
-			return nil, stacktrace.NewError("Cannot use a Nethermind client for the first participant because Nethermind clients don't mine on Eth1")
+		if idx == 0 && (participant.ELClientType == ParticipantELClientType_Nethermind) || (participant.ELClientType == ParticipantELClientType_Besu) {
+			return nil, stacktrace.NewError("Cannot use a Nethermind/Besu client for the first participant because Nethermind/Besu clients don't mine on Eth1")
 		}
 
 		elClientType := participant.ELClientType
@@ -46,7 +46,7 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 				idx,
 				elClientType,
 				strings.Join(validClientTypes, ", "),
-			 )
+			)
 		}
 		if participant.ELClientImage == useDefaultElImageKeyword {
 			defaultElClientImage, found := defaultElImages[elClientType]
@@ -61,7 +61,6 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 			paramsObj.Participants[idx].ELExtraParams = []string{}
 		}
 
-
 		clClientType := participant.CLClientType
 		if _, found := validParticipantCLClientTypes[clClientType]; !found {
 			validClientTypes := []string{}
@@ -73,7 +72,7 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 				idx,
 				clClientType,
 				strings.Join(validClientTypes, ", "),
-			 )
+			)
 		}
 		if participant.CLClientImage == useDefaultClImageKeyword {
 			defaultClClientImage, found := defaultClImages[clClientType]
@@ -138,7 +137,7 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 			"We need %v validators (enough for two epochs, with one validator per slot), but only have %v",
 			requiredNumValidators,
 			actualNumValidators,
-		 )
+		)
 	}
 	if len(strings.TrimSpace(networkParams.PreregisteredValidatorKeysMnemonic)) == 0 {
 		return nil, stacktrace.NewError("Preregistered validator keys mnemonic must not be empty")

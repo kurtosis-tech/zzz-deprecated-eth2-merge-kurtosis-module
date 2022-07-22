@@ -154,8 +154,9 @@ func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
 			"--Merge.TerminalBlockNumber=null",
 			fmt.Sprintf("--JsonRpc.JwtSecretFile=%v", jwtSecretJsonFilepathOnClient),
 			fmt.Sprintf("--JsonRpc.AdditionalRpcUrls=[\"http://0.0.0.0:%v|http;ws|net;eth;subscribe;engine;web3;client\"]", engineRpcPortNum),
+			"--Network.OnlyStaticPeers=true",
 			fmt.Sprintf(
-				"--Discovery.Bootnodes=%v,%v",
+				"--Network.StaticPeers=%v,%v",
 				bootnode1ElContext.GetEnode(),
 				bootnode2ElContext.GetEnode(),
 			),
