@@ -1,4 +1,6 @@
 # TBD
+### Features
+- EL mining waiter now logs failures to mine as a debug message
 
 # 0.5.4
 * Geth: open up vhost/cors configs by adding relevant flags. explicitly set empty bootnode for first node.
