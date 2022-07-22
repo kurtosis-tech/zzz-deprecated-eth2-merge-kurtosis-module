@@ -50,9 +50,9 @@ participants:
 
     #  The Docker image that should be used for the EL client; leave blank to use the default for the client type
     #  Defaults by client:
-    #  - geth: parithoshj/geth:master
-    #  - erigon: parithoshj/erigon:merge-2da927b
-    #  - nethermind: nethermindeth/nethermind:kiln_shadowfork
+    #  - geth: ethereum/client-go:latest
+    #  - erigon: thorax/erigon:devel
+    #  - nethermind: nethermind/nethermind:latest
     #  - besu: hyperledger/besu:develop
     elImage: ""
 
@@ -74,7 +74,7 @@ participants:
     #  Defaults by client (note that Prysm is different in that it requires two images - a Beacon and a validator - separated by a comma):
     #  - lighthouse: sigp/lighthouse:latest
     #  - teku: consensys/teku:latest
-    #  - nimbus: parithoshj/nimbus:merge-79452b7
+    #  - nimbus: parithoshj/nimbus:merge-d3a00f6
     #  - prysm: gcr.io/prysmaticlabs/prysm/beacon-chain:latest,gcr.io/prysmaticlabs/prysm/validator:latest
     #  - lodestar: chainsafe/lodestar:next
     clImage: ""
