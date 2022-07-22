@@ -1,4 +1,6 @@
 # TBD
+
+# 0.5.6
 ### Features
 * EL mining waiter now logs failures to mine as a debug message
 * Removes miner on Besu
