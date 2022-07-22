@@ -41,11 +41,13 @@ jobs:
           kurtosis cluster set docker
           kurtosis engine start
           kurtosis module exec 'kurtosistech/eth2-merge-kurtosis-module:latest'
+      # this step will be always run even if the previous step fails, some steps are configured this way. More info here: https://circleci.com/docs/configuration-reference#steps
       - slack/notify:
           channel: engineering
           event: fail
           # You can preview this template and know more about templates here: https://github.com/CircleCI-Public/slack-orb/wiki#templates
           template: basic_fail_1
+
 
   check_code:
     executor: ubuntu_vm
