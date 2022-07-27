@@ -19,6 +19,7 @@ type CLClientLauncher interface {
 		// If nil, the node will be launched as a bootnode
 		bootnodeContext *CLClientContext,
 		elClientContext *el.ELClientContext,
+		// TODO Add in mev-boost context so that the CL node can hook up to it
 		nodeKeystoreFiles *cl_validator_keystores.KeystoreFiles,
 		extraBeaconParams []string,
 		extraValidatorParams []string,
