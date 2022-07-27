@@ -161,8 +161,12 @@ logLevel: "info"
 
 Development
 -----------
-To develop on this module, install Go and:
+First, install prerequisites:
+1. Install Go
+1. [Install Kurtosis itself](https://docs.kurtosistech.com/installation.html)
+1. Install Kudet, which allows for versioning
 
+Then, run the dev loop:
 1. Make your code changes
 1. Run `scripts/build.sh`
 1. From the `scripts/build.sh` output, copy the Docker image name from the line that looks like :
