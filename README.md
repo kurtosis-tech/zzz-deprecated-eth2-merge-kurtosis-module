@@ -164,29 +164,85 @@ Development
 First, install prerequisites:
 1. Install Go
 1. [Install Kurtosis itself](https://docs.kurtosistech.com/installation.html)
-1. Install Kudet, which allows for versioning
 
 Then, run the dev loop:
 1. Make your code changes
-1. Run `scripts/build.sh`
-1. From the `scripts/build.sh` output, copy the Docker image name from the line that looks like :
+1. Rebuild and re-execute the module by running the following from the root of the repo:
    ```
-   Successfully built Docker image 'kurtosistech/eth2-merge-kurtosis-module:562dd4_dirty' containing the Ethereum Kurtosis module
+   source scripts/_constants.env && \
+       kurtosis enclave rm -f eth2-local && \
+       bash scripts/build.sh && \
+       kurtosis module exec --enclave-id eth2-local "${IMAGE_ORG_AND_REPO}:$(bash scripts/get-docker-image-tag.sh)" --execute-params "{}"
    ```
-   In this example, the image name is `kurtosistech/eth2-merge-kurtosis-module:562dd4_dirty`.
-1. Slot the image that's outputted into your `kurtosis module exec` command (e.g. `kurtosis module exec kurtosistech/eth2-merge-kurtosis-module:my-test-branch`)
+   NOTE 1: You can change the value of the `--execute-params` flag to pass in extra configuration to the module per the "Configuration" section above!
+   NOTE 2: The `--execute-params` flag accepts YAML and YAML is a superset of JSON, so you can pass in either.
 
-### Modules Overview
-k
+Documentation
+-------------
+This repo is a Kurtosis module. To get general information on what a Kurtosis module is and how it works, visit [the modules documentation](https://docs.kurtosistech.com/modules.html).
 
+The overview of this particular module's operation is as follows:
 
-### Module Architecture
-This module has five main components:
+1. Parse user parameters
+1. Launch a network of Ethereum participants
+    1. Generate execution layer (EL) client config data
+    1. Launch EL clients
+    1. Wait for EL clients to start mining, such that all EL clients have a nonzero block number
+    1. Generate consensus layer (CL) client config data
+    1. Launch CL clients
+1. Launch auxiliary services (Grafana, Forkmon, etc.)
+1. Run Ethereum Merge verification logic
 
-1. The `kurtosis-module/impl/module.go` file, which contains the `Execute` function that accepts the module's parameters, runs the code necessary for the module's execution, and returns the module's output
-1. The `kurtosis-module/impl/module_io` directory, which contains module parameter and output structs, parsing logic, and validation
-1. The `kurtosis-module/impl/participant_network` directory, which contains logic for generating EL & CL client required files and starting EL & CL client networks
-1. The `kurtosis-module/static_files` directory, which contains static files that will get bundled into 
+### Architecture Overview
+The module has six main components, in accordance with the above operation:
+
+1. [Execute Function][execute-function]
+1. [Module I/O][module-io]
+1. [Participant Network][participant-network]
+1. **Auxiliary Services:** All the various other directories under the `kurtosis-module/impl` directory, including `forkmon`, `grafana`, `prometheus`, and `transaction-spammer`
+1. **Static Files:** The `kurtosis-module/static_files` directory, which contains static files that will get bundled up with the module (e.g. genesis file templates)
+1. **Merge Verification Logic:** The `kurtosis-module/impl/testnet_verifier` directory, which contains checks that the network has successfully passed the Merge
+
+### [Execute Function][execute-function]
+The execute function is the module's entrypoint/main function, where parameters are received from the user, lower-level calls are made, and a response is returned. Like all Kurtosis modules, this module receives serialized parameters and [the EnclaveContext object for manipulating the Kurtosis enclave][enclave-context], and returns a serialized response object.
+
+### [Module I/O][module-io]
+This particular module has many configuration options (see the "Configuration" section earlier in this README for the full list of values). These are passed in as a YAML-serialized string, and arrive to the module's execute function via the `serializedParams` variable. The process of setting defaults, overriding them with the user's desired options, and validating that the resulting config object is valid requires some space in the codebase. All this logic happens inside the `module_io` directory, so you'll want to visit this directory if you want to:
+
+- View or change parameters that the module can receive
+- Change the default values of module parameters
+- View or change the validation logic that the module applies to configuration parameters
+- View or change the properties that the module passes back to the user after execution is complete
+
+### [Participant Network][participant-network]
+The participant network is the beating Ethereum network heart at the center of the module. The participant network code is responsible for:
+
+1. Generating EL client config data
+1. Starting the EL clients
+1. Waiting until the EL clients have started mining
+1. Generating CL client config data
+1. Starting the CL clients
+
+We'll explain these in stages.
+
+#### EL clients
+All EL clients require both a genesis file and a JWT secret. The exact format of the genesis file differs per client, so we first leverage [a Docker image containing tools for generating this genesis data][ethereum-genesis-generator] to create the actual files that the EL clients-to-be will need. These files get stored in the Kurtosis enclave, ready for use when we start the EL clients.
+
+Next, we plug the generated genesis data into EL client "launchers" to start a mining network of EL nodes. The launchers are really just implementations of [the `ELClientLauncher` interface](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/participant_network/el/el_client_launcher.go), with a `Launch` function that consumes EL genesis data and produces information about the running EL client node. Running EL node information is represented by [an `ELClientContext` struct](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/participant_network/el/el_client_context.go). Each EL client type (e.g. Besu, Erigon, Geth) has its own launcher because each EL client will require different environment variables and flags to be set when launching the client's container.
+
+Once we have a network of EL nodes started, we block until they all have a block number of > 0 (to ensure that they are in fact working). After the nodes have started mining, we're ready to move on to adding the CL client network.
+
+CL clients, like EL clients, also have genesis and config files that they need. We use [the same Docker image with tools for generating genesis data][ethereum-genesis-generator] to create the files that the CL-clients-to-be need, and the files get stored in the Kurtosis enclave in the same way as the EL client files.
+
+We accomplish these steps using several components:
+
+- Launchers
+- Prelaunch data generators
+- Waiters
+
+A launcher is a 
+
+A prelaunch data generator is a function used to generate data for an EL or CL node before it's launched. Such data includes EL & CL genesis config data, JWT token secrets, CL client validator keystores
 
 
 
@@ -195,7 +251,14 @@ This module has five main components:
 
 
 <!------------------------ Only links below here -------------------------------->
+
 [docker-installation]: https://docs.docker.com/get-docker/
 [kurtosis-cli-installation]: https://docs.kurtosistech.com/installation.html
 [module-docs]: https://docs.kurtosistech.com/modules.html
+[enclave-context]: https://docs.kurtosistech.com/kurtosis-core/lib-documentation#enclavecontext
 [using-the-cli]: https://docs.kurtosistech.com/using-the-cli.html
+
+[execute-function]: https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/module.go#L50
+[module-io]: https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/tree/master/kurtosis-module/impl/module_io
+[participant-network]: https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/tree/master/kurtosis-module/impl/participant_network
+[ethereum-genesis-generator]: https://github.com/skylenet/ethereum-genesis-generator
