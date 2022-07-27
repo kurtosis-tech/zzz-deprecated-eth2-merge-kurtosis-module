@@ -168,7 +168,7 @@ First, install prerequisites:
 Then, run the dev loop:
 1. Make your code changes
 1. Rebuild and re-execute the module by running the following from the root of the repo:
-   ```
+   ```bash
    source scripts/_constants.env && \
        kurtosis enclave rm -f eth2-local && \
        bash scripts/build.sh && \
