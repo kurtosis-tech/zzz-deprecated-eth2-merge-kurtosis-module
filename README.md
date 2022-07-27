@@ -225,14 +225,23 @@ The participant network is the beating Ethereum network heart at the center of t
 
 We'll explain these in stages.
 
-#### EL clients
-All EL clients require both a genesis file and a JWT secret. The exact format of the genesis file differs per client, so we first leverage [a Docker image containing tools for generating this genesis data][ethereum-genesis-generator] to create the actual files that the EL clients-to-be will need. These files get stored in the Kurtosis enclave, ready for use when we start the EL clients.
+#### EL Clients
+All EL clients require both a genesis file and a JWT secret. The exact format of the genesis file differs per client, so we first leverage [a Docker image containing tools for generating this genesis data][ethereum-genesis-generator] to create the actual files that the EL clients-to-be will need. These files get stored in the Kurtosis enclave, ready for use when we start the EL clients. The information about these stored files is tracked in the 
 
 Next, we plug the generated genesis data into EL client "launchers" to start a mining network of EL nodes. The launchers are really just implementations of [the `ELClientLauncher` interface](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/participant_network/el/el_client_launcher.go), with a `Launch` function that consumes EL genesis data and produces information about the running EL client node. Running EL node information is represented by [an `ELClientContext` struct](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/participant_network/el/el_client_context.go). Each EL client type (e.g. Besu, Erigon, Geth) has its own launcher because each EL client will require different environment variables and flags to be set when launching the client's container.
 
 Once we have a network of EL nodes started, we block until they all have a block number of > 0 (to ensure that they are in fact working). After the nodes have started mining, we're ready to move on to adding the CL client network.
 
+### CL Clients
 CL clients, like EL clients, also have genesis and config files that they need. We use [the same Docker image with tools for generating genesis data][ethereum-genesis-generator] to create the files that the CL-clients-to-be need, and the files get stored in the Kurtosis enclave in the same way as the EL client files.
+
+Once CL genesis data is created, 
+
+
+
+
+
+
 
 We accomplish these steps using several components:
 
