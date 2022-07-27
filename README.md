@@ -1,4 +1,5 @@
-# Ethereum 2 Merge Module
+Ethereum 2 Merge Module
+=======================
 
 This is a [Kurtosis module][module-docs] that will:
 
@@ -12,7 +13,8 @@ This is a [Kurtosis module][module-docs] that will:
 
 For much more detailed information about how the merge works in Ethereum testnets, see [this document](https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F).
 
-### Quickstart
+Quickstart
+----------
 
 1. [Install Docker if you haven't done so already][docker-installation]
 1. [Install the Kurtosis CLI, or upgrade it to the latest version if it's already installed][kurtosis-cli-installation]
@@ -31,11 +33,13 @@ For much more detailed information about how the merge works in Ethereum testnet
    kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module --execute-params "$(cat ~/eth2-module-params.json)"
    ```
 
-### Management
+Management
+----------
 
 Kurtosis will create a new enclave to house the services of the Ethereum network. [This page][using-the-cli] contains documentation for managing the created enclave & viewing detailed information about it.
 
-### Configuration
+Configuration
+-------------
 
 To configure the module behaviour, you can modify your `eth2-module-params.json` file. The full JSON schema that can be passed in is as follows with the defaults ([from here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/module_io/default_params.go) provided (though note that the `//` comments are for explanation purposes and aren't valid JSON so need to be removed):
 
@@ -155,16 +159,38 @@ verificationsEpochLimit: 5
 logLevel: "info"
 ```
 
-### Development
-
+Development
+-----------
 To develop on this module, install Go and:
 
 1. Make your code changes
 1. Run `scripts/build.sh`
+1. From the `scripts/build.sh` output, copy the Docker image name from the line that looks like :
+   ```
+   Successfully built Docker image 'kurtosistech/eth2-merge-kurtosis-module:562dd4_dirty' containing the Ethereum Kurtosis module
+   ```
+   In this example, the image name is `kurtosistech/eth2-merge-kurtosis-module:562dd4_dirty`.
 1. Slot the image that's outputted into your `kurtosis module exec` command (e.g. `kurtosis module exec kurtosistech/eth2-merge-kurtosis-module:my-test-branch`)
 
-<!-- Only links below here -->
+### Modules Overview
+k
 
+
+### Module Architecture
+This module has five main components:
+
+1. The `kurtosis-module/impl/module.go` file, which contains the `Execute` function that accepts the module's parameters, runs the code necessary for the module's execution, and returns the module's output
+1. The `kurtosis-module/impl/module_io` directory, which contains module parameter and output structs, parsing logic, and validation
+1. The `kurtosis-module/impl/participant_network` directory, which contains logic for generating EL & CL client required files and starting EL & CL client networks
+1. The `kurtosis-module/static_files` directory, which contains static files that will get bundled into 
+
+
+
+
+
+
+
+<!------------------------ Only links below here -------------------------------->
 [docker-installation]: https://docs.docker.com/get-docker/
 [kurtosis-cli-installation]: https://docs.kurtosistech.com/installation.html
 [module-docs]: https://docs.kurtosistech.com/modules.html
