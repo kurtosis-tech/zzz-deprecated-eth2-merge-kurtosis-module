@@ -194,6 +194,9 @@ func LaunchParticipantNetwork(
 		logrus.Infof("The wait-for-mining flag was set to false which means we're skipping waiting for the EL clients to start mining; this will speed up the launch but the Beacon nodes likely won't work properly!")
 	}
 
+	// TODO Use the MEVBoostLauncher to start mev-boost nodes for the CL clients-to-be that will have sidecar
+	//  mev-boost nodes attached, and gather the MEVBoostContexts for when you start the CL clients below
+
 	// We create the CL genesis data after the EL network is ready so that the CL genesis timestamp will be close
 	//  to the time the CL nodes are started
 	logrus.Info("Generating CL client genesis data...")

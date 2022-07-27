@@ -98,6 +98,8 @@ participants:
     #  If the client combines the Beacon & validator nodes (e.g. Teku, Nimbus), then this list will also be passed to the combined Beacon-validator node
     validatorExtraParams: []
 
+    # TODO Probably want a mev-boost toggle, so that mev-boost only gets added if you flip it on
+
 #  Configuration parameters for the Eth network
 network:
   #  The network ID of the Eth1 network
