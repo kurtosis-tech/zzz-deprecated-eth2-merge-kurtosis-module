@@ -5,6 +5,9 @@
 ### Fixes
 * Fixed broken link in the readme file
 
+### Changes
+* Moved `prelaunch_data_generator` directory under the `participant_network` directory, where it belongs
+
 # 0.5.6
 ### Features
 * EL mining waiter now logs failures to mine as a debug message
