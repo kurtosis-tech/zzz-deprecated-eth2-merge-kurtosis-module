@@ -2,8 +2,8 @@ package cl_genesis
 import (
 	"context"
 	"fmt"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/el_genesis"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prelaunch_data_generator/prelaunch_data_generator_launcher"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/el_genesis"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/prelaunch_data_generator_launcher"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -172,7 +172,7 @@ func GenerateCLGenesisData(
 
 	// Generate files that need dynamic content
 	contentToWriteToOutputFilename := map[string]string{
-		deployBlock: deployBlockFilename,
+		deployBlock:            deployBlockFilename,
 		depositContractAddress: depositContractFilename,
 	}
 	for content, destFilename := range contentToWriteToOutputFilename {
