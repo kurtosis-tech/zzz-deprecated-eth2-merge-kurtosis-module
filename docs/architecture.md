@@ -58,7 +58,7 @@ We'll explain these phases one by one.
 ### Generating EL client data
 All EL clients require both a genesis file and a JWT secret. The exact format of the genesis file differs per client, so we first leverage [a Docker image containing tools for generating this genesis data][ethereum-genesis-generator] to create the actual files that the EL clients-to-be will need. This is accomplished by filling in several genesis generation config files found in [the `static_files` directory][static-files].
 
-The generated output files then get stored in the Kurtosis enclave, ready for use when we start the EL clients. The information about these stored files is tracked in [the `ELGenesisData` object](TODO).
+The generated output files then get stored in the Kurtosis enclave, ready for use when we start the EL clients. The information about these stored files is tracked in [the `ELGenesisData` object](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/participant_network/prelaunch_data_generator/el_genesis/el_genesis_data.go).
 
 ### Starting EL clients
 Next, we plug the generated genesis data [into EL client "launchers"](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/tree/master/kurtosis-module/impl/participant_network/el) to start a mining network of EL nodes. The launchers are really just implementations of [the `ELClientLauncher` interface](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/participant_network/el/el_client_launcher.go), with a `Launch` function that consumes EL genesis data and produces information about the running EL client node. Running EL node information is represented by [an `ELClientContext` struct](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/participant_network/el/el_client_context.go). Each EL client type has its own launcher (e.g. [Geth](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/participant_network/el/geth/geth_launcher.go), [Besu](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/participant_network/el/besu/besu_launcher.go)) because each EL client will require different environment variables and flags to be set when launching the client's container.
@@ -82,12 +82,12 @@ There are only two major difference between CL client and EL client launchers. F
 
 Auxiliary Services
 ------------------
-After the Ethereum network is up and running, this module starts several auxiliary Docker containers to make it easier to work with the Ethereum network. At time of writing, these are:
+After the Ethereum network is up and running, this module starts several auxiliary containers to make it easier to work with the Ethereum network. At time of writing, these are:
 
 - [Forkmon](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/tree/master/kurtosis-module/impl/forkmon), a "fork monitor" web UI for visualizing the CL clients' forks
 - [Prometheus](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/tree/master/kurtosis-module/impl/prometheus) for collecting client node metrics
 - [Grafana](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/tree/master/kurtosis-module/impl/grafana) for visualizing client node metrics
-- [An ETH transaction spammer](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/tree/master/kurtosis-module/impl/transaction_spammer), which [has been forked off](https://github.com/kurtosis-tech/tx-fuzz) of [Marius' transaction spammer code](https://github.com/MariusVanDerWijden/tx-fuzz) so that it can run as a Docker container
+- [An ETH transaction spammer](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/tree/master/kurtosis-module/impl/transaction_spammer), which [has been forked off](https://github.com/kurtosis-tech/tx-fuzz) of [Marius' transaction spammer code](https://github.com/MariusVanDerWijden/tx-fuzz) so that it can run as a container
 
 [Testnet Verifier][testnet-verifier]
 ------------------------------------
