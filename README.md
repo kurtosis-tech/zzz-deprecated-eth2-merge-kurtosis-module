@@ -177,7 +177,7 @@ Then, run the dev loop:
    NOTE 1: You can change the value of the `--execute-params` flag to pass in extra configuration to the module per the "Configuration" section above!
    NOTE 2: The `--execute-params` flag accepts YAML and YAML is a superset of JSON, so you can pass in either.
 
-To get detailed information about the structure of the module, visit [the architecture docs](./docs/architecture).
+To get detailed information about the structure of the module, visit [the architecture docs](./docs/architecture.md).
 
 <!------------------------ Only links below here -------------------------------->
 [docker-installation]: https://docs.docker.com/get-docker/
