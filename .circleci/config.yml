@@ -52,12 +52,6 @@ jobs:
   check_code:
     executor: ubuntu_vm
     steps:
-      # Install Kudet
-      - run: |
-          echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
-          sudo apt update
-          sudo apt install kudet
-
       - checkout
 
       # If the only changes are to the docs, don't run the slow (and expensive) code checks
@@ -84,7 +78,7 @@ jobs:
       - run: |
           set -euo pipefail
           source scripts/_constants.env
-          docker_image_tag="$(kudet get-docker-tag)"
+          docker_image_tag="$(bash scripts/get-docker-image-tag.sh)"
 
           # Test the module, but don't exit immediately if it fails so that
           # we can upload the 'enclave dump' results
@@ -108,12 +102,6 @@ jobs:
   push_artifacts:
     executor: ubuntu_vm
     steps:
-      # Install Kudet
-      - run: |
-          echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
-          sudo apt update
-          sudo apt install kudet
-
       - checkout
 
       - run: echo "${DOCKER_PASSWORD}" | docker login -u ${DOCKER_USERNAME} --password-stdin
@@ -122,7 +110,7 @@ jobs:
       - run: |
           set -euo pipefail
           source scripts/_constants.env
-          version_to_publish="$(kudet get-docker-tag)"
+          version_to_publish="$(bash scripts/get-docker-image-tag.sh)"
           echo "Version that will be published: ${version_to_publish}"
           image_name_with_version="${IMAGE_ORG_AND_REPO}:${version_to_publish}"
           image_name_no_version="${IMAGE_ORG_AND_REPO}:latest"

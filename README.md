@@ -1,4 +1,5 @@
-# Ethereum 2 Merge Module
+Ethereum 2 Merge Module
+=======================
 
 This is a [Kurtosis module][module-docs] that will:
 
@@ -12,7 +13,8 @@ This is a [Kurtosis module][module-docs] that will:
 
 For much more detailed information about how the merge works in Ethereum testnets, see [this document](https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F).
 
-### Quickstart
+Quickstart
+----------
 
 1. [Install Docker if you haven't done so already][docker-installation]
 1. [Install the Kurtosis CLI, or upgrade it to the latest version if it's already installed][kurtosis-cli-installation]
@@ -31,11 +33,13 @@ For much more detailed information about how the merge works in Ethereum testnet
    kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module --execute-params "$(cat ~/eth2-module-params.json)"
    ```
 
-### Management
+Management
+----------
 
 Kurtosis will create a new enclave to house the services of the Ethereum network. [This page][using-the-cli] contains documentation for managing the created enclave & viewing detailed information about it.
 
-### Configuration
+Configuration
+-------------
 
 To configure the module behaviour, you can modify your `eth2-module-params.json` file. The full JSON schema that can be passed in is as follows with the defaults ([from here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/module_io/default_params.go) provided (though note that the `//` comments are for explanation purposes and aren't valid JSON so need to be removed):
 
@@ -155,17 +159,29 @@ verificationsEpochLimit: 5
 logLevel: "info"
 ```
 
-### Development
+Development
+-----------
+First, install prerequisites:
+1. Install Go
+1. [Install Kurtosis itself](https://docs.kurtosistech.com/installation.html)
 
-To develop on this module, install Go and:
-
+Then, run the dev loop:
 1. Make your code changes
-1. Run `scripts/build.sh`
-1. Slot the image that's outputted into your `kurtosis module exec` command (e.g. `kurtosis module exec kurtosistech/eth2-merge-kurtosis-module:my-test-branch`)
+1. Rebuild and re-execute the module by running the following from the root of the repo:
+   ```bash
+   source scripts/_constants.env && \
+       kurtosis enclave rm -f eth2-local && \
+       bash scripts/build.sh && \
+       kurtosis module exec --enclave-id eth2-local "${IMAGE_ORG_AND_REPO}:$(bash scripts/get-docker-image-tag.sh)" --execute-params "{}"
+   ```
+   NOTE 1: You can change the value of the `--execute-params` flag to pass in extra configuration to the module per the "Configuration" section above!
+   NOTE 2: The `--execute-params` flag accepts YAML and YAML is a superset of JSON, so you can pass in either.
 
-<!-- Only links below here -->
+To get detailed information about the structure of the module, visit [the architecture docs](./docs/architecture.md).
 
+<!------------------------ Only links below here -------------------------------->
 [docker-installation]: https://docs.docker.com/get-docker/
 [kurtosis-cli-installation]: https://docs.kurtosistech.com/installation.html
 [module-docs]: https://docs.kurtosistech.com/modules.html
+[enclave-context]: https://docs.kurtosistech.com/kurtosis-core/lib-documentation#enclavecontext
 [using-the-cli]: https://docs.kurtosistech.com/using-the-cli.html

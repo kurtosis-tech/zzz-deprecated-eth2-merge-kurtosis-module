@@ -1,12 +1,14 @@
 # TBD
 ### Features
 * Added CircleCi `check_latest_version` workflow for running a scheduled pipeline every day to control successful module execution
+* Added extensive documentation on the module's structure to `docs/architecture.md`, to encourage third-party contributions to the module
 
 ### Fixes
 * Fixed broken link in the readme file
 
 ### Changes
 * Moved `prelaunch_data_generator` directory under the `participant_network` directory, where it belongs
+* Switched from using `kudet` to get the Docker image tag, back to a script so that developers don't need `kudet` to build the module
 
 # 0.5.6
 ### Features

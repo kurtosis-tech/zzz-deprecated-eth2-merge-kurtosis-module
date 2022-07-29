@@ -25,7 +25,7 @@ if ! cd "${git_repo_dirpath}"; then
   echo "Error: Couldn't cd to the git root dirpath '${git_repo_dirpath}'" >&2
   exit 1
 fi
-if ! docker_tag="$(kudet get-docker-tag)"; then
+if ! docker_tag="$(bash "${script_dirpath}/get-docker-image-tag.sh")"; then
     echo "Error: Couldn't get the Docker image tag" >&2
     exit 1
 fi
