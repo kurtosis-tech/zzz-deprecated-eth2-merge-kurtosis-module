@@ -3,6 +3,8 @@ package participant_network
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/lighthouse"
@@ -15,6 +17,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/erigon"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/nethermind"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/mev_boost"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/el_genesis"
@@ -24,7 +27,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 const (
@@ -194,9 +196,6 @@ func LaunchParticipantNetwork(
 		logrus.Infof("The wait-for-mining flag was set to false which means we're skipping waiting for the EL clients to start mining; this will speed up the launch but the Beacon nodes likely won't work properly!")
 	}
 
-	// TODO Use the MEVBoostLauncher to start mev-boost nodes for the CL clients-to-be that will have sidecar
-	//  mev-boost nodes attached, and gather the MEVBoostContexts for when you start the CL clients below
-
 	// We create the CL genesis data after the EL network is ready so that the CL genesis timestamp will be close
 	//  to the time the CL nodes are started
 	logrus.Info("Generating CL client genesis data...")
@@ -246,6 +245,7 @@ func LaunchParticipantNetwork(
 		),
 	}
 	preregisteredValidatorKeysForNodes := clValidatorData.PerNodeKeystores
+	allMevBoostContexts := []*mev_boost.MEVBoostContext{}
 	allClClientContexts := []*cl.CLClientContext{}
 	for idx, participantSpec := range allParticipantSpecs {
 		clClientType := participantSpec.CLClientType
@@ -261,6 +261,22 @@ func LaunchParticipantNetwork(
 		// Each CL node will be paired with exactly one EL node
 		elClientCtx := allElClientContexts[idx]
 
+		var mevBoostCtx *mev_boost.MEVBoostContext
+		if participantSpec.BuilderNetworkParams != nil {
+			mevBoostLauncher := mev_boost.MEVBoostLauncher{
+				RelayCheck: true,
+				Relays:     participantSpec.BuilderNetworkParams.Relays,
+			}
+			mevBoostServiceId := services.ServiceID("mev-boost")
+			mevBoostCtx, err = mevBoostLauncher.Launch(enclaveCtx, mevBoostServiceId, networkParams.NetworkID)
+			if err != nil {
+				return nil, 0, stacktrace.Propagate(
+					err, "could not start mev-boost sidecar",
+				)
+			}
+		}
+		allMevBoostContexts = append(allMevBoostContexts, mevBoostCtx)
+
 		// Launch CL client
 		var newClClientCtx *cl.CLClientContext
 		var clClientLaunchErr error
@@ -273,6 +289,7 @@ func LaunchParticipantNetwork(
 				globalLogLevel,
 				clClientContextForBootClClients,
 				elClientCtx,
+				mevBoostCtx,
 				newClNodeValidatorKeystores,
 				participantSpec.BeaconExtraParams,
 				participantSpec.ValidatorExtraParams,
@@ -287,6 +304,7 @@ func LaunchParticipantNetwork(
 				globalLogLevel,
 				bootClClientCtx,
 				elClientCtx,
+				mevBoostCtx,
 				newClNodeValidatorKeystores,
 				participantSpec.BeaconExtraParams,
 				participantSpec.ValidatorExtraParams,
@@ -308,12 +326,14 @@ func LaunchParticipantNetwork(
 
 		elClientCtx := allElClientContexts[idx]
 		clClientCtx := allClClientContexts[idx]
+		mevBoostCtx := allMevBoostContexts[idx]
 
 		participant := NewParticipant(
 			elClientType,
 			clClientType,
 			elClientCtx,
 			clClientCtx,
+			mevBoostCtx,
 		)
 		allParticipants = append(allParticipants, participant)
 	}

@@ -2,18 +2,20 @@ package nimbus
 
 import (
 	"fmt"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	cl_client_rest_client2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/mev_boost"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_genesis"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"path"
-	"strings"
-	"time"
 )
 
 const (
@@ -87,6 +89,7 @@ func (launcher NimbusLauncher) Launch(
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
+	mevBoostContext *mev_boost.MEVBoostContext,
 	keystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
@@ -102,6 +105,7 @@ func (launcher NimbusLauncher) Launch(
 		image,
 		bootnodeContext,
 		elClientContext,
+		mevBoostContext,
 		logLevel,
 		keystoreFiles,
 		extraParams,
@@ -157,6 +161,7 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 	image string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
+	mevBoostContext *mev_boost.MEVBoostContext,
 	logLevel string,
 	keystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
@@ -236,6 +241,9 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 			cmdArgs = append(cmdArgs, "--subscribe-all-subnets")
 		} else {
 			cmdArgs = append(cmdArgs, "--bootstrap-node="+bootnodeContext.GetENR())
+		}
+		if mevBoostContext != nil {
+			// TODO add `mev-boost` support once the feature lands on `stable`
 		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)

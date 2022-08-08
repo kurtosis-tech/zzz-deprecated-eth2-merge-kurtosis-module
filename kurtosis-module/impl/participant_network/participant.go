@@ -4,6 +4,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/mev_boost"
 )
 
 // NOTE: We saw 1 Geth node + 3 Teku nodes causing problems, and the Teku folks
@@ -16,10 +17,11 @@ type Participant struct {
 
 	elClientContext *el.ELClientContext
 	clClientContext *cl.CLClientContext
+	mevBoostContext *mev_boost.MEVBoostContext
 }
 
-func NewParticipant(elClientType module_io.ParticipantELClientType, clClientType module_io.ParticipantCLClientType, elClientContext *el.ELClientContext, clClientContext *cl.CLClientContext) *Participant {
-	return &Participant{elClientType: elClientType, clClientType: clClientType, elClientContext: elClientContext, clClientContext: clClientContext}
+func NewParticipant(elClientType module_io.ParticipantELClientType, clClientType module_io.ParticipantCLClientType, elClientContext *el.ELClientContext, clClientContext *cl.CLClientContext, mevBoostContext *mev_boost.MEVBoostContext) *Participant {
+	return &Participant{elClientType: elClientType, clClientType: clClientType, elClientContext: elClientContext, clClientContext: clClientContext, mevBoostContext: mevBoostContext}
 }
 
 func (participant *Participant) GetELClientType() module_io.ParticipantELClientType {

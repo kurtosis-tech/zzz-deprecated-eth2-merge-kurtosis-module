@@ -2,26 +2,28 @@ package prysm
 
 import (
 	"fmt"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/mev_boost"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_genesis"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"path"
-	"strings"
-	"time"
 )
 
 const (
 	imageSeparatorDelimiter = ","
 	expectedNumImages       = 2
 
-	consensusDataDirpathOnServiceContainer = "/consensus-data"
-	genesisDataMountDirpathOnServiceContainer = "/genesis"
+	consensusDataDirpathOnServiceContainer      = "/consensus-data"
+	genesisDataMountDirpathOnServiceContainer   = "/genesis"
 	validatorKeysMountDirpathOnServiceContainer = "/validator-keys"
 	prysmPasswordMountDirpathOnServiceContainer = "/prysm-password"
 
@@ -91,6 +93,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
+	mevBoostContext *mev_boost.MEVBoostContext,
 	keystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
@@ -125,6 +128,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		beaconImage,
 		bootnodeContext,
 		elClientContext,
+		mevBoostContext,
 		logLevel,
 		extraBeaconParams,
 	)
@@ -157,6 +161,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		beaconRPCEndpoint,
 		beaconHTTPEndpoint,
 		keystoreFiles,
+		mevBoostContext,
 		extraValidatorParams,
 	)
 	validatorServiceCtx, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
@@ -200,6 +205,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 	beaconImage string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
+	mevBoostContext *mev_boost.MEVBoostContext,
 	logLevel string,
 	extraParams []string,
 ) func(string) (*services.ContainerConfig, error) {
@@ -241,6 +247,9 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--bootstrap-node="+bootnodeContext.GetENR())
 		}
+		if mevBoostContext != nil {
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--http-mev-relay=%s", mevBoostContext.Endpoint()))
+		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)
 		}
@@ -267,6 +276,7 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 	beaconRPCEndpoint string,
 	beaconHTTPEndpoint string,
 	keystoreFiles *cl2.KeystoreFiles,
+	mevBoostContext *mev_boost.MEVBoostContext,
 	extraParams []string,
 ) func(string) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
@@ -290,6 +300,11 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 			"--monitoring-host=0.0.0.0",
 			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
 			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
+		}
+		if mevBoostContext != nil {
+			// TODO required to work?
+			// cmdArgs = append(cmdArgs, "--suggested-fee-recipient=0x...")
+			cmdArgs = append(cmdArgs, "--enable-builder")
 		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)

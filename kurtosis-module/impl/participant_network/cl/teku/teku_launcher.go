@@ -2,18 +2,20 @@ package teku
 
 import (
 	"fmt"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/mev_boost"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_genesis"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"path"
-	"strings"
-	"time"
 )
 
 const (
@@ -76,8 +78,8 @@ var tekuLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type TekuCLClientLauncher struct {
-	clGenesisData *cl_genesis.CLGenesisData
-	expectedNumBeaconNodes                    uint32
+	clGenesisData          *cl_genesis.CLGenesisData
+	expectedNumBeaconNodes uint32
 }
 
 func NewTekuCLClientLauncher(clGenesisData *cl_genesis.CLGenesisData) *TekuCLClientLauncher {
@@ -93,6 +95,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
+	mevBoostContext *mev_boost.MEVBoostContext,
 	keystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
@@ -108,6 +111,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 		image,
 		bootnodeContext,
 		elClientContext,
+		mevBoostContext,
 		logLevel,
 		keystoreFiles,
 		extraParams,
@@ -163,6 +167,7 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 	image string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
+	mevBoostContext *mev_boost.MEVBoostContext,
 	logLevel string,
 	keystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
@@ -236,6 +241,10 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 		}
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes="+bootnodeContext.GetENR())
+		}
+		if mevBoostContext != nil {
+			cmdArgs = append(cmdArgs, "--validators-builder-registration-default-enabled=true")
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--builder-endpoint='%s'", mevBoostContext.Endpoint()))
 		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)
