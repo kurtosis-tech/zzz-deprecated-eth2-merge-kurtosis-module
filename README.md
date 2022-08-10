@@ -22,7 +22,7 @@ Quickstart
    ```bash
    docker image ls
    ```
-1. Create a file in your home directory `eth2-module-params.json` with the following contents:
+1. Create a file in your home directory `eth2-module-params.yaml` with the following contents:
 
    ```yaml
    logLevel: "info"
@@ -30,7 +30,7 @@ Quickstart
 
 1. Execute the module, passing in the params from the file:
    ```bash
-   kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module --execute-params "$(cat ~/eth2-module-params.json)"
+   kurtosis module exec --enclave-id eth2 kurtosistech/eth2-merge-kurtosis-module --execute-params "$(cat ~/eth2-module-params.yaml)"
    ```
 
 Management
@@ -41,7 +41,7 @@ Kurtosis will create a new enclave to house the services of the Ethereum network
 Configuration
 -------------
 
-To configure the module behaviour, you can modify your `eth2-module-params.json` file. The full JSON schema that can be passed in is as follows with the defaults ([from here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/module_io/default_params.go) provided (though note that the `//` comments are for explanation purposes and aren't valid JSON so need to be removed):
+To configure the module behaviour, you can modify your `eth2-module-params.yaml` file. The full YAML schema that can be passed in is as follows with the defaults ([from here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/module_io/default_params.go) provided:
 
 You can find the latest Kiln compatible docker images here: https://notes.ethereum.org/@launchpad/kiln
 
