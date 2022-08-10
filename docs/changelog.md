@@ -7,6 +7,7 @@
 
 ### Fixes
 * Fixed broken link in the readme file
+* Replaced old references to JSON with YAML
 
 ### Changes
 * Moved `prelaunch_data_generator` directory under the `participant_network` directory, where it belongs
