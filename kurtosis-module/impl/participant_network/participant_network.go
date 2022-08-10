@@ -32,6 +32,7 @@ import (
 const (
 	clClientServiceIdPrefix = "cl-client-"
 	elClientServiceIdPrefix = "el-client-"
+	mevBoostServiceIdPrefix = "mev-boost-"
 
 	bootParticipantIndex = 0
 
@@ -264,14 +265,14 @@ func LaunchParticipantNetwork(
 		var mevBoostCtx *mev_boost.MEVBoostContext
 		if participantSpec.BuilderNetworkParams != nil {
 			mevBoostLauncher := mev_boost.MEVBoostLauncher{
-				RelayCheck: true,
-				Relays:     participantSpec.BuilderNetworkParams.Relays,
+				ShouldCheckRelay: true,
+				RelayEndpoints:   participantSpec.BuilderNetworkParams.RelayEndpoints,
 			}
-			mevBoostServiceId := services.ServiceID("mev-boost")
+			mevBoostServiceId := services.ServiceID(fmt.Sprintf("%v%v", mevBoostServiceIdPrefix, idx))
 			mevBoostCtx, err = mevBoostLauncher.Launch(enclaveCtx, mevBoostServiceId, networkParams.NetworkID)
 			if err != nil {
 				return nil, 0, stacktrace.Propagate(
-					err, "could not start mev-boost sidecar",
+					err, fmt.Sprintf("could not start mev-boost sidecar with service ID '%v'", mevBoostServiceId),
 				)
 			}
 		}

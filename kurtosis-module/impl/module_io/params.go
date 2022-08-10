@@ -112,8 +112,10 @@ type ExecuteParams struct {
 	ClientLogLevel GlobalClientLogLevel `yaml:"logLevel"`
 }
 
+// Parameters for clients to connect to a network of external block builders
 type BuilderNetworkParams struct {
-	Relays []string
+	// A list of endpoints to reach block builder relays
+	RelayEndpoints []string `yaml:"relayEndpoints"`
 }
 
 type ParticipantParams struct {

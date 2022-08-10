@@ -10,8 +10,8 @@ import (
 )
 
 type MEVBoostLauncher struct {
-	RelayCheck bool
-	Relays     []string
+	ShouldCheckRelay bool
+	RelayEndpoints   []string
 }
 
 const (
@@ -32,19 +32,17 @@ var (
 
 func (launcher *MEVBoostLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, networkId string) (*MEVBoostContext, error) {
 	containerConfigSupplier := func(string) (*services.ContainerConfig, error) {
-		relayCheckOption := ""
-		if launcher.RelayCheck {
-			relayCheckOption = "-relay-check"
-		}
+		command := []string{"mev-boost"}
 		networkName, ok := networkIdToName[networkId]
 		if !ok {
 			networkName = fmt.Sprintf("network-%s", networkId)
 		}
-		command := []string{
-			"mev-boost",
-			fmt.Sprintf("-%s", networkName),
-			relayCheckOption,
-			fmt.Sprintf("-relays %s", strings.Join(launcher.Relays, "")),
+		command = append(command, fmt.Sprintf("-%s", networkName))
+		if launcher.ShouldCheckRelay {
+			command = append(command, "-relay-check")
+		}
+		if len(launcher.RelayEndpoints) != 0 {
+			command = append(command, "-relays", strings.Join(launcher.RelayEndpoints, ","))
 		}
 		containerConfig := services.NewContainerConfigBuilder(flashbotsMevBoostImage).WithUsedPorts(usedPorts).WithCmdOverride(command).Build()
 		return containerConfig, nil
@@ -52,10 +50,12 @@ func (launcher *MEVBoostLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, se
 
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
+		return nil, stacktrace.Propagate(err, "An error occurred launching the mev-boost instance with service ID '%v'", serviceId)
 	}
 
+	privateIPAddress := serviceCtx.GetPrivateIPAddress()
 	return &MEVBoostContext{
-		service: serviceCtx,
+		privateIPAddress: privateIPAddress,
+		port:             flashbotsMevBoostPort,
 	}, nil
 }
