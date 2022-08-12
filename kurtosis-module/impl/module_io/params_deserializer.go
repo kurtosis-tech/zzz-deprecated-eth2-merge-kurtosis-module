@@ -31,7 +31,7 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 		return nil, stacktrace.NewError("At least one participant is required")
 	}
 	for idx, participant := range paramsObj.Participants {
-		if idx == 0 && (participant.ELClientType == ParticipantELClientType_Nethermind) || (participant.ELClientType == ParticipantELClientType_Besu) {
+		if idx == 0 && (participant.ELClientType == ParticipantELClientType_Nethermind || participant.ELClientType == ParticipantELClientType_Besu) {
 			return nil, stacktrace.NewError("Cannot use a Nethermind/Besu client for the first participant because Nethermind/Besu clients don't mine on Eth1")
 		}
 

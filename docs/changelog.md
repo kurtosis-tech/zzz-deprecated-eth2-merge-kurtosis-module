@@ -1,4 +1,6 @@
 # TBD
+### Fixes
+- Fixed a boolean logic problem for checking if Nethermind/Besu were node 0
 
 # 0.5.7
 ### Features
