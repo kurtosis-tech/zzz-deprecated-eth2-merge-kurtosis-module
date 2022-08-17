@@ -2,6 +2,10 @@
 
 # 0.5.9
 
+### Changes
+* Upgrade core to 1.55.2
+* Upgrade module-api-lib to 0.17.0
+
 # 0.5.8
 ### Fixes
 - Fixed a boolean logic problem for checking if Nethermind/Besu were node 0
@@ -18,8 +22,8 @@
 ### Changes
 * Moved `prelaunch_data_generator` directory under the `participant_network` directory, where it belongs
 * Switched from using `kudet` to get the Docker image tag, back to a script so that developers don't need `kudet` to build the module
-* Upgrade module-api-lib to 0.20.0
-* Upgrade core to 1.57.6
+* Upgrade module-api-lib to 0.18.0
+* Upgrade core to 1.57.0
 
 # 0.5.6
 ### Features
