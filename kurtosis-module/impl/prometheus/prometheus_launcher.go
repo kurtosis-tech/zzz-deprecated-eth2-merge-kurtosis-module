@@ -7,7 +7,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"path"
 	"text/template"
 )
 
@@ -75,21 +74,20 @@ func LaunchPrometheus(
 }
 
 // ====================================================================================================
-//                                       Private Helper Functions
+//
+//	Private Helper Functions
+//
 // ====================================================================================================
 func getContainerConfigSupplier(
 	configFileArtifactUuid services.FilesArtifactUUID,
-) (
-	func(privateIpAddr string) (*services.ContainerConfig, error),
-) {
+) func(privateIpAddr string) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string) (*services.ContainerConfig, error) {
-		configFilepath := path.Join(configDirMountpointOnPrometheus, path.Base(configFilepathOnModule))
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithCmdOverride([]string{
 			//You can check all the cli flags starting the container and going to the flags section
 			//in Prometheus admin page "{{prometheusPublicURL}}/flags" section
-			"--config.file=" + configFilepath,
+			"--config.file=" + configDirMountpointOnPrometheus,
 			"--storage.tsdb.path=/prometheus",
 			"--storage.tsdb.retention.time=1d",
 			"--storage.tsdb.retention.size=512MB",
