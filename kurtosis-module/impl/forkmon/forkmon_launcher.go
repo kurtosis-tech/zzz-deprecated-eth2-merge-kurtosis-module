@@ -6,7 +6,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"path"
 	"text/template"
 )
 
@@ -86,12 +85,11 @@ func getContainerConfigSupplier(
 	configArtifactUuid services.FilesArtifactUUID,
 ) func(privateIpAddr string) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string) (*services.ContainerConfig, error) {
-		configFilepath := path.Join(forkmonConfigMountDirpathOnService, path.Base(forkmonConfigFilepathOnModule))
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithCmdOverride([]string{
 			"--config-path",
-			configFilepath,
+			forkmonConfigMountDirpathOnService,
 		}).WithUsedPorts(
 			usedPorts,
 		).WithFiles(map[services.FilesArtifactUUID]string{

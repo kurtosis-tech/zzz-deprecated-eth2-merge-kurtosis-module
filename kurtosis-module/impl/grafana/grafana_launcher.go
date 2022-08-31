@@ -73,7 +73,9 @@ func LaunchGrafana(
 }
 
 // ====================================================================================================
-//                                       Private Helper Functions
+//
+//	Private Helper Functions
+//
 // ====================================================================================================
 func getGrafanaConfigDirArtifactUuid(
 	enclaveCtx *enclaves.EnclaveContext,
@@ -89,7 +91,6 @@ func getGrafanaConfigDirArtifactUuid(
 
 	dashboardConfigFilepathOnGrafanaContainer := path.Join(
 		grafanaConfigDirpathOnService,
-		path.Base(grafanaConfigDirpathOnModule), // Needed because Kurtosis doesn't flatten directories for now
 		dashboardsConfigDirname,
 		dashboardConfigFilename,
 	)
@@ -145,14 +146,13 @@ func getContainerConfigSupplier(
 	configDirArtifactUuid services.FilesArtifactUUID,
 ) func(privateIpAddr string) (*services.ContainerConfig, error) {
 	// We need the path.Base() here because Kurtosis doesn't flatten directories yet
-	configDirpath := path.Join(grafanaConfigDirpathOnService, path.Base(grafanaConfigDirpathOnModule))
 	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithUsedPorts(
 			usedPorts,
 		).WithEnvironmentVariableOverrides(map[string]string{
-			configDirpathEnvVar: configDirpath,
+			configDirpathEnvVar: grafanaConfigDirpathOnModule,
 		}).WithFiles(map[services.FilesArtifactUUID]string{
 			configDirArtifactUuid: grafanaConfigDirpathOnService,
 		}).Build()
