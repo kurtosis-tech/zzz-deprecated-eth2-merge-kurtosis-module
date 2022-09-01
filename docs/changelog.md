@@ -1,5 +1,16 @@
 # TBD
 
+### Changes
+* Upgraded core to 1.58.0
+* Upgraded module-api-lib to 0.21.0
+
+### Breaking Changes
+* Upgraded core to 1.58.0
+  * This changes how we archive and upload files inside a container. Adding a directory earlier would result in a nested archive with files inside a directory with the same name as the directory uploaded. Now the contents of the directory uploaded are available at root of the archive.
+  * Adding the above archive would have similar nesting, but now you should be able to access files without any nesting.
+  * Users of geth can now access prefunded keys at `/prefunded-keys`.
+  * Users of grafana can now access config files at `/config`
+
 # 0.5.9
 
 ### Changes

@@ -149,9 +149,8 @@ func GenerateCLGenesisData(
 
 	// Copy files to output
 	allFilepathsToCopyToOuptutDirectory := []string{
-		// The path.Base is necessary due to Kurtosis not yet flattening directories when uploaded
-		path.Join(configDirpathOnGenerator, path.Base(tempDirpath), genesisConfigYmlFilename),
-		path.Join(configDirpathOnGenerator, path.Base(tempDirpath), mnemonicsYmlFilename),
+		path.Join(configDirpathOnGenerator, genesisConfigYmlFilename),
+		path.Join(configDirpathOnGenerator, mnemonicsYmlFilename),
 		path.Join(elGenesisDirpathOnGenerator, elGenesisData.GetJWTSecretRelativeFilepath()),
 	}
 	for _, filepathOnGenerator := range allFilepathsToCopyToOuptutDirectory {
