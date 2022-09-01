@@ -1,5 +1,8 @@
 # TBD
 
+### Fixes
+* Removed a comment that doesn't apply anymore.
+
 # 0.6.0
 
 ### Changes
