@@ -12,7 +12,6 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -137,7 +136,9 @@ func (launcher *GethELClientLauncher) Launch(
 }
 
 // ====================================================================================================
-//                                       Private Helper Methods
+//
+//	Private Helper Methods
+//
 // ====================================================================================================
 func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 	image string,
@@ -165,9 +166,7 @@ func (launcher *GethELClientLauncher) getContainerConfigSupplier(
 		// We need to put the keys into the right spot
 		copyKeysIntoKeystoreCmdStr := fmt.Sprintf(
 			"cp -r %v/* %v/",
-			// TODO We have to do this because Kurtosis' current method for storing directories in files artifacts
-			//  We can remove this when Kurtosis can "flatten" directories when storing files artifacts
-			path.Join(prefundedKeysMountDirpath, path.Base(static_files.GethPrefundedKeysDirpath)),
+			prefundedKeysMountDirpath,
 			keystoreDirpathOnClientContainer,
 		)
 
