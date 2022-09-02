@@ -1,7 +1,8 @@
 # TBD
+### Changes
+* Upgrade to core to 1.58.1, module-api-lib to 0.21.1 and engine to 1.32.1
 
 # 0.6.0
-
 ### Changes
 * Upgraded core to 1.58.0
 * Upgraded module-api-lib to 0.21.0
@@ -14,7 +15,6 @@
   * Users of grafana can now access config files at `/config`
 
 # 0.5.9
-
 ### Changes
 * Upgrade core to 1.55.2
 * Upgrade module-api-lib to 0.17.0
