@@ -1,6 +1,6 @@
 # TBD
 ### Changes
-* Upgrade to core to 1.58.1 and engine to 1.32.1
+* Upgrade to core to 1.58.1, module-api-lib to 0.21.1 and engine to 1.32.1
 
 # 0.6.0
 ### Changes
