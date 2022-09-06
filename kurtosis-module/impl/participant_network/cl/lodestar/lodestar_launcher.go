@@ -2,22 +2,24 @@ package lodestar
 
 import (
 	"fmt"
+	"path"
+	"time"
+
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/mev_boost"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_genesis"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"path"
-	"time"
 )
 
 const (
-	consensusDataDirpathOnServiceContainer = "/consensus-data"
-	genesisDataMountDirpathOnServiceContainer = "/genesis"
+	consensusDataDirpathOnServiceContainer      = "/consensus-data"
+	genesisDataMountDirpathOnServiceContainer   = "/genesis"
 	validatorKeysMountDirpathOnServiceContainer = "/validator-keys"
 
 	// Port IDs
@@ -70,6 +72,7 @@ func (launcher *LodestarClientLauncher) Launch(
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
+	mevBoostContext *mev_boost.MEVBoostContext,
 	keystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
@@ -86,6 +89,7 @@ func (launcher *LodestarClientLauncher) Launch(
 		image,
 		bootnodeContext,
 		elClientContext,
+		mevBoostContext,
 		logLevel,
 		extraBeaconParams,
 	)
@@ -117,6 +121,7 @@ func (launcher *LodestarClientLauncher) Launch(
 		logLevel,
 		keystoreFiles,
 		beaconHttpUrl,
+		mevBoostContext,
 		extraValidatorParams,
 	)
 	_, err = enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
@@ -152,6 +157,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 	image string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
+	mevBoostContext *mev_boost.MEVBoostContext,
 	logLevel string,
 	extraParams []string,
 ) func(string) (*services.ContainerConfig, error) {
@@ -204,6 +210,10 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
 		if bootnodeContext != nil {
 			cmdArgs = append(cmdArgs, "--network.discv5.bootEnrs="+bootnodeContext.GetENR())
 		}
+		if mevBoostContext != nil {
+			cmdArgs = append(cmdArgs, "--builder.enabled")
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--builder-urls '%s'", mevBoostContext.Endpoint()))
+		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)
 		}
@@ -229,6 +239,7 @@ func (launcher *LodestarClientLauncher) getValidatorContainerConfigSupplier(
 	logLevel string,
 	keystoreFiles *cl2.KeystoreFiles,
 	beaconEndpoint string,
+	mevBoostContext *mev_boost.MEVBoostContext,
 	extraParams []string,
 ) func(string) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
@@ -245,6 +256,11 @@ func (launcher *LodestarClientLauncher) getValidatorContainerConfigSupplier(
 			"--server=" + beaconEndpoint,
 			"--keystoresDir=" + validatorKeysDirpath,
 			"--secretsDir=" + validatorSecretsDirpath,
+		}
+		if mevBoostContext != nil {
+			cmdArgs = append(cmdArgs, "--builder.enabled")
+			// TODO required to work?
+			// cmdArgs = append(cmdArgs, "--defaultFeeRecipient <your ethereum address>")
 		}
 		if len(cmdArgs) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)

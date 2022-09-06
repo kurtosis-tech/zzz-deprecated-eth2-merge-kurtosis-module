@@ -29,6 +29,7 @@
 ### Features
 * Added CircleCi `check_latest_version` workflow for running a scheduled pipeline every day to control successful module execution
 * Added extensive documentation on the module's structure to `docs/architecture.md`, to encourage third-party contributions to the module
+* Added support for external builder network ("mev-boost")
 
 ### Fixes
 * Fixed broken link in the readme file

@@ -3,6 +3,8 @@ package participant_network
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/lighthouse"
@@ -15,6 +17,7 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/erigon"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/geth"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/nethermind"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/mev_boost"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/el_genesis"
@@ -24,12 +27,12 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 const (
 	clClientServiceIdPrefix = "cl-client-"
 	elClientServiceIdPrefix = "el-client-"
+	mevBoostServiceIdPrefix = "mev-boost-"
 
 	bootParticipantIndex = 0
 
@@ -243,6 +246,7 @@ func LaunchParticipantNetwork(
 		),
 	}
 	preregisteredValidatorKeysForNodes := clValidatorData.PerNodeKeystores
+	allMevBoostContexts := []*mev_boost.MEVBoostContext{}
 	allClClientContexts := []*cl.CLClientContext{}
 	for idx, participantSpec := range allParticipantSpecs {
 		clClientType := participantSpec.CLClientType
@@ -258,6 +262,22 @@ func LaunchParticipantNetwork(
 		// Each CL node will be paired with exactly one EL node
 		elClientCtx := allElClientContexts[idx]
 
+		var mevBoostCtx *mev_boost.MEVBoostContext
+		if participantSpec.BuilderNetworkParams != nil {
+			mevBoostLauncher := mev_boost.MEVBoostLauncher{
+				ShouldCheckRelay: true,
+				RelayEndpoints:   participantSpec.BuilderNetworkParams.RelayEndpoints,
+			}
+			mevBoostServiceId := services.ServiceID(fmt.Sprintf("%v%v", mevBoostServiceIdPrefix, idx))
+			mevBoostCtx, err = mevBoostLauncher.Launch(enclaveCtx, mevBoostServiceId, networkParams.NetworkID)
+			if err != nil {
+				return nil, 0, stacktrace.Propagate(
+					err, fmt.Sprintf("could not start mev-boost sidecar with service ID '%v'", mevBoostServiceId),
+				)
+			}
+		}
+		allMevBoostContexts = append(allMevBoostContexts, mevBoostCtx)
+
 		// Launch CL client
 		var newClClientCtx *cl.CLClientContext
 		var clClientLaunchErr error
@@ -270,6 +290,7 @@ func LaunchParticipantNetwork(
 				globalLogLevel,
 				clClientContextForBootClClients,
 				elClientCtx,
+				mevBoostCtx,
 				newClNodeValidatorKeystores,
 				participantSpec.BeaconExtraParams,
 				participantSpec.ValidatorExtraParams,
@@ -284,6 +305,7 @@ func LaunchParticipantNetwork(
 				globalLogLevel,
 				bootClClientCtx,
 				elClientCtx,
+				mevBoostCtx,
 				newClNodeValidatorKeystores,
 				participantSpec.BeaconExtraParams,
 				participantSpec.ValidatorExtraParams,
@@ -305,12 +327,14 @@ func LaunchParticipantNetwork(
 
 		elClientCtx := allElClientContexts[idx]
 		clClientCtx := allClClientContexts[idx]
+		mevBoostCtx := allMevBoostContexts[idx]
 
 		participant := NewParticipant(
 			elClientType,
 			clClientType,
 			elClientCtx,
 			clClientCtx,
+			mevBoostCtx,
 		)
 		allParticipants = append(allParticipants, participant)
 	}

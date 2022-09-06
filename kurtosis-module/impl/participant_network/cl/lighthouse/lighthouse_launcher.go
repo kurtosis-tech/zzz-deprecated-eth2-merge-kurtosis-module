@@ -2,17 +2,19 @@ package lighthouse
 
 import (
 	"fmt"
+	"path"
+	"time"
+
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/mev_boost"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_genesis"
 	cl2 "github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_validator_keystores"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"path"
-	"time"
 )
 
 const (
@@ -22,7 +24,7 @@ const (
 
 	validatorKeysMountpointOnClients = "/validator-keys"
 
-	rustBacktraceEnvvarName = "RUST_BACKTRACE"
+	rustBacktraceEnvvarName  = "RUST_BACKTRACE"
 	rustFullBacktraceKeyword = "full"
 
 	// ---------------------------------- Beacon client -------------------------------------
@@ -90,6 +92,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	globalLogLevel module_io.GlobalClientLogLevel,
 	bootnodeContext *cl.CLClientContext,
 	elClientContext *el.ELClientContext,
+	mevBoostContext *mev_boost.MEVBoostContext,
 	nodeKeystoreFiles *cl2.KeystoreFiles,
 	extraBeaconParams []string,
 	extraValidatorParams []string,
@@ -107,6 +110,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 		image,
 		bootnodeContext,
 		elClientContext,
+		mevBoostContext,
 		logLevel,
 		extraBeaconParams,
 	)
@@ -133,6 +137,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 		logLevel,
 		beaconHttpUrl,
 		nodeKeystoreFiles,
+		mevBoostContext,
 		extraValidatorParams,
 	)
 	validatorServiceCtx, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
@@ -182,6 +187,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 	image string,
 	bootClClientCtx *cl.CLClientContext,
 	elClientCtx *el.ELClientContext,
+	mevBoostContext *mev_boost.MEVBoostContext,
 	logLevel string,
 	extraParams []string,
 ) func(string) (*services.ContainerConfig, error) {
@@ -250,6 +256,9 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
 		if bootClClientCtx != nil {
 			cmdArgs = append(cmdArgs, "--boot-nodes="+bootClClientCtx.GetENR())
 		}
+		if mevBoostContext != nil {
+			cmdArgs = append(cmdArgs, "--builder", mevBoostContext.Endpoint())
+		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)
 		}
@@ -274,6 +283,7 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 	logLevel string,
 	beaconClientHttpUrl string,
 	nodeKeystoreFiles *cl2.KeystoreFiles,
+	mevBoostContext *mev_boost.MEVBoostContext,
 	extraParams []string,
 ) func(string) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string) (*services.ContainerConfig, error) {
@@ -303,6 +313,9 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
 			"--metrics-allow-origin=*",
 			fmt.Sprintf("--metrics-port=%v", validatorMetricsPortNum),
 			// ^^^^^^^^^^^^^^^^^^^ PROMETHEUS CONFIG ^^^^^^^^^^^^^^^^^^^^^
+		}
+		if mevBoostContext != nil {
+			cmdArgs = append(cmdArgs, "--builder-proposals")
 		}
 		if len(extraParams) > 0 {
 			cmdArgs = append(cmdArgs, extraParams...)

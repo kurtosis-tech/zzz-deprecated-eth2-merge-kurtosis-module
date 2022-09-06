@@ -98,6 +98,18 @@ participants:
     #  If the client combines the Beacon & validator nodes (e.g. Teku, Nimbus), then this list will also be passed to the combined Beacon-validator node
     validatorExtraParams: []
 
+    # A set of parameters the node needs to reach an external block building network
+    # If `null` then the builder infrastructure will not be instantiated
+    # Example:
+    # ```
+    # relayEndpoints:
+    #   - "https://0xdeadbeefcafa@relay.example.com"
+    #   - "https://0xdeadbeefcafb@relay.example.com"
+    #   - "https://0xdeadbeefcafc@relay.example.com"
+    #   - "https://0xdeadbeefcafd@relay.example.com"
+    # ```
+    builderNetworkParams: null
+
 #  Configuration parameters for the Eth network
 network:
   #  The network ID of the Eth1 network
