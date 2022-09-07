@@ -61,17 +61,17 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Info("Successfully deserialized execute params")
 
 	// Parse templates early, so that any errors are caught before we do the stuff that takes a long time
-	grafanaDatasourceConfigTemplate, err := static_files.ParseTemplate(static_files.GrafanaDatasourceConfigTemplateFilepath)
+	grafanaDatasourceConfigTemplate, err := ioutil.ReadFile(static_files.GrafanaDatasourceConfigTemplateFilepath)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred parsing Grafana datasource config template file '%v'", static_files.PrometheusConfigTemplateFilepath)
+		return "", stacktrace.Propagate(err, "An error occurred reading Grafana datasource config template file '%v'", static_files.PrometheusConfigTemplateFilepath)
 	}
-	grafanaDashboardsConfigTemplate, err := static_files.ParseTemplate(static_files.GrafanaDashboardProvidersConfigTemplateFilepath)
+	grafanaDashboardsConfigTemplate, err := ioutil.ReadFile(static_files.GrafanaDashboardProvidersConfigTemplateFilepath)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred parsing Grafana dashboards config template file '%v'", static_files.GrafanaDashboardProvidersConfigTemplateFilepath)
+		return "", stacktrace.Propagate(err, "An error occurred reading Grafana dashboards config template file '%v'", static_files.GrafanaDashboardProvidersConfigTemplateFilepath)
 	}
-	prometheusConfigTemplate, err := static_files.ParseTemplate(static_files.PrometheusConfigTemplateFilepath)
+	prometheusConfigTemplate, err := ioutil.ReadFile(static_files.PrometheusConfigTemplateFilepath)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred parsing prometheus config template file '%v'", static_files.PrometheusConfigTemplateFilepath)
+		return "", stacktrace.Propagate(err, "An error occurred reading prometheus config template file '%v'", static_files.PrometheusConfigTemplateFilepath)
 	}
 
 	logrus.Infof("Adding %v participants logging at level '%v'...", numParticipants, paramsObj.ClientLogLevel)
@@ -143,7 +143,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Info("Launching prometheus...")
 	prometheusPrivateUrl, err := prometheus.LaunchPrometheus(
 		enclaveCtx,
-		prometheusConfigTemplate,
+		string(prometheusConfigTemplate),
 		allClClientContexts,
 	)
 	if err != nil {
@@ -154,8 +154,8 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Info("Launching grafana...")
 	err = grafana.LaunchGrafana(
 		enclaveCtx,
-		grafanaDatasourceConfigTemplate,
-		grafanaDashboardsConfigTemplate,
+		string(grafanaDatasourceConfigTemplate),
+		string(grafanaDashboardsConfigTemplate),
 		prometheusPrivateUrl,
 	)
 	if err != nil {

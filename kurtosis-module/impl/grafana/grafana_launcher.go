@@ -1,7 +1,6 @@
 package grafana
 
 import (
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -9,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"text/template"
 )
 
 const (
@@ -49,8 +47,8 @@ type dashboardProvidersConfigTemplateData struct {
 
 func LaunchGrafana(
 	enclaveCtx *enclaves.EnclaveContext,
-	datasourceConfigTemplate *template.Template,
-	dashboardProvidersConfigTemplate *template.Template,
+	datasourceConfigTemplate string,
+	dashboardProvidersConfigTemplate string,
 	prometheusPrivateUrl string,
 ) error {
 	artifactUuid, err := getGrafanaConfigDirArtifactUuid(
@@ -79,8 +77,8 @@ func LaunchGrafana(
 // ====================================================================================================
 func getGrafanaConfigDirArtifactUuid(
 	enclaveCtx *enclaves.EnclaveContext,
-	datasourceConfigTemplate *template.Template,
-	dashboardProvidersConfigTemplate *template.Template,
+	datasourceConfigTemplate string,
+	dashboardProvidersConfigTemplate string,
 	prometheusPrivateUrl string,
 ) (services.FilesArtifactUUID, error) {
 	datasourcesConfigDirpathOnModule := path.Join(grafanaConfigDirpathOnModule, datasourcesConfigDirname)
@@ -106,21 +104,21 @@ func getGrafanaConfigDirArtifactUuid(
 		}
 	}
 
-	datasourceTemplateData := datasourceConfigTemplateData{
+	datasourceData := datasourceConfigTemplateData{
 		PrometheusURL: prometheusPrivateUrl,
 	}
-	if err := service_launch_utils.FillTemplateToPath(datasourceConfigTemplate, datasourceTemplateData, datasourceConfigFilepath); err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred filling the datasource config template")
-	}
+	datasourceTemplateAndData := enclaves.NewTemplateAndData(datasourceConfigTemplate, datasourceData)
 
-	dashboardProvidersTemplateData := dashboardProvidersConfigTemplateData{
+	dashboardProvidersData := dashboardProvidersConfigTemplateData{
 		// Grafana needs to know where the dashboards config file will be on disk, which means we need to feed
 		//  it the *mounted* location on disk (on the Grafana container) when we generate this on the module container
 		DashboardsDirpath: dashboardConfigFilepathOnGrafanaContainer,
 	}
-	if err := service_launch_utils.FillTemplateToPath(dashboardProvidersConfigTemplate, dashboardProvidersTemplateData, dashboardProvidersConfigFilepath); err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred filling the dashboard config providers template")
-	}
+	dashboardProvidersTemplateAndData := enclaves.NewTemplateAndData(dashboardProvidersConfigTemplate, dashboardProvidersData)
+
+	templateAndDataByDestRelFilepath := make(map[string]*enclaves.TemplateAndData)
+	templateAndDataByDestRelFilepath[datasourceConfigFilepath] = datasourceTemplateAndData
+	templateAndDataByDestRelFilepath[dashboardProvidersConfigFilepath] = dashboardProvidersTemplateAndData
 
 	if err := addGrafanaDashboardConfigToConfigDir(
 		static_files.GrafanaDashboardConfigFilepath,
@@ -134,9 +132,9 @@ func getGrafanaConfigDirArtifactUuid(
 		)
 	}
 
-	artifactUuid, err := enclaveCtx.UploadFiles(grafanaConfigDirpathOnModule)
+	artifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred uploading Grafana config dir at '%v'", grafanaConfigDirpathOnModule)
+		return "", stacktrace.Propagate(err, "An error occurred rendering Grafana config dir at '%v'", grafanaConfigDirpathOnModule)
 	}
 
 	return artifactUuid, nil
