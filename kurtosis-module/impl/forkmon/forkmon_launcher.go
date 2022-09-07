@@ -2,12 +2,10 @@ package forkmon
 
 import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"path"
-	"text/template"
 )
 
 const (
@@ -41,7 +39,7 @@ type configTemplateData struct {
 
 func LaunchForkmon(
 	enclaveCtx *enclaves.EnclaveContext,
-	configTemplate *template.Template,
+	configTemplate string,
 	clClientContexts []*cl.CLClientContext,
 	genesisUnixTimestamp uint64,
 	secondsPerSlot uint32,
@@ -62,12 +60,14 @@ func LaunchForkmon(
 		SlotsPerEpoch:        slotsPerEpoch,
 		GenesisUnixTimestamp: genesisUnixTimestamp,
 	}
-	if err := service_launch_utils.FillTemplateToPath(configTemplate, templateData, forkmonConfigFilepathOnModule); err != nil {
-		return stacktrace.Propagate(err, "An error occurred filling the config file template")
-	}
-	configArtifactUuid, err := enclaveCtx.UploadFiles(forkmonConfigFilepathOnModule)
+
+	templateAndData := enclaves.NewTemplateAndData(configTemplate, templateData)
+	templateAndDataByDestRelFilepath := make(map[string]*enclaves.TemplateAndData)
+	templateAndDataByDestRelFilepath[forkmonConfigFilepathOnModule] = templateAndData
+
+	configArtifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
 	if err != nil {
-		return stacktrace.Propagate(err, "An error occurred uploading Forkmon config file at '%v'", forkmonConfigFilepathOnModule)
+		return stacktrace.Propagate(err, "An error rendering Forkmon config file at '%v'", forkmonConfigFilepathOnModule)
 	}
 
 	containerConfigSupplier := getContainerConfigSupplier(configArtifactUuid)

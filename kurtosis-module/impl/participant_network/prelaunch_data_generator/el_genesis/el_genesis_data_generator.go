@@ -4,15 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/prelaunch_data_generator_launcher"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
-	"os"
 	"path"
 	"strings"
-	"text/template"
 )
 
 const (
@@ -21,10 +18,10 @@ const (
 
 	outputDirpathOnGenerator = "/output"
 
-	gethGenesisFilename = "geth.json"
-	erigonGenesisFilename = "erigon.json"
+	gethGenesisFilename       = "geth.json"
+	erigonGenesisFilename     = "erigon.json"
 	nethermindGenesisFilename = "nethermind.json"
-	besuGenesisFilename = "besu.json"
+	besuGenesisFilename       = "besu.json"
 
 	jwtSecretFilename = "jwtsecret"
 
@@ -32,24 +29,24 @@ const (
 )
 
 type genesisGenerationConfigTemplateData struct {
-	NetworkId string
-	DepositContractAddress string
-	UnixTimestamp uint64
+	NetworkId               string
+	DepositContractAddress  string
+	UnixTimestamp           uint64
 	TotalTerminalDifficulty uint64
 }
 
-type genesisGenerationCmd func(genesisConfigFilepathOnGenerator string)[]string
+type genesisGenerationCmd func(genesisConfigFilepathOnGenerator string) []string
 
 // Mapping of output genesis filename -> generator to create the file
 var allGenesisGenerationCmds = map[string]genesisGenerationCmd{
-	gethGenesisFilename: func(genesisConfigFilepathOnGenerator string)[]string{
+	gethGenesisFilename: func(genesisConfigFilepathOnGenerator string) []string {
 		return []string{
 			"python3",
 			"/apps/el-gen/genesis_geth.py",
 			genesisConfigFilepathOnGenerator,
 		}
 	},
-	erigonGenesisFilename: func(genesisConfigFilepathOnGenerator string)[]string{
+	erigonGenesisFilename: func(genesisConfigFilepathOnGenerator string) []string {
 		return []string{
 			"python3",
 			// TODO Erigon uses the same genesis as Geth.
@@ -59,14 +56,14 @@ var allGenesisGenerationCmds = map[string]genesisGenerationCmd{
 			genesisConfigFilepathOnGenerator,
 		}
 	},
-	nethermindGenesisFilename: func(genesisConfigFilepathOnGenerator string)[]string{
+	nethermindGenesisFilename: func(genesisConfigFilepathOnGenerator string) []string {
 		return []string{
 			"python3",
 			"/apps/el-gen/genesis_chainspec.py",
 			genesisConfigFilepathOnGenerator,
 		}
 	},
-	besuGenesisFilename: func(genesisConfigFilepathOnGenerator string)[]string{
+	besuGenesisFilename: func(genesisConfigFilepathOnGenerator string) []string {
 		return []string{
 			"python3",
 			"/apps/el-gen/genesis_besu.py",
@@ -75,11 +72,10 @@ var allGenesisGenerationCmds = map[string]genesisGenerationCmd{
 	},
 }
 
-
 func GenerateELGenesisData(
 	ctx context.Context,
 	enclaveCtx *enclaves.EnclaveContext,
-	genesisGenerationConfigTemplate *template.Template,
+	genesisGenerationConfigTemplate string,
 	genesisUnixTimestamp uint64,
 	networkId string,
 	depositContractAddress string,
@@ -94,17 +90,15 @@ func GenerateELGenesisData(
 		UnixTimestamp:           genesisUnixTimestamp,
 		TotalTerminalDifficulty: totalTerminalDifficulty,
 	}
-	genesisConfigFilepathOnModule := path.Join(os.TempDir(), genesisConfigFilename)
-	if err := service_launch_utils.FillTemplateToPath(
-		genesisGenerationConfigTemplate,
-		templateData,
-		genesisConfigFilepathOnModule,
-	); err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred creating the genesis config file at '%v'", genesisConfigFilepathOnModule)
-	}
-	genesisGenerationConfigArtifactUuid, err := enclaveCtx.UploadFiles(genesisConfigFilepathOnModule)
+
+	genesisConfigFileTemplateAndData := enclaves.NewTemplateAndData(genesisGenerationConfigTemplate, templateData)
+
+	templateAndDataByRelDestFilepath := make(map[string]*enclaves.TemplateAndData)
+	templateAndDataByRelDestFilepath[genesisConfigFilename] = genesisConfigFileTemplateAndData
+
+	genesisGenerationConfigArtifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByRelDestFilepath)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred uploading the genesis config filepath from '%v'", genesisConfigFilepathOnModule)
+		return nil, stacktrace.Propagate(err, "An error occurred rendering the genesis config filepath from '%v'", genesisConfigFilename)
 	}
 
 	// TODO Make this the actual data generator

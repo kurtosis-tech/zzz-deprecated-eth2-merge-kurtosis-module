@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/genesis_consts"
+	"os"
 	"strings"
 	"time"
 
@@ -122,13 +123,13 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Info("CL genesis has occurred")
 
 	logrus.Info("Launching forkmon...")
-	forkmonConfigTemplate, err := static_files.ParseTemplate(static_files.ForkmonConfigTemplateFilepath)
+	forkmonConfigTemplate, err := os.ReadFile(static_files.ForkmonConfigTemplateFilepath)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred parsing forkmon config template file '%v'", static_files.ForkmonConfigTemplateFilepath)
+		return "", stacktrace.Propagate(err, "An error occurred reading forkmon config template file '%v'", static_files.ForkmonConfigTemplateFilepath)
 	}
 	err = forkmon.LaunchForkmon(
 		enclaveCtx,
-		forkmonConfigTemplate,
+		string(forkmonConfigTemplate),
 		allClClientContexts,
 		clGenesisUnixTimestamp,
 		networkParams.SecondsPerSlot,

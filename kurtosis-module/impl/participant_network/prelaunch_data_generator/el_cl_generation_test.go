@@ -6,9 +6,8 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/el_genesis"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
-	"github.com/kurtosis-tech/kurtosis-engine-api-lib/api/golang/lib/kurtosis_context"
+	"github.com/kurtosis-tech/kurtosis-engine-server/api/golang/lib/kurtosis_context"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -18,9 +17,9 @@ import (
 )
 
 const (
-	runKurtosisTestsEnvVar	= "RUN_KURTOSIS_TESTS"
+	runKurtosisTestsEnvVar = "RUN_KURTOSIS_TESTS"
 
-	enclaveIdPrefix = "test-prelaunch-genesis-generation-"
+	enclaveIdPrefix       = "test-prelaunch-genesis-generation-"
 	isPartitioningEnabled = false
 
 	// Relative to the directory this file is inside
@@ -28,11 +27,11 @@ const (
 
 	// Relative to the static files directory
 	genesisGenerationConfigRelDirpath = "genesis-generation-config"
-	elGenerationConfigRelDirpath = genesisGenerationConfigRelDirpath + "/el"
-	gethGenesisConfigRelFilepath = elGenerationConfigRelDirpath + "/genesis-config.yaml.tmpl"
-	clGenerationConfigRelDirpath = genesisGenerationConfigRelDirpath + "/cl"
-	clGenesisConfigRelFilepath = clGenerationConfigRelDirpath + "/config.yaml.tmpl"
-	clGenesisMnemonicsRelFilepath = clGenerationConfigRelDirpath + "/mnemonics.yaml.tmpl"
+	elGenerationConfigRelDirpath      = genesisGenerationConfigRelDirpath + "/el"
+	gethGenesisConfigRelFilepath      = elGenerationConfigRelDirpath + "/genesis-config.yaml.tmpl"
+	clGenerationConfigRelDirpath      = genesisGenerationConfigRelDirpath + "/cl"
+	clGenesisConfigRelFilepath        = clGenerationConfigRelDirpath + "/config.yaml.tmpl"
+	clGenesisMnemonicsRelFilepath     = clGenerationConfigRelDirpath + "/mnemonics.yaml.tmpl"
 )
 
 func TestPrelaunchGenesisGeneration(t *testing.T) {
@@ -43,19 +42,19 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 	// Go test always runs in the directory that this file is in
 	pwd, err := os.Getwd()
 	require.NoError(t, err)
-	gethGenesisConfigTemplate, err := static_files.ParseTemplate(path.Join(
+	gethGenesisConfigTemplate, err := os.ReadFile(path.Join(
 		pwd,
 		staticFilesRelDirpath,
 		gethGenesisConfigRelFilepath,
 	))
 	require.NoError(t, err)
-	genesisConfigTemplate, err := static_files.ParseTemplate(path.Join(
+	genesisConfigTemplate, err := os.ReadFile(path.Join(
 		pwd,
 		staticFilesRelDirpath,
 		clGenesisConfigRelFilepath,
 	))
 	require.NoError(t, err)
-	genesisMnemonicsTemplate, err := static_files.ParseTemplate(path.Join(
+	genesisMnemonicsTemplate, err := os.ReadFile(path.Join(
 		pwd,
 		staticFilesRelDirpath,
 		clGenesisMnemonicsRelFilepath,
@@ -85,7 +84,7 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 	elGenesisData, err := el_genesis.GenerateELGenesisData(
 		context.Background(),
 		enclaveCtx,
-		gethGenesisConfigTemplate,
+		string(gethGenesisConfigTemplate),
 		uint64(time.Now().Unix()),
 		networkParams.NetworkID,
 		networkParams.DepositContractAddress,
@@ -96,8 +95,8 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 	_, err = cl_genesis.GenerateCLGenesisData(
 		context.Background(),
 		enclaveCtx,
-		genesisConfigTemplate,
-		genesisMnemonicsTemplate,
+		string(genesisConfigTemplate),
+		string(genesisMnemonicsTemplate),
 		elGenesisData,
 		uint64(time.Now().Unix()),
 		networkParams.NetworkID,
