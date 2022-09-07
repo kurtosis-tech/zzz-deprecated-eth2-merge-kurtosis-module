@@ -67,7 +67,7 @@ func LaunchForkmon(
 
 	configArtifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
 	if err != nil {
-		return stacktrace.Propagate(err, "An error rendering Forkmon config file at '%v'", forkmonConfigFilepathOnModule)
+		return stacktrace.Propagate(err, "An error rendering Forkmon config file template to '%v'", forkmonConfigFilepathOnModule)
 	}
 
 	containerConfigSupplier := getContainerConfigSupplier(configArtifactUuid)

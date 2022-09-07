@@ -134,7 +134,7 @@ func getGrafanaConfigDirArtifactUuid(
 
 	artifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred rendering Grafana config dir at '%v'", grafanaConfigDirpathOnModule)
+		return "", stacktrace.Propagate(err, "An error occurred rendering Grafana templates")
 	}
 
 	return artifactUuid, nil

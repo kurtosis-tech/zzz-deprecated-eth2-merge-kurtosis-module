@@ -98,7 +98,7 @@ func GenerateELGenesisData(
 
 	genesisGenerationConfigArtifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByRelDestFilepath)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred rendering the genesis config filepath from '%v'", genesisConfigFilename)
+		return nil, stacktrace.Propagate(err, "An error occurred rendering the genesis config template to '%v'", genesisConfigFilename)
 	}
 
 	// TODO Make this the actual data generator

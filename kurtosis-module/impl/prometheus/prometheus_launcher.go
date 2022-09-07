@@ -55,7 +55,7 @@ func LaunchPrometheus(
 
 	configArtifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred rendering the Prometheus config file at '%v'", configFilepathOnModule)
+		return "", stacktrace.Propagate(err, "An error occurred rendering the Prometheus template config file to '%v'", configFilepathOnModule)
 	}
 
 	containerConfigSupplier := getContainerConfigSupplier(configArtifactUuid)

@@ -9,7 +9,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
 	"path"
 	"strings"
 )
@@ -67,10 +66,6 @@ func GenerateCLGenesisData(
 	*CLGenesisData,
 	error,
 ) {
-	tempDirpath, err := ioutil.TempDir("", "")
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred creating a temporary directory to store CL genesis config data in")
-	}
 	templateData := &clGenesisConfigTemplateData{
 		NetworkId:                          networkId,
 		SecondsPerSlot:                     secondsPerSlot,
@@ -92,7 +87,7 @@ func GenerateCLGenesisData(
 
 	genesisGenerationConfigArtifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByRelDestFilepath)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred storing the CL genesis generation config files at '%v'", tempDirpath)
+		return nil, stacktrace.Propagate(err, "An error occurred rendering the CL genesis generation template files at")
 	}
 
 	// TODO Make this the actual data generator
