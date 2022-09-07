@@ -7,9 +7,10 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/cl_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
-	"github.com/kurtosis-tech/kurtosis-engine-server/api/golang/lib/kurtosis_context"
+	"github.com/kurtosis-tech/kurtosis-engine-api-lib/api/golang/lib/kurtosis_context"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -42,19 +43,19 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 	// Go test always runs in the directory that this file is in
 	pwd, err := os.Getwd()
 	require.NoError(t, err)
-	gethGenesisConfigTemplate, err := os.ReadFile(path.Join(
+	gethGenesisConfigTemplate, err := ioutil.ReadFile(path.Join(
 		pwd,
 		staticFilesRelDirpath,
 		gethGenesisConfigRelFilepath,
 	))
 	require.NoError(t, err)
-	genesisConfigTemplate, err := os.ReadFile(path.Join(
+	genesisConfigTemplate, err := ioutil.ReadFile(path.Join(
 		pwd,
 		staticFilesRelDirpath,
 		clGenesisConfigRelFilepath,
 	))
 	require.NoError(t, err)
-	genesisMnemonicsTemplate, err := os.ReadFile(path.Join(
+	genesisMnemonicsTemplate, err := ioutil.ReadFile(path.Join(
 		pwd,
 		staticFilesRelDirpath,
 		clGenesisMnemonicsRelFilepath,

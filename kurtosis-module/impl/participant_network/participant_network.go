@@ -3,7 +3,7 @@ package participant_network
 import (
 	"context"
 	"fmt"
-	"os"
+	"io/ioutil"
 	"time"
 
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
@@ -70,15 +70,15 @@ func LaunchParticipantNetwork(
 	numParticipants := uint32(len(allParticipantSpecs))
 
 	// Parse all the templates we'll need first, so if an error is thrown it'll be thrown early
-	elGenesisGenerationConfigTemplate, err := os.ReadFile(static_files.ELGenesisGenerationConfigTemplateFilepath)
+	elGenesisGenerationConfigTemplate, err := ioutil.ReadFile(static_files.ELGenesisGenerationConfigTemplateFilepath)
 	if err != nil {
 		return nil, 0, stacktrace.Propagate(err, "An error occurred reading the EL genesis generation config YAML template")
 	}
-	clGenesisConfigTemplate, err := os.ReadFile(static_files.CLGenesisGenerationConfigTemplateFilepath)
+	clGenesisConfigTemplate, err := ioutil.ReadFile(static_files.CLGenesisGenerationConfigTemplateFilepath)
 	if err != nil {
 		return nil, 0, stacktrace.Propagate(err, "An error occurred reading the CL genesis generation config YAML template")
 	}
-	clGenesisMnemonicsYmlTemplate, err := os.ReadFile(static_files.CLGenesisGenerationMnemonicsTemplateFilepath)
+	clGenesisMnemonicsYmlTemplate, err := ioutil.ReadFile(static_files.CLGenesisGenerationMnemonicsTemplateFilepath)
 	if err != nil {
 		return nil, 0, stacktrace.Propagate(err, "An error occurred reading the CL mnemonics YAML template")
 	}
