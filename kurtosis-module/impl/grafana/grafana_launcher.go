@@ -16,6 +16,7 @@ const (
 
 	datasourceConfigRelFilepath = "datasources/datasource.yml"
 
+	// this is relative to the files artifact root
 	dashboardProvidersConfigRelFilepath = "dashboards/dashboard-providers.yml"
 
 	configDirpathEnvVar = "GF_PATHS_PROVISIONING"
@@ -43,7 +44,7 @@ func LaunchGrafana(
 	dashboardProvidersConfigTemplate string,
 	prometheusPrivateUrl string,
 ) error {
-	artifactUuid, uploadArtifactUuid, err := getGrafanaConfigDirArtifactUuid(
+	grafanaConfig, grafanaDashboards, err := getGrafanaConfigDirArtifactUuid(
 		enclaveCtx,
 		datasourceConfigTemplate,
 		dashboardProvidersConfigTemplate,
@@ -53,7 +54,7 @@ func LaunchGrafana(
 		return stacktrace.Propagate(err, "An error occurred getting the Grafana config directory files artifact")
 	}
 
-	containerConfigSupplier := getContainerConfigSupplier(artifactUuid, uploadArtifactUuid)
+	containerConfigSupplier := getContainerConfigSupplier(grafanaConfig, grafanaDashboards)
 	_, err = enclaveCtx.AddService(serviceID, containerConfigSupplier)
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred launching the grafana service")
@@ -72,7 +73,7 @@ func getGrafanaConfigDirArtifactUuid(
 	datasourceConfigTemplate string,
 	dashboardProvidersConfigTemplate string,
 	prometheusPrivateUrl string,
-) (services.FilesArtifactUUID, services.FilesArtifactUUID, error) {
+) (resultGrafanaConfig services.FilesArtifactUUID, resultGrafanaDashboards services.FilesArtifactUUID, resultErr error) {
 
 	datasourceData := datasourceConfigTemplateData{
 		PrometheusURL: prometheusPrivateUrl,
@@ -90,22 +91,22 @@ func getGrafanaConfigDirArtifactUuid(
 	templateAndDataByDestRelFilepath[datasourceConfigRelFilepath] = datasourceTemplateAndData
 	templateAndDataByDestRelFilepath[dashboardProvidersConfigRelFilepath] = dashboardProvidersTemplateAndData
 
-	renderedTemplateArtifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
+	grafanaConfig, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
 	if err != nil {
 		return "", "", stacktrace.Propagate(err, "An error occurred rendering Grafana templates")
 	}
 
-	uploadArtifactUuid, err := enclaveCtx.UploadFiles(static_files.GrafanaDashboardsConfigDirpath)
+	grafanaDashboards, err := enclaveCtx.UploadFiles(static_files.GrafanaDashboardsConfigDirpath)
 	if err != nil {
 		return "", "", stacktrace.Propagate(err, "An error occurred uploading Grafana dashboard.json")
 	}
 
-	return renderedTemplateArtifactUuid, uploadArtifactUuid, nil
+	return grafanaConfig, grafanaDashboards, nil
 }
 
 func getContainerConfigSupplier(
-	renderTemplateArtifactUuid services.FilesArtifactUUID,
-	uploadArtifactUuid services.FilesArtifactUUID,
+	grafanaConfig services.FilesArtifactUUID,
+	grafanaDashboards services.FilesArtifactUUID,
 ) func(privateIpAddr string) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		containerConfig := services.NewContainerConfigBuilder(
@@ -115,8 +116,8 @@ func getContainerConfigSupplier(
 		).WithEnvironmentVariableOverrides(map[string]string{
 			configDirpathEnvVar: grafanaConfigDirpathOnService,
 		}).WithFiles(map[services.FilesArtifactUUID]string{
-			renderTemplateArtifactUuid: grafanaConfigDirpathOnService,
-			uploadArtifactUuid:         grafanaDashboardsDirpathOnService,
+			grafanaConfig:     grafanaConfigDirpathOnService,
+			grafanaDashboards: grafanaDashboardsDirpathOnService,
 		}).Build()
 
 		return containerConfig, nil
