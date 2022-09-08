@@ -12,7 +12,7 @@ func NewCLNodeMetricsInfo(name string, path string, url string) *CLNodeMetricsIn
 	return &CLNodeMetricsInfo{name: name, path: path, url: url}
 }
 
-func (cLNodeMetricsInfo *CLNodeMetricsInfo) MarshalJSON() ([]byte, error) {
+func (cLNodeMetricsInfo CLNodeMetricsInfo) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Name string `json:"name"`
 		Path string `json:"path"`
