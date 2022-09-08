@@ -18,13 +18,14 @@ const (
 	datasourceConfigRelFilepath = "datasources/datasource.yml"
 
 	dashboardProvidersConfigRelFilepath = "dashboards/dashboard-providers.yml"
-	dashboardConfigRelFilepath          = "dashboards/dashboard.json"
+	dashboardConfigRelFilepath          = "dashboard.json"
 
 	configDirpathEnvVar = "GF_PATHS_PROVISIONING"
 
 	grafanaConfigDirpathOnModule = "/tmp/grafana-config"
 
-	grafanaConfigDirpathOnService = "/config"
+	grafanaConfigDirpathOnService  = "/config"
+	grafanaDashboardsPathOnService = "/dashboards"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -76,7 +77,7 @@ func getGrafanaConfigDirArtifactUuid(
 	prometheusPrivateUrl string,
 ) (services.FilesArtifactUUID, services.FilesArtifactUUID, error) {
 	dashboardConfigFilepathOnGrafanaContainer := path.Join(
-		grafanaConfigDirpathOnService,
+		grafanaDashboardsPathOnService,
 		dashboardConfigRelFilepath,
 	)
 
@@ -122,7 +123,7 @@ func getContainerConfigSupplier(
 			configDirpathEnvVar: grafanaConfigDirpathOnModule,
 		}).WithFiles(map[services.FilesArtifactUUID]string{
 			renderTemplateArtifactUuid: grafanaConfigDirpathOnService,
-			uploadArtifactUuid:         grafanaConfigDirpathOnService,
+			uploadArtifactUuid:         grafanaDashboardsPathOnService,
 		}).Build()
 
 		return containerConfig, nil
