@@ -74,6 +74,10 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		return "", stacktrace.Propagate(err, "An error occurred reading prometheus config template file '%v'", static_files.PrometheusConfigTemplateFilepath)
 	}
 
+	grafanaDatasourceConfigTemplateString := string(grafanaDatasourceConfigTemplate)
+	grafanaDashboardsConfigTemplateString := string(grafanaDashboardsConfigTemplate)
+	prometheusConfigTemplateString := string(prometheusConfigTemplate)
+
 	logrus.Infof("Adding %v participants logging at level '%v'...", numParticipants, paramsObj.ClientLogLevel)
 	participants, clGenesisUnixTimestamp, err := participant_network.LaunchParticipantNetwork(
 		ctx,
@@ -127,9 +131,10 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred reading forkmon config template file '%v'", static_files.ForkmonConfigTemplateFilepath)
 	}
+	forkmonConfigTemplateString := string(forkmonConfigTemplate)
 	err = forkmon.LaunchForkmon(
 		enclaveCtx,
-		string(forkmonConfigTemplate),
+		forkmonConfigTemplateString,
 		allClClientContexts,
 		clGenesisUnixTimestamp,
 		networkParams.SecondsPerSlot,
@@ -143,7 +148,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Info("Launching prometheus...")
 	prometheusPrivateUrl, err := prometheus.LaunchPrometheus(
 		enclaveCtx,
-		string(prometheusConfigTemplate),
+		prometheusConfigTemplateString,
 		allClClientContexts,
 	)
 	if err != nil {
@@ -154,8 +159,8 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Info("Launching grafana...")
 	err = grafana.LaunchGrafana(
 		enclaveCtx,
-		string(grafanaDatasourceConfigTemplate),
-		string(grafanaDashboardsConfigTemplate),
+		grafanaDatasourceConfigTemplateString,
+		grafanaDashboardsConfigTemplateString,
 		prometheusPrivateUrl,
 	)
 	if err != nil {

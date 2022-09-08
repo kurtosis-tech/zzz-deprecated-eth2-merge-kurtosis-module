@@ -83,6 +83,10 @@ func LaunchParticipantNetwork(
 		return nil, 0, stacktrace.Propagate(err, "An error occurred reading the CL mnemonics YAML template")
 	}
 
+	elGenesisGenerationConfigTemplateString := string(elGenesisGenerationConfigTemplate)
+	clGenesisConfigTemplateString := string(clGenesisConfigTemplate)
+	clGenesisMnemonicsYmlTemplateString := string(clGenesisMnemonicsYmlTemplate)
+
 	// CL validator key generation is CPU-intensive, so we want to do the generation before any EL clients start mining
 	//  (even though we only start the CL clients after the EL network is fully up & mining)
 	logrus.Info("Generating validator keys....")
@@ -105,7 +109,7 @@ func LaunchParticipantNetwork(
 	elGenesisData, err := el_genesis.GenerateELGenesisData(
 		ctx,
 		enclaveCtx,
-		string(elGenesisGenerationConfigTemplate),
+		elGenesisGenerationConfigTemplateString,
 		elGenesisTimestamp,
 		networkParams.NetworkID,
 		networkParams.DepositContractAddress,
@@ -208,8 +212,8 @@ func LaunchParticipantNetwork(
 	clGenesisData, err := cl_genesis.GenerateCLGenesisData(
 		ctx,
 		enclaveCtx,
-		string(clGenesisConfigTemplate),
-		string(clGenesisMnemonicsYmlTemplate),
+		clGenesisConfigTemplateString,
+		clGenesisMnemonicsYmlTemplateString,
 		elGenesisData,
 		clGenesisTimestamp,
 		networkParams.NetworkID,
