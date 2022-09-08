@@ -16,17 +16,13 @@ const (
 	httpPortId            = "http"
 	httpPortNumber uint16 = 9090
 
-	configFilepathOnModule = "/tmp/prometheus-config.yml"
+	configFilepathOnModule = "prometheus-config.yml"
 
 	configDirMountpointOnPrometheus = "/config"
 )
 
 var usedPorts = map[string]*services.PortSpec{
 	httpPortId: services.NewPortSpec(httpPortNumber, services.PortProtocol_TCP),
-}
-
-type clClientInfo struct {
-	clNodesMetricsInfo []*cl.CLNodeMetricsInfo
 }
 
 type configTemplateData struct {
