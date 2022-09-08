@@ -26,8 +26,7 @@ const (
 
 	//Grafana config
 	grafanaConfigDirpath                            = "/grafana-config"
-	GrafanaDatasourceConfigTemplateFilepath         = staticFilesDirpath + grafanaConfigDirpath + "/datasource.yml.tmpl"
-	GrafanaDashboardsConfigDirpath                  = staticFilesDirpath + grafanaConfigDirpath + "/dashboards"
-	GrafanaDashboardProvidersConfigTemplateFilepath = GrafanaDashboardsConfigDirpath + "/dashboard-providers.yml.tmpl"
-	GrafanaDashboardConfigFilepath                  = GrafanaDashboardsConfigDirpath + "/dashboard.json"
+	GrafanaDatasourceConfigTemplateFilepath         = staticFilesDirpath + grafanaConfigDirpath + "/templates/datasource.yml.tmpl"
+	GrafanaDashboardProvidersConfigTemplateFilepath = GrafanaDashboardsConfigDirpath + "/templates/dashboard-providers.yml.tmpl"
+	GrafanaDashboardsConfigDirpath                  = staticFilesDirpath + grafanaConfigDirpath + "/uploads/dashboards"
 )
