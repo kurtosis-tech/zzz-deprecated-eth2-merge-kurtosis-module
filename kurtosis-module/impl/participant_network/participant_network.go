@@ -3,6 +3,7 @@ package participant_network
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"time"
 
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
@@ -69,18 +70,22 @@ func LaunchParticipantNetwork(
 	numParticipants := uint32(len(allParticipantSpecs))
 
 	// Parse all the templates we'll need first, so if an error is thrown it'll be thrown early
-	elGenesisGenerationConfigTemplate, err := static_files.ParseTemplate(static_files.ELGenesisGenerationConfigTemplateFilepath)
+	elGenesisGenerationConfigTemplate, err := ioutil.ReadFile(static_files.ELGenesisGenerationConfigTemplateFilepath)
 	if err != nil {
-		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the EL genesis generation config YAML template")
+		return nil, 0, stacktrace.Propagate(err, "An error occurred reading the EL genesis generation config YAML template")
 	}
-	clGenesisConfigTemplate, err := static_files.ParseTemplate(static_files.CLGenesisGenerationConfigTemplateFilepath)
+	clGenesisConfigTemplate, err := ioutil.ReadFile(static_files.CLGenesisGenerationConfigTemplateFilepath)
 	if err != nil {
-		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the CL genesis generation config YAML template")
+		return nil, 0, stacktrace.Propagate(err, "An error occurred reading the CL genesis generation config YAML template")
 	}
-	clGenesisMnemonicsYmlTemplate, err := static_files.ParseTemplate(static_files.CLGenesisGenerationMnemonicsTemplateFilepath)
+	clGenesisMnemonicsYmlTemplate, err := ioutil.ReadFile(static_files.CLGenesisGenerationMnemonicsTemplateFilepath)
 	if err != nil {
-		return nil, 0, stacktrace.Propagate(err, "An error occurred parsing the CL mnemonics YAML template")
+		return nil, 0, stacktrace.Propagate(err, "An error occurred reading the CL mnemonics YAML template")
 	}
+
+	elGenesisGenerationConfigTemplateString := string(elGenesisGenerationConfigTemplate)
+	clGenesisConfigTemplateString := string(clGenesisConfigTemplate)
+	clGenesisMnemonicsYmlTemplateString := string(clGenesisMnemonicsYmlTemplate)
 
 	// CL validator key generation is CPU-intensive, so we want to do the generation before any EL clients start mining
 	//  (even though we only start the CL clients after the EL network is fully up & mining)
@@ -104,7 +109,7 @@ func LaunchParticipantNetwork(
 	elGenesisData, err := el_genesis.GenerateELGenesisData(
 		ctx,
 		enclaveCtx,
-		elGenesisGenerationConfigTemplate,
+		elGenesisGenerationConfigTemplateString,
 		elGenesisTimestamp,
 		networkParams.NetworkID,
 		networkParams.DepositContractAddress,
@@ -207,8 +212,8 @@ func LaunchParticipantNetwork(
 	clGenesisData, err := cl_genesis.GenerateCLGenesisData(
 		ctx,
 		enclaveCtx,
-		clGenesisConfigTemplate,
-		clGenesisMnemonicsYmlTemplate,
+		clGenesisConfigTemplateString,
+		clGenesisMnemonicsYmlTemplateString,
 		elGenesisData,
 		clGenesisTimestamp,
 		networkParams.NetworkID,

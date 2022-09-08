@@ -3,12 +3,10 @@ package prometheus
 import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"path"
-	"text/template"
 )
 
 const (
@@ -18,7 +16,7 @@ const (
 	httpPortId            = "http"
 	httpPortNumber uint16 = 9090
 
-	configFilepathOnModule = "/tmp/prometheus-config.yml"
+	configFilename = "prometheus-config.yml"
 
 	configDirMountpointOnPrometheus = "/config"
 )
@@ -27,17 +25,13 @@ var usedPorts = map[string]*services.PortSpec{
 	httpPortId: services.NewPortSpec(httpPortNumber, services.PortProtocol_TCP),
 }
 
-type clClientInfo struct {
-	clNodesMetricsInfo []*cl.CLNodeMetricsInfo
-}
-
 type configTemplateData struct {
 	CLNodesMetricsInfo []*cl.CLNodeMetricsInfo
 }
 
 func LaunchPrometheus(
 	enclaveCtx *enclaves.EnclaveContext,
-	configTemplate *template.Template,
+	configTemplate string,
 	clClientContexts []*cl.CLClientContext,
 ) (string, error) {
 	allCLNodesMetricsInfo := []*cl.CLNodeMetricsInfo{}
@@ -50,12 +44,14 @@ func LaunchPrometheus(
 	templateData := configTemplateData{
 		CLNodesMetricsInfo: allCLNodesMetricsInfo,
 	}
-	if err := service_launch_utils.FillTemplateToPath(configTemplate, templateData, configFilepathOnModule); err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred filling the Prometheus config file template to file '%v'", configFilepathOnModule)
-	}
-	configArtifactUuid, err := enclaveCtx.UploadFiles(configFilepathOnModule)
+
+	templateAndData := enclaves.NewTemplateAndData(configTemplate, templateData)
+	templateAndDataByDestRelFilepath := make(map[string]*enclaves.TemplateAndData)
+	templateAndDataByDestRelFilepath[configFilename] = templateAndData
+
+	configArtifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred uploading the Prometheus config file at '%v'", configFilepathOnModule)
+		return "", stacktrace.Propagate(err, "An error occurred rendering the Prometheus template config file to '%v'", configFilename)
 	}
 
 	containerConfigSupplier := getContainerConfigSupplier(configArtifactUuid)
@@ -76,14 +72,13 @@ func LaunchPrometheus(
 
 // ====================================================================================================
 //                                       Private Helper Functions
+//
 // ====================================================================================================
 func getContainerConfigSupplier(
 	configFileArtifactUuid services.FilesArtifactUUID,
-) (
-	func(privateIpAddr string) (*services.ContainerConfig, error),
-) {
+) func(privateIpAddr string) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string) (*services.ContainerConfig, error) {
-		configFilepath := path.Join(configDirMountpointOnPrometheus, path.Base(configFilepathOnModule))
+		configFilepath := path.Join(configDirMountpointOnPrometheus, path.Base(configFilename))
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithCmdOverride([]string{

@@ -1,38 +1,36 @@
 package cl_genesis
+
 import (
 	"context"
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/prelaunch_data_generator_launcher"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/service_launch_utils"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
 	"path"
 	"strings"
-	"text/template"
 )
 
 const (
 	// Needed to copy the JWT secret
 	elGenesisDirpathOnGenerator = "/el-genesis"
 
-	configDirpathOnGenerator              = "/config"
-	genesisConfigYmlFilename              = "config.yaml" // WARNING: Do not change this! It will get copied to the CL genesis data, and the CL clients are hardcoded to look for this filename
-	mnemonicsYmlFilename = "mnemonics.yaml"
+	configDirpathOnGenerator = "/config"
+	genesisConfigYmlFilename = "config.yaml" // WARNING: Do not change this! It will get copied to the CL genesis data, and the CL clients are hardcoded to look for this filename
+	mnemonicsYmlFilename     = "mnemonics.yaml"
 
 	outputDirpathOnGenerator = "/output"
 	tranchesDiranme          = "tranches"
 	genesisStateFilename     = "genesis.ssz"
 	deployBlockFilename      = "deploy_block.txt"
-	depositContractFilename = "deposit_contract.txt"
+	depositContractFilename  = "deposit_contract.txt"
 
 	// Generation constants
 	clGenesisGenerationBinaryFilepathOnContainer = "/usr/local/bin/eth2-testnet-genesis"
-	deployBlock = "0"
-	eth1Block              = "0x0000000000000000000000000000000000000000000000000000000000000000"
+	deployBlock                                  = "0"
+	eth1Block                                    = "0x0000000000000000000000000000000000000000000000000000000000000000"
 
 	successfulExecCmdExitCode = 0
 )
@@ -44,16 +42,16 @@ type clGenesisConfigTemplateData struct {
 	TotalTerminalDifficulty            uint64
 	AltairForkEpoch                    uint64
 	MergeForkEpoch                     uint64
-	NumValidatorKeysToPreregister uint32
+	NumValidatorKeysToPreregister      uint32
 	PreregisteredValidatorKeysMnemonic string
-	DepositContractAddress string
+	DepositContractAddress             string
 }
 
 func GenerateCLGenesisData(
 	ctx context.Context,
 	enclaveCtx *enclaves.EnclaveContext,
-	genesisGenerationConfigYmlTemplate *template.Template,
-	genesisGenerationMnemonicsYmlTemplate *template.Template,
+	genesisGenerationConfigYmlTemplate string,
+	genesisGenerationMnemonicsYmlTemplate string,
 	elGenesisData *el_genesis.ELGenesisData, // Needed to get JWT secret
 	genesisUnixTimestamp uint64,
 	networkId string,
@@ -68,10 +66,6 @@ func GenerateCLGenesisData(
 	*CLGenesisData,
 	error,
 ) {
-	tempDirpath, err := ioutil.TempDir("", "")
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred creating a temporary directory to store CL genesis config data in")
-	}
 	templateData := &clGenesisConfigTemplateData{
 		NetworkId:                          networkId,
 		SecondsPerSlot:                     secondsPerSlot,
@@ -84,25 +78,16 @@ func GenerateCLGenesisData(
 		DepositContractAddress:             depositContractAddress,
 	}
 
-	if err := service_launch_utils.FillTemplateToPath(
-		genesisGenerationConfigYmlTemplate,
-		templateData,
-		path.Join(tempDirpath, genesisConfigYmlFilename),
-	); err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred filling the CL genesis generation config YML template")
-	}
+	genesisGenerationMnemonicsTemplateAndData := enclaves.NewTemplateAndData(genesisGenerationMnemonicsYmlTemplate, templateData)
+	genesisGenerationConfigTemplateAndData := enclaves.NewTemplateAndData(genesisGenerationConfigYmlTemplate, templateData)
 
-	if err := service_launch_utils.FillTemplateToPath(
-		genesisGenerationMnemonicsYmlTemplate,
-		templateData,
-		path.Join(tempDirpath, mnemonicsYmlFilename),
-	); err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred filling the CL genesis generation mnemonics YML template")
-	}
+	templateAndDataByRelDestFilepath := make(map[string]*enclaves.TemplateAndData)
+	templateAndDataByRelDestFilepath[mnemonicsYmlFilename] = genesisGenerationMnemonicsTemplateAndData
+	templateAndDataByRelDestFilepath[genesisConfigYmlFilename] = genesisGenerationConfigTemplateAndData
 
-	genesisGenerationConfigArtifactUuid, err := enclaveCtx.UploadFiles(tempDirpath)
+	genesisGenerationConfigArtifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByRelDestFilepath)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred storing the CL genesis generation config files at '%v'", tempDirpath)
+		return nil, stacktrace.Propagate(err, "An error occurred rendering the CL genesis generation template files")
 	}
 
 	// TODO Make this the actual data generator
@@ -180,9 +165,9 @@ func GenerateCLGenesisData(
 			"sh",
 			"-c",
 			fmt.Sprintf(
-				 "echo %v > %v",
-				 content,
-				 destFilepath,
+				"echo %v > %v",
+				content,
+				destFilepath,
 			),
 		}
 		if err := execCommand(serviceCtx, cmd); err != nil {
