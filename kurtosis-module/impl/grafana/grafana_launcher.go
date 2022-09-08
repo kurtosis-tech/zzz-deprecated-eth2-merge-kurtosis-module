@@ -143,7 +143,6 @@ func getGrafanaConfigDirArtifactUuid(
 func getContainerConfigSupplier(
 	configDirArtifactUuid services.FilesArtifactUUID,
 ) func(privateIpAddr string) (*services.ContainerConfig, error) {
-	// We need the path.Base() here because Kurtosis doesn't flatten directories yet
 	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
