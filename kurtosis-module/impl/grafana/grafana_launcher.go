@@ -1,6 +1,7 @@
 package grafana
 
 import (
+	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -44,7 +45,7 @@ func LaunchGrafana(
 	dashboardProvidersConfigTemplate string,
 	prometheusPrivateUrl string,
 ) error {
-	artifactUuid, err := getGrafanaConfigDirArtifactUuid(
+	artifactUuid, uploadArtifactUuid, err := getGrafanaConfigDirArtifactUuid(
 		enclaveCtx,
 		datasourceConfigTemplate,
 		dashboardProvidersConfigTemplate,
@@ -73,11 +74,11 @@ func getGrafanaConfigDirArtifactUuid(
 	datasourceConfigTemplate string,
 	dashboardProvidersConfigTemplate string,
 	prometheusPrivateUrl string,
-) (services.FilesArtifactUUID, error) {
+) (services.FilesArtifactUUID, services.FilesArtifactUUID, error) {
 	dashboardConfigFilepathOnGrafanaContainer := path.Join(
 		grafanaConfigDirpathOnService,
 		dashboardConfigRelFilepath,
-	) // /config/dashboards/dashboards.json
+	)
 
 	datasourceData := datasourceConfigTemplateData{
 		PrometheusURL: prometheusPrivateUrl,
@@ -91,28 +92,26 @@ func getGrafanaConfigDirArtifactUuid(
 	}
 	dashboardProvidersTemplateAndData := enclaves.NewTemplateAndData(dashboardProvidersConfigTemplate, dashboardProvidersData)
 
-	// Even though this is a pure json we treat it as a template
-	dashboardConfigFileContent, err := ioutil.ReadFile(static_files.GrafanaDashboardConfigFilepath)
-	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred reading the dashboard file content")
-	}
-	dashboardConfigFileTemplateAndData := enclaves.NewTemplateAndData(string(dashboardConfigFileContent), "")
-
 	templateAndDataByDestRelFilepath := make(map[string]*enclaves.TemplateAndData)
 	templateAndDataByDestRelFilepath[datasourceConfigRelFilepath] = datasourceTemplateAndData                 // /tmp/grafana-config/datasources/datasources.yml -> data
 	templateAndDataByDestRelFilepath[dashboardProvidersConfigRelFilepath] = dashboardProvidersTemplateAndData // /tmp/grafana-config/dashboards/dashboards-provider.yml -> data
-	templateAndDataByDestRelFilepath[dashboardConfigRelFilepath] = dashboardConfigFileTemplateAndData
 
-	artifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
+	renderedTemplateArtifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred rendering Grafana templates")
+		return "", "", stacktrace.Propagate(err, "An error occurred rendering Grafana templates")
 	}
 
-	return artifactUuid, nil
+	uploadArtifactUuid, err := enclaveCtx.UploadFiles(static_files.GrafanaDashboardsConfigDirpath)
+	if err != nil {
+		return "", "", stacktrace.Propagate(err, "An error occurred uploading Grafana dashboard.json")
+	}
+
+	return renderedTemplateArtifactUuid, uploadArtifactUuid, nil
 }
 
 func getContainerConfigSupplier(
-	configDirArtifactUuid services.FilesArtifactUUID,
+	renderTemplateArtifactUuid services.FilesArtifactUUID,
+	uploadArtifactUuid services.FilesArtifactUUID,
 ) func(privateIpAddr string) (*services.ContainerConfig, error) {
 	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
 		containerConfig := services.NewContainerConfigBuilder(
@@ -122,7 +121,8 @@ func getContainerConfigSupplier(
 		).WithEnvironmentVariableOverrides(map[string]string{
 			configDirpathEnvVar: grafanaConfigDirpathOnModule,
 		}).WithFiles(map[services.FilesArtifactUUID]string{
-			configDirArtifactUuid: grafanaConfigDirpathOnService,
+			renderTemplateArtifactUuid: grafanaConfigDirpathOnService,
+			uploadArtifactUuid:         grafanaConfigDirpathOnService,
 		}).Build()
 
 		return containerConfig, nil
