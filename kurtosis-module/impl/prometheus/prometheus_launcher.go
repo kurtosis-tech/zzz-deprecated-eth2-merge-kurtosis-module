@@ -16,7 +16,7 @@ const (
 	httpPortId            = "http"
 	httpPortNumber uint16 = 9090
 
-	configFilepathOnModule = "prometheus-config.yml"
+	configFilename = "prometheus-config.yml"
 
 	configDirMountpointOnPrometheus = "/config"
 )
@@ -47,11 +47,11 @@ func LaunchPrometheus(
 
 	templateAndData := enclaves.NewTemplateAndData(configTemplate, templateData)
 	templateAndDataByDestRelFilepath := make(map[string]*enclaves.TemplateAndData)
-	templateAndDataByDestRelFilepath[configFilepathOnModule] = templateAndData
+	templateAndDataByDestRelFilepath[configFilename] = templateAndData
 
 	configArtifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
 	if err != nil {
-		return "", stacktrace.Propagate(err, "An error occurred rendering the Prometheus template config file to '%v'", configFilepathOnModule)
+		return "", stacktrace.Propagate(err, "An error occurred rendering the Prometheus template config file to '%v'", configFilename)
 	}
 
 	containerConfigSupplier := getContainerConfigSupplier(configArtifactUuid)
@@ -71,15 +71,14 @@ func LaunchPrometheus(
 }
 
 // ====================================================================================================
-//
-//	Private Helper Functions
+//                                       Private Helper Functions
 //
 // ====================================================================================================
 func getContainerConfigSupplier(
 	configFileArtifactUuid services.FilesArtifactUUID,
 ) func(privateIpAddr string) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string) (*services.ContainerConfig, error) {
-		configFilepath := path.Join(configDirMountpointOnPrometheus, path.Base(configFilepathOnModule))
+		configFilepath := path.Join(configDirMountpointOnPrometheus, path.Base(configFilename))
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithCmdOverride([]string{
