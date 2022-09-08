@@ -55,7 +55,7 @@ func LaunchGrafana(
 		return stacktrace.Propagate(err, "An error occurred getting the Grafana config directory files artifact")
 	}
 
-	containerConfigSupplier := getContainerConfigSupplier(artifactUuid)
+	containerConfigSupplier := getContainerConfigSupplier(artifactUuid, uploadArtifactUuid)
 	_, err = enclaveCtx.AddService(serviceID, containerConfigSupplier)
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred launching the grafana service")
