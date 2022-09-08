@@ -1,23 +1,25 @@
 package cl
 
+import "encoding/json"
+
 type CLNodeMetricsInfo struct {
 	name string
 	path string
-	url string
+	url  string
 }
 
 func NewCLNodeMetricsInfo(name string, path string, url string) *CLNodeMetricsInfo {
 	return &CLNodeMetricsInfo{name: name, path: path, url: url}
 }
 
-func (clNodeMetricInfo *CLNodeMetricsInfo) GetName() string {
-	return clNodeMetricInfo.name
-}
-
-func (clNodeMetricInfo *CLNodeMetricsInfo) GetPath() string {
-	return clNodeMetricInfo.path
-}
-
-func (clNodeMetricInfo *CLNodeMetricsInfo) GetURL() string {
-	return clNodeMetricInfo.url
+func (cLNodeMetricsInfo *CLNodeMetricsInfo) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Name string `json:"name"`
+		Path string `json:"path"`
+		Url  string `json:"url"`
+	}{
+		Name: cLNodeMetricsInfo.name,
+		Path: cLNodeMetricsInfo.path,
+		Url:  cLNodeMetricsInfo.url,
+	})
 }

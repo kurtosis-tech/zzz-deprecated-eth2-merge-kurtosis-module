@@ -5,8 +5,8 @@ global:
 # Here it's Prometheus itself.
 scrape_configs:
    {{ range $clNode := .CLNodesMetricsInfo }}
-   - job_name: '{{ $clNode.GetName }}'
-     metrics_path: {{ $clNode.GetPath }}
+   - job_name: '{{ $clNode.name }}'
+     metrics_path: {{ $clNode.path }}
      static_configs:
-       - targets: ['{{ $clNode.GetURL }}']
+       - targets: ['{{ $clNode.url }}']
    {{ end }}
