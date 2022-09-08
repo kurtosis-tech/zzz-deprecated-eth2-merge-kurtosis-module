@@ -81,22 +81,22 @@ func getGrafanaConfigDirArtifactUuid(
 	dashboardProvidersConfigTemplate string,
 	prometheusPrivateUrl string,
 ) (services.FilesArtifactUUID, error) {
-	datasourcesConfigDirpathOnModule := path.Join(grafanaConfigDirpathOnModule, datasourcesConfigDirname)
-	datasourceConfigFilepath := path.Join(datasourcesConfigDirpathOnModule, datasourceConfigFilename)
-	dashboardsConfigDirpathOnModule := path.Join(grafanaConfigDirpathOnModule, dashboardsConfigDirname)
-	dashboardProvidersConfigFilepath := path.Join(dashboardsConfigDirpathOnModule, dashboardProvidersConfigFilename)
-	dashboardConfigFilepath := path.Join(dashboardsConfigDirpathOnModule, dashboardConfigFilename)
+	datasourcesConfigDirpathOnModule := path.Join(grafanaConfigDirpathOnModule, datasourcesConfigDirname)            // /tmp/grafana-config/datasources
+	datasourceConfigFilepath := path.Join(datasourcesConfigDirpathOnModule, datasourceConfigFilename)                // /tmp/grafana-config/datasources/datasources.yml
+	dashboardsConfigDirpathOnModule := path.Join(grafanaConfigDirpathOnModule, dashboardsConfigDirname)              // /tmp/grafana-config/dashboards/
+	dashboardProvidersConfigFilepath := path.Join(dashboardsConfigDirpathOnModule, dashboardProvidersConfigFilename) // /tmp/grafana-config/dashboards/dashboards-provider.yml
+	dashboardConfigFilepath := path.Join(dashboardsConfigDirpathOnModule, dashboardConfigFilename)                   // /tmp/grafana-config/dashboards/dashboards.json
 
 	dashboardConfigFilepathOnGrafanaContainer := path.Join(
 		grafanaConfigDirpathOnService,
 		dashboardsConfigDirname,
 		dashboardConfigFilename,
-	)
+	) // /config/dashboards/dashboards.json
 
 	dirpathsToCreate := []string{
-		grafanaConfigDirpathOnModule,
-		datasourcesConfigDirpathOnModule,
-		dashboardsConfigDirpathOnModule,
+		grafanaConfigDirpathOnModule,     // /tmp/grafana-config
+		datasourcesConfigDirpathOnModule, // /tmp/grafana-config/datasources
+		dashboardsConfigDirpathOnModule,  // /tmp/grafana-config/dashboards/
 	}
 	for _, dirpath := range dirpathsToCreate {
 		if err := os.Mkdir(dirpath, configDirectoriesPermission); err != nil {
@@ -112,14 +112,15 @@ func getGrafanaConfigDirArtifactUuid(
 	dashboardProvidersData := dashboardProvidersConfigTemplateData{
 		// Grafana needs to know where the dashboards config file will be on disk, which means we need to feed
 		//  it the *mounted* location on disk (on the Grafana container) when we generate this on the module container
-		DashboardsDirpath: dashboardConfigFilepathOnGrafanaContainer,
+		DashboardsDirpath: dashboardConfigFilepathOnGrafanaContainer, // /config/dashboards/dashboards.json
 	}
 	dashboardProvidersTemplateAndData := enclaves.NewTemplateAndData(dashboardProvidersConfigTemplate, dashboardProvidersData)
 
 	templateAndDataByDestRelFilepath := make(map[string]*enclaves.TemplateAndData)
-	templateAndDataByDestRelFilepath[datasourceConfigFilepath] = datasourceTemplateAndData
-	templateAndDataByDestRelFilepath[dashboardProvidersConfigFilepath] = dashboardProvidersTemplateAndData
+	templateAndDataByDestRelFilepath[datasourceConfigFilepath] = datasourceTemplateAndData                 // /tmp/grafana-config/datasources/datasources.yml -> data
+	templateAndDataByDestRelFilepath[dashboardProvidersConfigFilepath] = dashboardProvidersTemplateAndData // /tmp/grafana-config/dashboards/dashboards-provider.yml -> data
 
+	// copies the dashboard.json from /static-files/ to /tmp/grafana-config/dashboards/dashboards.json
 	if err := addGrafanaDashboardConfigToConfigDir(
 		static_files.GrafanaDashboardConfigFilepath,
 		dashboardConfigFilepath,
@@ -132,6 +133,10 @@ func getGrafanaConfigDirArtifactUuid(
 		)
 	}
 
+	// we used to upload /tmp/grafana-config
+	// with the render templates call below we are missing the right structure
+	// we are also missing the dashboard.json
+	// i still need a call to upload files or i can use an empty template
 	artifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred rendering Grafana templates")
