@@ -15,7 +15,7 @@ const (
 	httpPortId     = "http"
 	httpPortNumber = uint16(80)
 
-	forkmonConfigFilepathOnModule = "/tmp/forkmon-config.toml"
+	forkmonConfigFilepathOnModule = "forkmon-config.toml"
 
 	forkmonConfigMountDirpathOnService = "/config"
 )
