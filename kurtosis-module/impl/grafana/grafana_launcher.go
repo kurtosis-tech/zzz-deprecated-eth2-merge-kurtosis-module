@@ -22,8 +22,6 @@ const (
 
 	configDirpathEnvVar = "GF_PATHS_PROVISIONING"
 
-	grafanaConfigDirpathOnModule = "/tmp/grafana-config"
-
 	grafanaConfigDirpathOnService  = "/config"
 	grafanaDashboardsPathOnService = "/dashboards"
 )
@@ -120,7 +118,7 @@ func getContainerConfigSupplier(
 		).WithUsedPorts(
 			usedPorts,
 		).WithEnvironmentVariableOverrides(map[string]string{
-			configDirpathEnvVar: grafanaConfigDirpathOnModule,
+			configDirpathEnvVar: grafanaDashboardsPathOnService,
 		}).WithFiles(map[services.FilesArtifactUUID]string{
 			renderTemplateArtifactUuid: grafanaConfigDirpathOnService,
 			uploadArtifactUuid:         grafanaDashboardsPathOnService,
