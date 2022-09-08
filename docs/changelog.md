@@ -1,5 +1,7 @@
 # TBD
 
+# 0.6.3
+
 ### Changes
 * Upgraded core to 1.58.3 which introduces `EnclaveContext.renderTemplate`.
 * Changed the code to use the `EnclaveContext.renderTemplate` sdk call.
