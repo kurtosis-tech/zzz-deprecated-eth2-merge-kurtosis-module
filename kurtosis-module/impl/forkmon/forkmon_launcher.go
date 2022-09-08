@@ -15,7 +15,7 @@ const (
 	httpPortId     = "http"
 	httpPortNumber = uint16(80)
 
-	forkmonConfigFilepathOnModule = "forkmon-config.toml"
+	forkmonFilename = "forkmon-config.toml"
 
 	forkmonConfigMountDirpathOnService = "/config"
 )
@@ -63,11 +63,11 @@ func LaunchForkmon(
 
 	templateAndData := enclaves.NewTemplateAndData(configTemplate, templateData)
 	templateAndDataByDestRelFilepath := make(map[string]*enclaves.TemplateAndData)
-	templateAndDataByDestRelFilepath[forkmonConfigFilepathOnModule] = templateAndData
+	templateAndDataByDestRelFilepath[forkmonFilename] = templateAndData
 
 	configArtifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
 	if err != nil {
-		return stacktrace.Propagate(err, "An error rendering Forkmon config file template to '%v'", forkmonConfigFilepathOnModule)
+		return stacktrace.Propagate(err, "An error rendering Forkmon config file template to '%v'", forkmonFilename)
 	}
 
 	containerConfigSupplier := getContainerConfigSupplier(configArtifactUuid)
@@ -86,7 +86,7 @@ func getContainerConfigSupplier(
 	configArtifactUuid services.FilesArtifactUUID,
 ) func(privateIpAddr string) (*services.ContainerConfig, error) {
 	return func(privateIpAddr string) (*services.ContainerConfig, error) {
-		configFilepath := path.Join(forkmonConfigMountDirpathOnService, path.Base(forkmonConfigFilepathOnModule))
+		configFilepath := path.Join(forkmonConfigMountDirpathOnService, path.Base(forkmonFilename))
 		containerConfig := services.NewContainerConfigBuilder(
 			imageName,
 		).WithCmdOverride([]string{

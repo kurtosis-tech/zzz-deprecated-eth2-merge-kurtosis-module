@@ -5,7 +5,6 @@ import (
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
-	"path"
 )
 
 const (
@@ -18,12 +17,12 @@ const (
 	datasourceConfigRelFilepath = "datasources/datasource.yml"
 
 	dashboardProvidersConfigRelFilepath = "dashboards/dashboard-providers.yml"
-	dashboardConfigRelFilepath          = "dashboard.json"
 
 	configDirpathEnvVar = "GF_PATHS_PROVISIONING"
 
-	grafanaConfigDirpathOnService  = "/config"
-	grafanaDashboardsPathOnService = "/dashboards"
+	grafanaConfigDirpathOnService      = "/config"
+	grafanaDashboardsDirpathOnService  = "/dashboards"
+	grafanaDashboardsFilepathOnService = "/dashboards/dashboards.json"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -74,10 +73,6 @@ func getGrafanaConfigDirArtifactUuid(
 	dashboardProvidersConfigTemplate string,
 	prometheusPrivateUrl string,
 ) (services.FilesArtifactUUID, services.FilesArtifactUUID, error) {
-	dashboardConfigFilepathOnGrafanaContainer := path.Join(
-		grafanaDashboardsPathOnService,
-		dashboardConfigRelFilepath,
-	)
 
 	datasourceData := datasourceConfigTemplateData{
 		PrometheusURL: prometheusPrivateUrl,
@@ -87,13 +82,13 @@ func getGrafanaConfigDirArtifactUuid(
 	dashboardProvidersData := dashboardProvidersConfigTemplateData{
 		// Grafana needs to know where the dashboards config file will be on disk, which means we need to feed
 		//  it the *mounted* location on disk (on the Grafana container) when we generate this on the module container
-		DashboardsDirpath: dashboardConfigFilepathOnGrafanaContainer, // /config/dashboards/dashboards.json
+		DashboardsDirpath: grafanaDashboardsFilepathOnService,
 	}
 	dashboardProvidersTemplateAndData := enclaves.NewTemplateAndData(dashboardProvidersConfigTemplate, dashboardProvidersData)
 
 	templateAndDataByDestRelFilepath := make(map[string]*enclaves.TemplateAndData)
-	templateAndDataByDestRelFilepath[datasourceConfigRelFilepath] = datasourceTemplateAndData                 // /tmp/grafana-config/datasources/datasources.yml -> data
-	templateAndDataByDestRelFilepath[dashboardProvidersConfigRelFilepath] = dashboardProvidersTemplateAndData // /tmp/grafana-config/dashboards/dashboards-provider.yml -> data
+	templateAndDataByDestRelFilepath[datasourceConfigRelFilepath] = datasourceTemplateAndData
+	templateAndDataByDestRelFilepath[dashboardProvidersConfigRelFilepath] = dashboardProvidersTemplateAndData
 
 	renderedTemplateArtifactUuid, err := enclaveCtx.RenderTemplates(templateAndDataByDestRelFilepath)
 	if err != nil {
@@ -121,7 +116,7 @@ func getContainerConfigSupplier(
 			configDirpathEnvVar: grafanaConfigDirpathOnService,
 		}).WithFiles(map[services.FilesArtifactUUID]string{
 			renderTemplateArtifactUuid: grafanaConfigDirpathOnService,
-			uploadArtifactUuid:         grafanaDashboardsPathOnService,
+			uploadArtifactUuid:         grafanaDashboardsDirpathOnService,
 		}).Build()
 
 		return containerConfig, nil
