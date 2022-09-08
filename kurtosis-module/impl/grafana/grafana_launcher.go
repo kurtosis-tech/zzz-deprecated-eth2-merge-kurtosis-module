@@ -118,7 +118,7 @@ func getContainerConfigSupplier(
 		).WithUsedPorts(
 			usedPorts,
 		).WithEnvironmentVariableOverrides(map[string]string{
-			configDirpathEnvVar: grafanaDashboardsPathOnService,
+			configDirpathEnvVar: grafanaConfigDirpathOnService,
 		}).WithFiles(map[services.FilesArtifactUUID]string{
 			renderTemplateArtifactUuid: grafanaConfigDirpathOnService,
 			uploadArtifactUuid:         grafanaDashboardsPathOnService,
