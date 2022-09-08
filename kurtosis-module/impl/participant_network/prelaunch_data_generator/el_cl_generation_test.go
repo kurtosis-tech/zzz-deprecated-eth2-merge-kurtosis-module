@@ -24,7 +24,7 @@ const (
 	isPartitioningEnabled = false
 
 	// Relative to the directory this file is inside
-	staticFilesRelDirpath = "../../static_files"
+	staticFilesRelDirpath = "../../../static_files"
 
 	// Relative to the static files directory
 	genesisGenerationConfigRelDirpath = "genesis-generation-config"
