@@ -22,7 +22,7 @@ const (
 
 	grafanaConfigDirpathOnService      = "/config"
 	grafanaDashboardsDirpathOnService  = "/dashboards"
-	grafanaDashboardsFilepathOnService = "/dashboards/dashboards.json"
+	grafanaDashboardsFilepathOnService = grafanaDashboardsDirpathOnService + "/dashboard.json"
 )
 
 var usedPorts = map[string]*services.PortSpec{
