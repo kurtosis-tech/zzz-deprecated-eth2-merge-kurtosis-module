@@ -5,6 +5,9 @@
 * Changed the code to use the `EnclaveContext.renderTemplate` sdk call.
 * Upgraded module-api-lib to 0.21.2
 
+### Fixes
+* Fixed a bug related grafana dashboards that was introduced in 0.6.0.
+
 # 0.6.2
 
 # 0.6.1
