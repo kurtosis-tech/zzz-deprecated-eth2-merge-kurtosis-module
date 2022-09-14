@@ -1,4 +1,6 @@
 # TBD
+
+# 0.6.4
 ### Features
 - Added the `executionLayerOnly` flag to start just the execution layer
 
