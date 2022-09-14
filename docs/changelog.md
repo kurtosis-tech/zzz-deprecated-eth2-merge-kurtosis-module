@@ -1,7 +1,8 @@
 # TBD
+### Features
+- Added the `executionLayerOnly` flag to start just the execution layer
 
 # 0.6.3
-
 ### Changes
 * Upgraded core to 1.58.3 which introduces `EnclaveContext.renderTemplate`.
 * Changed the code to use the `EnclaveContext.renderTemplate` sdk call.
@@ -11,6 +12,8 @@
 * Fixed a bug related grafana dashboards that was introduced in 0.6.0.
 
 # 0.6.2
+### Features
+* Added support for external builder network ("mev-boost")
 
 # 0.6.1
 ### Changes
@@ -41,7 +44,6 @@
 ### Features
 * Added CircleCi `check_latest_version` workflow for running a scheduled pipeline every day to control successful module execution
 * Added extensive documentation on the module's structure to `docs/architecture.md`, to encourage third-party contributions to the module
-* Added support for external builder network ("mev-boost")
 
 ### Fixes
 * Fixed broken link in the readme file
