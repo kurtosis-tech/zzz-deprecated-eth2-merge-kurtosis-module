@@ -101,13 +101,13 @@ participants:
     # A set of parameters the node needs to reach an external block building network
     # If `null` then the builder infrastructure will not be instantiated
     # Example:
-    # ```
+    # 
     # relayEndpoints:
     #   - "https://0xdeadbeefcafa@relay.example.com"
     #   - "https://0xdeadbeefcafb@relay.example.com"
     #   - "https://0xdeadbeefcafc@relay.example.com"
     #   - "https://0xdeadbeefcafd@relay.example.com"
-    # ```
+    # 
     builderNetworkParams: null
 
 #  Configuration parameters for the Eth network
@@ -144,6 +144,15 @@ network:
   #  This mnemonic will a) be used to create keystores for all the types of validators that we have and b) be used to generate a CL genesis.ssz that has the children
   #   validator keys already preregistered as validators
   preregisteredValidatorKeysMnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
+
+# If set to true:
+#  - only the EL nodes & the transaction spammer will be started
+#  - everything CL nodes & after will be skipped (including Forkmon)
+#  - params for the CL nodes will be ignored (e.g. CL node image, CL node extra params)
+#  - the response will be missing URLs for things started after the EL ndoes
+#  - EL-node-only params like loglevel and `waitForMining` will still be used
+# NOTE: You will probably want to adjust the `totalTerminalDifficulty` much higher to ensure the EL nodes don't go through the Merge (as they won't have CL nodes)
+executionLayerOnly: false
 
 #  If set to false, we won't wait for the EL clients to mine at least 1 block before proceeding with adding the CL clients
 #  This is purely for debug purposes; waiting for blockNumber > 0 is required for the CL network to behave as
