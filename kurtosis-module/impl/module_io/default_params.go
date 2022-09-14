@@ -67,6 +67,7 @@ func GetDefaultExecuteParams() *ExecuteParams {
 			NumValidatorKeysPerNode:            64,
 			PreregisteredValidatorKeysMnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete",
 		},
+		ExecutionLayerOnly:         false,
 		WaitForMining:              true,
 		WaitForFinalization:        false,
 		WaitForVerifications:       false,

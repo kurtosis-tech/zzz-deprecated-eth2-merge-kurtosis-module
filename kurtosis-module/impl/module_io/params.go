@@ -88,6 +88,16 @@ type ExecuteParams struct {
 	// Parameters controlling the settings of the network itself
 	Network *NetworkParams `yaml:"network"`
 
+	// If set to true:
+	//  - only the EL nodes & the transaction spammer will be started
+	//  - everything CL nodes & after will be skipped (including Forkmon)
+	//  - params for the CL nodes will be ignored (e.g. CL node image, CL node extra params)
+	//  - the response will be missing URLs for things started after the EL ndoes
+	// This is a hack - it's not very elegant - but this is a commonly-requested feature
+	// The longterm solution is making the module trivial to decompose so we don't need flags like this; we're working
+	//  on this at the Kurtosis product level
+	ExecutionLayerOnly bool `yaml:"executionLayerOnly"`
+
 	// If set to false, we won't wait for the EL clients to mine at least 1 block before proceeding with adding the CL clients
 	// This is purely for debug purposes; waiting for blockNumber > 0 is required for the CL network to behave as
 	//  expected, but that wait can be several minutes. Skipping the wait can be a good way to shorten the debug loop on a

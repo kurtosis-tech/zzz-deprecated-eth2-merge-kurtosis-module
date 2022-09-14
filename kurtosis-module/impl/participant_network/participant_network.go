@@ -57,6 +57,8 @@ var clClientContextForBootClClients *cl.CLClientContext = nil
 
 func LaunchParticipantNetwork(
 	ctx context.Context,
+	// TODO this is a hack to allow for starting just the EL nodes! This will be fixed by Kurtosis product work
+	shouldStartJustELNodes bool,
 	enclaveCtx *enclaves.EnclaveContext,
 	networkParams *module_io.NetworkParams,
 	allParticipantSpecs []*module_io.ParticipantParams,
@@ -200,6 +202,24 @@ func LaunchParticipantNetwork(
 		logrus.Infof("All EL clients have started mining")
 	} else {
 		logrus.Infof("The wait-for-mining flag was set to false which means we're skipping waiting for the EL clients to start mining; this will speed up the launch but the Beacon nodes likely won't work properly!")
+	}
+
+	// TODO This is a temporary hack to enable starting an EL-node-only network!
+	//  Will be fixed by Kurtosis product work to make the module easily decomposable
+	if shouldStartJustELNodes {
+		resultParticipants := []*Participant{}
+		for idx, participantSpec := range allParticipantSpecs {
+			elClientCtx := allElClientContexts[idx]
+			participant := NewParticipant(
+				participantSpec.ELClientType,
+				participantSpec.CLClientType,
+				elClientCtx,
+				nil,
+				nil,
+			)
+			resultParticipants = append(resultParticipants, participant)
+		}
+		return resultParticipants, 0, nil
 	}
 
 	// We create the CL genesis data after the EL network is ready so that the CL genesis timestamp will be close
