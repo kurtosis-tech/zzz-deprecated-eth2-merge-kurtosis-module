@@ -75,6 +75,8 @@ github.com/kurtosis-tech/kurtosis-engine-api-lib/api/golang v0.0.0-2022091614433
 github.com/kurtosis-tech/kurtosis-engine-api-lib/api/golang v0.0.0-20220916144336-1d6a6781ce6b/go.mod h1:yjgvwV5YlDj16Ga1P5z4XECaiGzQlaAdzEvbbdSi+Fs=
 github.com/kurtosis-tech/kurtosis-module-api-lib/golang v0.0.0-20220915113954-e349bb4fe01b h1:IQuSkwyTC5pP8MydBMZPmm4TwtDDeTyPqix6XTV3fYQ=
 github.com/kurtosis-tech/kurtosis-module-api-lib/golang v0.0.0-20220915113954-e349bb4fe01b/go.mod h1:baIJzuvJAZ4C6TWujXGa9WVDaZiPzjcjUbEhqMxjl0s=
+github.com/kurtosis-tech/kurtosis-module-api-lib/golang v0.0.0-20220916144712-8f7556254b63 h1:huBsJuIzgdNSoWmbJBHCwgR9N8Lwzu/iCYfGnDvWQt0=
+github.com/kurtosis-tech/kurtosis-module-api-lib/golang v0.0.0-20220916144712-8f7556254b63/go.mod h1:3hjvyZQ4BQU/LnFKuvUs3oNhc+PO7VAedHX/lt7TDl8=
 github.com/kurtosis-tech/minimal-grpc-server/golang v0.0.0-20211205213336-a9a05de6ecda h1:Pd8NQhFBWvt0pWFKddUQM7o2no4UII61rdLhTF6orGg=
 github.com/kurtosis-tech/minimal-grpc-server/golang v0.0.0-20211205213336-a9a05de6ecda/go.mod h1:Y0O+lt256iWpkdjDOB8r6csF96Pt3JVIFMbUuWIvr8o=
 github.com/kurtosis-tech/stacktrace v0.0.0-20211028211901-1c67a77b5409 h1:YQTATifMUwZEtZYb0LVA7DK2pj8s71iY8rzweuUQ5+g=
