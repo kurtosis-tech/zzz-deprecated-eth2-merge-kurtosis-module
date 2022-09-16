@@ -29,7 +29,7 @@ func LaunchPrelaunchDataGenerator(
 	*services.ServiceContext,
 	error,
 ) {
-	containerConfigSupplier := getContainerConfigSupplier(filesArtifactMountpoints)
+	containerConfig := getContainerConfig(filesArtifactMountpoints)
 
 	serviceId := services.ServiceID(fmt.Sprintf(
 		"%v%v",
@@ -37,7 +37,7 @@ func LaunchPrelaunchDataGenerator(
 		time.Now().Unix(),
 	))
 
-	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the prelaunch data generator container with service ID '%v'", serviceIdPrefix)
 	}
@@ -45,18 +45,16 @@ func LaunchPrelaunchDataGenerator(
 	return serviceCtx, nil
 }
 
-func getContainerConfigSupplier(
+func getContainerConfig(
 	filesArtifactMountpoints map[services.FilesArtifactUUID]string,
-) func(privateIpAddr string) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string) (*services.ContainerConfig, error) {
-		containerConfig := services.NewContainerConfigBuilder(
-			image,
-		).WithEntrypointOverride(
-			entrypointArgs,
-		).WithFiles(
-			filesArtifactMountpoints,
-		).Build()
+)  *services.ContainerConfig {
+	containerConfig := services.NewContainerConfigBuilder(
+		image,
+	).WithEntrypointOverride(
+		entrypointArgs,
+	).WithFiles(
+		filesArtifactMountpoints,
+	).Build()
 
-		return containerConfig, nil
-	}
+	return containerConfig
 }
