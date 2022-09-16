@@ -109,7 +109,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 	}
 
 	extraParams := append(extraBeaconParams, extraValidatorParams...)
-	containerConfigSupplier := launcher.getContainerConfig(
+	containerConfig := launcher.getContainerConfig(
 		image,
 		bootnodeContext,
 		elClientContext,
@@ -118,7 +118,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 		keystoreFiles,
 		extraParams,
 	)
-	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Teku CL client with service ID '%v'", serviceId)
 	}
@@ -263,7 +263,9 @@ func (launcher *TekuCLClientLauncher) getContainerConfig(
 	}).WithFiles(map[services.FilesArtifactUUID]string{
 		launcher.clGenesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
 		keystoreFiles.FilesArtifactUUID:               validatorKeysDirpathOnServiceContainer,
-	}).Build()
+	}).WithPrivateIPAddrPlaceholder(
+		privateIPAddressPlaceholder,
+	).Build()
 
 	return containerConfig
 }

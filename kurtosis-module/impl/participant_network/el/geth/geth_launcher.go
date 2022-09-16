@@ -241,7 +241,9 @@ func (launcher *GethELClientLauncher) getContainerConfig(
 	}).WithFiles(map[services.FilesArtifactUUID]string{
 		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpath,
 		launcher.prefundedGethKeysArtifactUuid:      prefundedKeysMountDirpath,
-	}).Build()
+	}).WithPrivateIPAddrPlaceholder(
+		privateIPAddressPlaceholder,
+	).Build()
 
 	return containerConfig
 }
