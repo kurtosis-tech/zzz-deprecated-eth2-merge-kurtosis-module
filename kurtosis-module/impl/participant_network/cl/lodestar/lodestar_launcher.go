@@ -40,6 +40,8 @@ const (
 	validatorSuffixServiceId = "validator"
 
 	metricsPath = "/metrics"
+
+	privateIPAddrPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -85,7 +87,7 @@ func (launcher *LodestarClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
 	}
 
-	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(
+	beaconContainerConfig := launcher.getBeaconContainerConfig(
 		image,
 		bootnodeContext,
 		elClientContext,
@@ -93,7 +95,7 @@ func (launcher *LodestarClientLauncher) Launch(
 		logLevel,
 		extraBeaconParams,
 	)
-	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfigSupplier)
+	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lodestar CL beacon client with service ID '%v'", serviceId)
 	}
@@ -115,7 +117,7 @@ func (launcher *LodestarClientLauncher) Launch(
 
 	beaconHttpUrl := fmt.Sprintf("http://%v:%v", beaconServiceCtx.GetPrivateIPAddress(), httpPortNum)
 
-	validatorContainerConfigSupplier := launcher.getValidatorContainerConfigSupplier(
+	validatorContainerConfig := launcher.getValidatorContainerConfig(
 		validatorNodeServiceId,
 		image,
 		logLevel,
@@ -124,7 +126,7 @@ func (launcher *LodestarClientLauncher) Launch(
 		mevBoostContext,
 		extraValidatorParams,
 	)
-	_, err = enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
+	_, err = enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lodestar CL validator client with service ID '%v'", serviceId)
 	}
@@ -153,87 +155,87 @@ func (launcher *LodestarClientLauncher) Launch(
 // ====================================================================================================
 //                                   Private Helper Methods
 // ====================================================================================================
-func (launcher *LodestarClientLauncher) getBeaconContainerConfigSupplier(
+func (launcher *LodestarClientLauncher) getBeaconContainerConfig(
 	image string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	mevBoostContext *mev_boost.MEVBoostContext,
 	logLevel string,
 	extraParams []string,
-) func(string) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
-		elClientRpcUrlStr := fmt.Sprintf(
-			"http://%v:%v",
-			elClientContext.GetIPAddress(),
-			elClientContext.GetRPCPortNum(),
-		)
+) *services.ContainerConfig {
 
-		elClientEngineRpcUrlStr := fmt.Sprintf(
-			"http://%v:%v",
-			elClientContext.GetIPAddress(),
-			elClientContext.GetEngineRPCPortNum(),
-		)
+	elClientRpcUrlStr := fmt.Sprintf(
+		"http://%v:%v",
+		elClientContext.GetIPAddress(),
+		elClientContext.GetRPCPortNum(),
+	)
 
-		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())
-		genesisSszFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetGenesisSSZRelativeFilepath())
-		jwtSecretFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetJWTSecretRelativeFilepath())
-		cmdArgs := []string{
-			"beacon",
-			"--logLevel=" + logLevel,
-			fmt.Sprintf("--port=%v", discoveryPortNum),
-			fmt.Sprintf("--discoveryPort=%v", discoveryPortNum),
-			"--rootDir=" + consensusDataDirpathOnServiceContainer,
-			"--paramsFile=" + genesisConfigFilepath,
-			"--genesisStateFile=" + genesisSszFilepath,
-			"--eth1.depositContractDeployBlock=0",
-			"--network.connectToDiscv5Bootnodes=true",
-			"--network.discv5.enabled=true",
-			"--eth1.enabled=true",
-			"--eth1.providerUrls=" + elClientRpcUrlStr,
-			"--execution.urls=" + elClientEngineRpcUrlStr,
-			"--api.rest.enabled=true",
-			"--api.rest.host=0.0.0.0",
-			"--api.rest.api=*",
-			fmt.Sprintf("--api.rest.port=%v", httpPortNum),
-			"--enr.ip=" + privateIpAddr,
-			fmt.Sprintf("--enr.tcp=%v", discoveryPortNum),
-			fmt.Sprintf("--enr.udp=%v", discoveryPortNum),
-			// Set per Pari's recommendation to reduce noise in the logs
-			"--network.subscribeAllSubnets=true",
-			fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
-			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
-			"--metrics.enabled",
-			"--metrics.listenAddr=0.0.0.0",
-			fmt.Sprintf("--metrics.serverPort=%v", metricsPortNum),
-			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
-		}
-		if bootnodeContext != nil {
-			cmdArgs = append(cmdArgs, "--network.discv5.bootEnrs="+bootnodeContext.GetENR())
-		}
-		if mevBoostContext != nil {
-			cmdArgs = append(cmdArgs, "--builder.enabled")
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--builder-urls '%s'", mevBoostContext.Endpoint()))
-		}
-		if len(extraParams) > 0 {
-			cmdArgs = append(cmdArgs, extraParams...)
-		}
+	elClientEngineRpcUrlStr := fmt.Sprintf(
+		"http://%v:%v",
+		elClientContext.GetIPAddress(),
+		elClientContext.GetEngineRPCPortNum(),
+	)
 
-		containerConfig := services.NewContainerConfigBuilder(
-			image,
-		).WithUsedPorts(
-			usedPorts,
-		).WithCmdOverride(
-			cmdArgs,
-		).WithFiles(map[services.FilesArtifactUUID]string{
-			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
-		}).Build()
-
-		return containerConfig, nil
+	genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())
+	genesisSszFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetGenesisSSZRelativeFilepath())
+	jwtSecretFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetJWTSecretRelativeFilepath())
+	cmdArgs := []string{
+		"beacon",
+		"--logLevel=" + logLevel,
+		fmt.Sprintf("--port=%v", discoveryPortNum),
+		fmt.Sprintf("--discoveryPort=%v", discoveryPortNum),
+		"--rootDir=" + consensusDataDirpathOnServiceContainer,
+		"--paramsFile=" + genesisConfigFilepath,
+		"--genesisStateFile=" + genesisSszFilepath,
+		"--eth1.depositContractDeployBlock=0",
+		"--network.connectToDiscv5Bootnodes=true",
+		"--network.discv5.enabled=true",
+		"--eth1.enabled=true",
+		"--eth1.providerUrls=" + elClientRpcUrlStr,
+		"--execution.urls=" + elClientEngineRpcUrlStr,
+		"--api.rest.enabled=true",
+		"--api.rest.host=0.0.0.0",
+		"--api.rest.api=*",
+		fmt.Sprintf("--api.rest.port=%v", httpPortNum),
+		"--enr.ip=" + privateIPAddrPlaceholder,
+		fmt.Sprintf("--enr.tcp=%v", discoveryPortNum),
+		fmt.Sprintf("--enr.udp=%v", discoveryPortNum),
+		// Set per Pari's recommendation to reduce noise in the logs
+		"--network.subscribeAllSubnets=true",
+		fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
+		// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
+		"--metrics.enabled",
+		"--metrics.listenAddr=0.0.0.0",
+		fmt.Sprintf("--metrics.serverPort=%v", metricsPortNum),
+		// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 	}
-	return containerConfigSupplier
+	if bootnodeContext != nil {
+		cmdArgs = append(cmdArgs, "--network.discv5.bootEnrs="+bootnodeContext.GetENR())
+	}
+	if mevBoostContext != nil {
+		cmdArgs = append(cmdArgs, "--builder.enabled")
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--builder-urls '%s'", mevBoostContext.Endpoint()))
+	}
+	if len(extraParams) > 0 {
+		cmdArgs = append(cmdArgs, extraParams...)
+	}
+
+	containerConfig := services.NewContainerConfigBuilder(
+		image,
+	).WithUsedPorts(
+		usedPorts,
+	).WithCmdOverride(
+		cmdArgs,
+	).WithFiles(map[services.FilesArtifactUUID]string{
+		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
+	}).WithPrivateIPAddrPlaceholder(
+		privateIPAddrPlaceholder,
+	).Build()
+
+	return containerConfig
 }
 
-func (launcher *LodestarClientLauncher) getValidatorContainerConfigSupplier(
+func (launcher *LodestarClientLauncher) getValidatorContainerConfig(
 	serviceId services.ServiceID,
 	image string,
 	logLevel string,
@@ -241,43 +243,40 @@ func (launcher *LodestarClientLauncher) getValidatorContainerConfigSupplier(
 	beaconEndpoint string,
 	mevBoostContext *mev_boost.MEVBoostContext,
 	extraParams []string,
-) func(string) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
-		rootDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
+) *services.ContainerConfig {
+	rootDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
 
-		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())
-		validatorKeysDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.RawKeysRelativeDirpath)
-		validatorSecretsDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.LodestarSecretsRelativeDirpath)
-		cmdArgs := []string{
-			"validator",
-			"--logLevel=" + logLevel,
-			"--rootDir=" + rootDirpath,
-			"--paramsFile=" + genesisConfigFilepath,
-			"--server=" + beaconEndpoint,
-			"--keystoresDir=" + validatorKeysDirpath,
-			"--secretsDir=" + validatorSecretsDirpath,
-		}
-		if mevBoostContext != nil {
-			cmdArgs = append(cmdArgs, "--builder.enabled")
-			// TODO required to work?
-			// cmdArgs = append(cmdArgs, "--defaultFeeRecipient <your ethereum address>")
-		}
-		if len(cmdArgs) > 0 {
-			cmdArgs = append(cmdArgs, extraParams...)
-		}
-
-		containerConfig := services.NewContainerConfigBuilder(
-			image,
-		).WithUsedPorts(
-			usedPorts,
-		).WithCmdOverride(
-			cmdArgs,
-		).WithFiles(map[services.FilesArtifactUUID]string{
-			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
-			keystoreFiles.FilesArtifactUUID:             validatorKeysMountDirpathOnServiceContainer,
-		}).Build()
-
-		return containerConfig, nil
+	genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())
+	validatorKeysDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.RawKeysRelativeDirpath)
+	validatorSecretsDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.LodestarSecretsRelativeDirpath)
+	cmdArgs := []string{
+		"validator",
+		"--logLevel=" + logLevel,
+		"--rootDir=" + rootDirpath,
+		"--paramsFile=" + genesisConfigFilepath,
+		"--server=" + beaconEndpoint,
+		"--keystoresDir=" + validatorKeysDirpath,
+		"--secretsDir=" + validatorSecretsDirpath,
 	}
-	return containerConfigSupplier
+	if mevBoostContext != nil {
+		cmdArgs = append(cmdArgs, "--builder.enabled")
+		// TODO required to work?
+		// cmdArgs = append(cmdArgs, "--defaultFeeRecipient <your ethereum address>")
+	}
+	if len(cmdArgs) > 0 {
+		cmdArgs = append(cmdArgs, extraParams...)
+	}
+
+	containerConfig := services.NewContainerConfigBuilder(
+		image,
+	).WithUsedPorts(
+		usedPorts,
+	).WithCmdOverride(
+		cmdArgs,
+	).WithFiles(map[services.FilesArtifactUUID]string{
+		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
+		keystoreFiles.FilesArtifactUUID:             validatorKeysMountDirpathOnServiceContainer,
+	}).Build()
+
+	return containerConfig
 }

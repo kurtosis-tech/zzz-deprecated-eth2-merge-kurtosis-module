@@ -54,8 +54,8 @@ func LaunchGrafana(
 		return stacktrace.Propagate(err, "An error occurred getting the Grafana config directory files artifact")
 	}
 
-	containerConfigSupplier := getContainerConfigSupplier(grafanaConfig, grafanaDashboards)
-	_, err = enclaveCtx.AddService(serviceID, containerConfigSupplier)
+	containerConfig := getContainerConfig(grafanaConfig, grafanaDashboards)
+	_, err = enclaveCtx.AddService(serviceID, containerConfig)
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred launching the grafana service")
 	}
@@ -104,24 +104,20 @@ func getGrafanaConfigDirArtifactUuid(
 	return grafanaConfig, grafanaDashboards, nil
 }
 
-func getContainerConfigSupplier(
+func getContainerConfig(
 	grafanaConfig services.FilesArtifactUUID,
 	grafanaDashboards services.FilesArtifactUUID,
-) func(privateIpAddr string) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
-		containerConfig := services.NewContainerConfigBuilder(
-			imageName,
-		).WithUsedPorts(
-			usedPorts,
-		).WithEnvironmentVariableOverrides(map[string]string{
-			configDirpathEnvVar: grafanaConfigDirpathOnService,
-		}).WithFiles(map[services.FilesArtifactUUID]string{
-			grafanaConfig:     grafanaConfigDirpathOnService,
-			grafanaDashboards: grafanaDashboardsDirpathOnService,
-		}).Build()
+) *services.ContainerConfig {
+	containerConfig := services.NewContainerConfigBuilder(
+		imageName,
+	).WithUsedPorts(
+		usedPorts,
+	).WithEnvironmentVariableOverrides(map[string]string{
+		configDirpathEnvVar: grafanaConfigDirpathOnService,
+	}).WithFiles(map[services.FilesArtifactUUID]string{
+		grafanaConfig:     grafanaConfigDirpathOnService,
+		grafanaDashboards: grafanaDashboardsDirpathOnService,
+	}).Build()
 
-		return containerConfig, nil
-	}
-
-	return containerConfigSupplier
+	return containerConfig
 }

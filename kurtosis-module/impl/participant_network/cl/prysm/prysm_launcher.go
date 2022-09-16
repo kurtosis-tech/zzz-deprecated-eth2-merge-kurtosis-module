@@ -52,6 +52,8 @@ const (
 	minPeers = 1
 
 	metricsPath = "/metrics"
+
+	privateIPAddrPlaceholder = "KURTOSIS_IP_ADDR_PLACEHOLDER"
 )
 
 var beaconNodeUsedPorts = map[string]*services.PortSpec{
@@ -124,7 +126,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
 	}
 
-	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(
+	beaconContainerConfig := launcher.getBeaconContainerConfig(
 		beaconImage,
 		bootnodeContext,
 		elClientContext,
@@ -132,7 +134,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		logLevel,
 		extraBeaconParams,
 	)
-	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfigSupplier)
+	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Prysm CL beacon client with service ID '%v'", serviceId)
 	}
@@ -154,7 +156,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 
 	beaconRPCEndpoint := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), rpcPortNum)
 	beaconHTTPEndpoint := fmt.Sprintf("%v:%v", beaconServiceCtx.GetPrivateIPAddress(), httpPortNum)
-	validatorContainerConfigSupplier := launcher.getValidatorContainerConfigSupplier(
+	validatorContainerConfig := launcher.getValidatorContainerConfig(
 		validatorImage,
 		validatorNodeServiceId,
 		logLevel,
@@ -164,7 +166,7 @@ func (launcher *PrysmCLClientLauncher) Launch(
 		mevBoostContext,
 		extraValidatorParams,
 	)
-	validatorServiceCtx, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
+	validatorServiceCtx, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Prysm CL validator client with service ID '%v'", serviceId)
 	}
@@ -201,75 +203,74 @@ func (launcher *PrysmCLClientLauncher) Launch(
 // ====================================================================================================
 //                                   Private Helper Methods
 // ====================================================================================================
-func (launcher *PrysmCLClientLauncher) getBeaconContainerConfigSupplier(
+func (launcher *PrysmCLClientLauncher) getBeaconContainerConfig(
 	beaconImage string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
 	mevBoostContext *mev_boost.MEVBoostContext,
 	logLevel string,
 	extraParams []string,
-) func(string) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
-		elClientEngineRpcUrlStr := fmt.Sprintf(
-			"http://%v:%v",
-			elClientContext.GetIPAddress(),
-			elClientContext.GetEngineRPCPortNum(),
-		)
+) *services.ContainerConfig {
+	elClientEngineRpcUrlStr := fmt.Sprintf(
+		"http://%v:%v",
+		elClientContext.GetIPAddress(),
+		elClientContext.GetEngineRPCPortNum(),
+	)
 
-		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())
-		genesisSszFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetGenesisSSZRelativeFilepath())
-		jwtSecretFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetJWTSecretRelativeFilepath())
-		cmdArgs := []string{
-			"--accept-terms-of-use=true", //it's mandatory in order to run the node
-			"--datadir=" + consensusDataDirpathOnServiceContainer,
-			"--chain-config-file=" + genesisConfigFilepath,
-			"--genesis-state=" + genesisSszFilepath,
-			"--http-web3provider=" + elClientEngineRpcUrlStr,
-			"--rpc-host=" + privateIpAddr,
-			fmt.Sprintf("--rpc-port=%v", rpcPortNum),
-			"--grpc-gateway-host=0.0.0.0",
-			fmt.Sprintf("--grpc-gateway-port=%v", httpPortNum),
-			fmt.Sprintf("--p2p-tcp-port=%v", discoveryTCPPortNum),
-			fmt.Sprintf("--p2p-udp-port=%v", discoveryUDPPortNum),
-			fmt.Sprintf("--min-sync-peers=%v", minPeers),
-			"--monitoring-host=" + privateIpAddr,
-			fmt.Sprintf("--monitoring-port=%v", beaconMonitoringPortNum),
-			"--verbosity=" + logLevel,
-			// Set per Pari's recommendation to reduce noise
-			"--subscribe-all-subnets=true",
-			fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
-			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
-			"--disable-monitoring=false",
-			"--monitoring-host=" + privateIpAddr,
-			fmt.Sprintf("--monitoring-port=%v", beaconMonitoringPortNum),
-			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
-		}
-		if bootnodeContext != nil {
-			cmdArgs = append(cmdArgs, "--bootstrap-node="+bootnodeContext.GetENR())
-		}
-		if mevBoostContext != nil {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--http-mev-relay=%s", mevBoostContext.Endpoint()))
-		}
-		if len(extraParams) > 0 {
-			cmdArgs = append(cmdArgs, extraParams...)
-		}
-
-		containerConfig := services.NewContainerConfigBuilder(
-			beaconImage,
-		).WithUsedPorts(
-			beaconNodeUsedPorts,
-		).WithCmdOverride(
-			cmdArgs,
-		).WithFiles(map[services.FilesArtifactUUID]string{
-			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
-		}).Build()
-
-		return containerConfig, nil
+	genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())
+	genesisSszFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetGenesisSSZRelativeFilepath())
+	jwtSecretFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetJWTSecretRelativeFilepath())
+	cmdArgs := []string{
+		"--accept-terms-of-use=true", //it's mandatory in order to run the node
+		"--datadir=" + consensusDataDirpathOnServiceContainer,
+		"--chain-config-file=" + genesisConfigFilepath,
+		"--genesis-state=" + genesisSszFilepath,
+		"--http-web3provider=" + elClientEngineRpcUrlStr,
+		"--rpc-host=" + privateIPAddrPlaceholder,
+		fmt.Sprintf("--rpc-port=%v", rpcPortNum),
+		"--grpc-gateway-host=0.0.0.0",
+		fmt.Sprintf("--grpc-gateway-port=%v", httpPortNum),
+		fmt.Sprintf("--p2p-tcp-port=%v", discoveryTCPPortNum),
+		fmt.Sprintf("--p2p-udp-port=%v", discoveryUDPPortNum),
+		fmt.Sprintf("--min-sync-peers=%v", minPeers),
+		"--monitoring-host=" + privateIPAddrPlaceholder,
+		fmt.Sprintf("--monitoring-port=%v", beaconMonitoringPortNum),
+		"--verbosity=" + logLevel,
+		// Set per Pari's recommendation to reduce noise
+		"--subscribe-all-subnets=true",
+		fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
+		// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
+		"--disable-monitoring=false",
+		"--monitoring-host=" + privateIPAddrPlaceholder,
+		fmt.Sprintf("--monitoring-port=%v", beaconMonitoringPortNum),
+		// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 	}
-	return containerConfigSupplier
+	if bootnodeContext != nil {
+		cmdArgs = append(cmdArgs, "--bootstrap-node="+bootnodeContext.GetENR())
+	}
+	if mevBoostContext != nil {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--http-mev-relay=%s", mevBoostContext.Endpoint()))
+	}
+	if len(extraParams) > 0 {
+		cmdArgs = append(cmdArgs, extraParams...)
+	}
+
+	containerConfig := services.NewContainerConfigBuilder(
+		beaconImage,
+	).WithUsedPorts(
+		beaconNodeUsedPorts,
+	).WithCmdOverride(
+		cmdArgs,
+	).WithFiles(map[services.FilesArtifactUUID]string{
+		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
+	}).WithPrivateIPAddrPlaceholder(
+		privateIPAddrPlaceholder,
+	).Build()
+
+	return containerConfig
 }
 
-func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
+func (launcher *PrysmCLClientLauncher) getValidatorContainerConfig(
 	validatorImage string,
 	serviceId services.ServiceID,
 	logLevel string,
@@ -278,51 +279,48 @@ func (launcher *PrysmCLClientLauncher) getValidatorContainerConfigSupplier(
 	keystoreFiles *cl2.KeystoreFiles,
 	mevBoostContext *mev_boost.MEVBoostContext,
 	extraParams []string,
-) func(string) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
-		consensusDataDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
-		prysmKeystoreDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.PrysmRelativeDirpath)
-		prysmPasswordFilepath := path.Join(prysmPasswordMountDirpathOnServiceContainer, launcher.prysmPasswordRelativeFilepath)
+) *services.ContainerConfig {
+	consensusDataDirpath := path.Join(consensusDataDirpathOnServiceContainer, string(serviceId))
+	prysmKeystoreDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.PrysmRelativeDirpath)
+	prysmPasswordFilepath := path.Join(prysmPasswordMountDirpathOnServiceContainer, launcher.prysmPasswordRelativeFilepath)
 
-		cmdArgs := []string{
-			"--accept-terms-of-use=true", //it's mandatory in order to run the node
-			"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
-			"--beacon-rpc-gateway-provider=" + beaconHTTPEndpoint,
-			"--beacon-rpc-provider=" + beaconRPCEndpoint,
-			"--wallet-dir=" + prysmKeystoreDirpath,
-			"--wallet-password-file=" + prysmPasswordFilepath,
-			"--datadir=" + consensusDataDirpath,
-			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
-			"--verbosity=" + logLevel,
-			// TODO SOMETHING ABOUT JWT
-			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
-			"--disable-monitoring=false",
-			"--monitoring-host=0.0.0.0",
-			fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
-			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
-		}
-		if mevBoostContext != nil {
-			// TODO required to work?
-			// cmdArgs = append(cmdArgs, "--suggested-fee-recipient=0x...")
-			cmdArgs = append(cmdArgs, "--enable-builder")
-		}
-		if len(extraParams) > 0 {
-			cmdArgs = append(cmdArgs, extraParams...)
-		}
-
-		containerConfig := services.NewContainerConfigBuilder(
-			validatorImage,
-		).WithUsedPorts(
-			validatorNodeUsedPorts,
-		).WithCmdOverride(
-			cmdArgs,
-		).WithFiles(map[services.FilesArtifactUUID]string{
-			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
-			keystoreFiles.FilesArtifactUUID:             validatorKeysMountDirpathOnServiceContainer,
-			launcher.prysmPasswordArtifactUuid:          prysmPasswordMountDirpathOnServiceContainer,
-		}).Build()
-
-		return containerConfig, nil
+	cmdArgs := []string{
+		"--accept-terms-of-use=true", //it's mandatory in order to run the node
+		"--prater",                   //it's a tesnet setup, it's mandatory to set a network (https://docs.prylabs.network/docs/install/install-with-script#before-you-begin-pick-your-network-1)
+		"--beacon-rpc-gateway-provider=" + beaconHTTPEndpoint,
+		"--beacon-rpc-provider=" + beaconRPCEndpoint,
+		"--wallet-dir=" + prysmKeystoreDirpath,
+		"--wallet-password-file=" + prysmPasswordFilepath,
+		"--datadir=" + consensusDataDirpath,
+		fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
+		"--verbosity=" + logLevel,
+		// TODO SOMETHING ABOUT JWT
+		// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
+		"--disable-monitoring=false",
+		"--monitoring-host=0.0.0.0",
+		fmt.Sprintf("--monitoring-port=%v", validatorMonitoringPortNum),
+		// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 	}
-	return containerConfigSupplier
+	if mevBoostContext != nil {
+		// TODO required to work?
+		// cmdArgs = append(cmdArgs, "--suggested-fee-recipient=0x...")
+		cmdArgs = append(cmdArgs, "--enable-builder")
+	}
+	if len(extraParams) > 0 {
+		cmdArgs = append(cmdArgs, extraParams...)
+	}
+
+	containerConfig := services.NewContainerConfigBuilder(
+		validatorImage,
+	).WithUsedPorts(
+		validatorNodeUsedPorts,
+	).WithCmdOverride(
+		cmdArgs,
+	).WithFiles(map[services.FilesArtifactUUID]string{
+		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
+		keystoreFiles.FilesArtifactUUID:             validatorKeysMountDirpathOnServiceContainer,
+		launcher.prysmPasswordArtifactUuid:          prysmPasswordMountDirpathOnServiceContainer,
+	}).Build()
+
+	return containerConfig
 }

@@ -54,6 +54,8 @@ const (
 	timeBetweenHealthcheckRetries = 1 * time.Second
 
 	metricsPath = "/metrics"
+
+	privateIPAddrPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -101,7 +103,7 @@ func (launcher NimbusLauncher) Launch(
 	}
 
 	extraParams := append(extraBeaconParams, extraValidatorParams...)
-	containerConfigSupplier := launcher.getContainerConfigSupplier(
+	containerConfig := launcher.getContainerConfig(
 		image,
 		bootnodeContext,
 		elClientContext,
@@ -110,7 +112,7 @@ func (launcher NimbusLauncher) Launch(
 		keystoreFiles,
 		extraParams,
 	)
-	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Nimbus CL client with service ID '%v'", serviceId)
 	}
@@ -157,7 +159,7 @@ func (launcher NimbusLauncher) Launch(
 // ====================================================================================================
 //                                   Private Helper Methods
 // ====================================================================================================
-func (launcher *NimbusLauncher) getContainerConfigSupplier(
+func (launcher *NimbusLauncher) getContainerConfig(
 	image string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
@@ -165,107 +167,106 @@ func (launcher *NimbusLauncher) getContainerConfigSupplier(
 	logLevel string,
 	keystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
-) func(string) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
-		elClientEngineRpcUrlStr := fmt.Sprintf(
-			"http://%v:%v",
-			elClientContext.GetIPAddress(),
-			elClientContext.GetEngineRPCPortNum(),
-		)
+) *services.ContainerConfig {
+	elClientEngineRpcUrlStr := fmt.Sprintf(
+		"http://%v:%v",
+		elClientContext.GetIPAddress(),
+		elClientContext.GetEngineRPCPortNum(),
+	)
 
-		// For some reason, Nimbus takes in the parent directory of the config file (rather than the path to the config file itself)
-		genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClient, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
-		jwtSecretFilepath := path.Join(genesisDataMountpointOnClient, launcher.genesisData.GetJWTSecretRelativeFilepath())
-		validatorKeysDirpath := path.Join(validatorKeysMountpointOnClient, keystoreFiles.NimbusKeysRelativeDirpath)
-		validatorSecretsDirpath := path.Join(validatorKeysMountpointOnClient, keystoreFiles.RawSecretsRelativeDirpath)
+	// For some reason, Nimbus takes in the parent directory of the config file (rather than the path to the config file itself)
+	genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClient, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
+	jwtSecretFilepath := path.Join(genesisDataMountpointOnClient, launcher.genesisData.GetJWTSecretRelativeFilepath())
+	validatorKeysDirpath := path.Join(validatorKeysMountpointOnClient, keystoreFiles.NimbusKeysRelativeDirpath)
+	validatorSecretsDirpath := path.Join(validatorKeysMountpointOnClient, keystoreFiles.RawSecretsRelativeDirpath)
 
-		// Sources for these flags:
-		//  1) https://github.com/status-im/nimbus-eth2/blob/stable/scripts/launch_local_testnet.sh
-		//  2) https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
-		// WARNING: Do NOT set the --max-peers flag here, as doing so to the exact number of nodes seems to mess things up!
-		// See: https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/26
-		cmdArgs := []string{
-			"mkdir",
-			consensusDataDirpathInServiceContainer,
-			"-m",
-			consensusDataDirPermsStr,
-			"&&",
-			// TODO COMMENT THIS OUT?
-			"cp",
-			"-R",
-			validatorKeysDirpath,
-			validatorKeysDirpathOnServiceContainer,
-			"&&",
-			"cp",
-			"-R",
-			validatorSecretsDirpath,
-			validatorSecretsDirpathOnServiceContainer,
-			"&&",
-			// If we don't do this chmod, Nimbus will spend a crazy amount of time manually correcting them
-			//  before it starts
-			"chmod",
-			"600",
-			validatorSecretsDirpathOnServiceContainer + "/*",
-			"&&",
-			defaultImageEntrypoint,
-			"--non-interactive=true",
-			"--log-level=" + logLevel,
-			"--network=" + genesisConfigParentDirpathOnClient,
-			"--data-dir=" + consensusDataDirpathInServiceContainer,
-			"--web3-url=" + elClientEngineRpcUrlStr,
-			"--nat=extip:" + privateIpAddr,
-			"--enr-auto-update=false",
-			"--rest",
-			"--rest-address=0.0.0.0",
-			fmt.Sprintf("--rest-port=%v", httpPortNum),
-			"--validators-dir=" + validatorKeysDirpathOnServiceContainer,
-			"--secrets-dir=" + validatorSecretsDirpathOnServiceContainer,
-			// There's a bug where if we don't set this flag, the Nimbus nodes won't work:
-			// https://discord.com/channels/641364059387854899/674288681737256970/922890280120750170
-			// https://github.com/status-im/nimbus-eth2/issues/2451
-			"--doppelganger-detection=false",
-			// Set per Pari's recommendation to reduce noise in the logs
-			"--subscribe-all-subnets=true",
-			// Nimbus can handle a max of 256 threads, if the host has more then nimbus crashes. Setting it to 4 so it doesn't crash on build servers
-			"--num-threads=4",
-			fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
-			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
-			"--metrics",
-			"--metrics-address=0.0.0.0",
-			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
-			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
-		}
-		if bootnodeContext == nil {
-			// Copied from https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
-			// See explanation there
-			cmdArgs = append(cmdArgs, "--subscribe-all-subnets")
-		} else {
-			cmdArgs = append(cmdArgs, "--bootstrap-node="+bootnodeContext.GetENR())
-		}
-		if mevBoostContext != nil {
-			// TODO add `mev-boost` support once the feature lands on `stable`
-		}
-		if len(extraParams) > 0 {
-			cmdArgs = append(cmdArgs, extraParams...)
-		}
-		cmdStr := strings.Join(cmdArgs, " ")
-
-		containerConfig := services.NewContainerConfigBuilder(
-			image,
-		).WithUsedPorts(
-			usedPorts,
-		).WithEntrypointOverride([]string{
-			"sh", "-c",
-		}).WithCmdOverride([]string{
-			cmdStr,
-		}).WithFiles(map[services.FilesArtifactUUID]string{
-			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountpointOnClient,
-			keystoreFiles.FilesArtifactUUID:             validatorKeysMountpointOnClient,
-		}).Build()
-
-		return containerConfig, nil
+	// Sources for these flags:
+	//  1) https://github.com/status-im/nimbus-eth2/blob/stable/scripts/launch_local_testnet.sh
+	//  2) https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
+	// WARNING: Do NOT set the --max-peers flag here, as doing so to the exact number of nodes seems to mess things up!
+	// See: https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/issues/26
+	cmdArgs := []string{
+		"mkdir",
+		consensusDataDirpathInServiceContainer,
+		"-m",
+		consensusDataDirPermsStr,
+		"&&",
+		// TODO COMMENT THIS OUT?
+		"cp",
+		"-R",
+		validatorKeysDirpath,
+		validatorKeysDirpathOnServiceContainer,
+		"&&",
+		"cp",
+		"-R",
+		validatorSecretsDirpath,
+		validatorSecretsDirpathOnServiceContainer,
+		"&&",
+		// If we don't do this chmod, Nimbus will spend a crazy amount of time manually correcting them
+		//  before it starts
+		"chmod",
+		"600",
+		validatorSecretsDirpathOnServiceContainer + "/*",
+		"&&",
+		defaultImageEntrypoint,
+		"--non-interactive=true",
+		"--log-level=" + logLevel,
+		"--network=" + genesisConfigParentDirpathOnClient,
+		"--data-dir=" + consensusDataDirpathInServiceContainer,
+		"--web3-url=" + elClientEngineRpcUrlStr,
+		"--nat=extip:" + privateIPAddrPlaceholder,
+		"--enr-auto-update=false",
+		"--rest",
+		"--rest-address=0.0.0.0",
+		fmt.Sprintf("--rest-port=%v", httpPortNum),
+		"--validators-dir=" + validatorKeysDirpathOnServiceContainer,
+		"--secrets-dir=" + validatorSecretsDirpathOnServiceContainer,
+		// There's a bug where if we don't set this flag, the Nimbus nodes won't work:
+		// https://discord.com/channels/641364059387854899/674288681737256970/922890280120750170
+		// https://github.com/status-im/nimbus-eth2/issues/2451
+		"--doppelganger-detection=false",
+		// Set per Pari's recommendation to reduce noise in the logs
+		"--subscribe-all-subnets=true",
+		// Nimbus can handle a max of 256 threads, if the host has more then nimbus crashes. Setting it to 4 so it doesn't crash on build servers
+		"--num-threads=4",
+		fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
+		// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
+		"--metrics",
+		"--metrics-address=0.0.0.0",
+		fmt.Sprintf("--metrics-port=%v", metricsPortNum),
+		// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 	}
-	return containerConfigSupplier
+	if bootnodeContext == nil {
+		// Copied from https://github.com/status-im/nimbus-eth2/blob/67ab477a27e358d605e99bffeb67f98d18218eca/scripts/launch_local_testnet.sh#L417
+		// See explanation there
+		cmdArgs = append(cmdArgs, "--subscribe-all-subnets")
+	} else {
+		cmdArgs = append(cmdArgs, "--bootstrap-node="+bootnodeContext.GetENR())
+	}
+	if mevBoostContext != nil {
+		// TODO add `mev-boost` support once the feature lands on `stable`
+	}
+	if len(extraParams) > 0 {
+		cmdArgs = append(cmdArgs, extraParams...)
+	}
+	cmdStr := strings.Join(cmdArgs, " ")
+
+	containerConfig := services.NewContainerConfigBuilder(
+		image,
+	).WithUsedPorts(
+		usedPorts,
+	).WithEntrypointOverride([]string{
+		"sh", "-c",
+	}).WithCmdOverride([]string{
+		cmdStr,
+	}).WithFiles(map[services.FilesArtifactUUID]string{
+		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountpointOnClient,
+		keystoreFiles.FilesArtifactUUID:             validatorKeysMountpointOnClient,
+	}).WithPrivateIPAddrPlaceholder(
+		privateIPAddrPlaceholder,
+	).Build()
+
+	return containerConfig
 }
 
 func waitForAvailability(restClient *cl_client_rest_client2.CLClientRESTClient) error {
