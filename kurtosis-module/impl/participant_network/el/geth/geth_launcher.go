@@ -54,7 +54,7 @@ const (
 	gethAccountPassword      = "password"          // Password that the Geth accounts will be locked with
 	gethAccountPasswordsFile = "/tmp/password.txt" // Importing an account to
 
-	privateIPAddressPlaceholder = "KURTOSIS_IP_ADDRESS_PLACEHOLDER"
+	privateIPAddressPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var usedPorts = map[string]*services.PortSpec{

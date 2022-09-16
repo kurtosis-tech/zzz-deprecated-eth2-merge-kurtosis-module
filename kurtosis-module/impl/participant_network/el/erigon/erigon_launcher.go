@@ -38,7 +38,7 @@ const (
 	expectedSecondsAfterNodeStartUntilHttpServerIsAvailable = 20
 	getNodeInfoTimeBetweenRetries                           = 1 * time.Second
 
-	privateIPAddrPlaceholder = "KURTOSIS_IP_ADDR_PLACEHOLDER"
+	privateIPAddressPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -152,7 +152,7 @@ func (launcher *ErigonELClientLauncher) getContainerConfig(
 		"--http.api=admin,engine,net,eth",
 		"--ws",
 		"--allow-insecure-unlock",
-		"--nat=extip:" + privateIPAddrPlaceholder,
+		"--nat=extip:" + privateIPAddressPlaceholder,
 		fmt.Sprintf("--engine.port=%v", engineRpcPortNum),
 		"--engine.addr=0.0.0.0",
 		fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretJsonFilepathOnClient),
@@ -183,7 +183,7 @@ func (launcher *ErigonELClientLauncher) getContainerConfig(
 	}).WithFiles(map[services.FilesArtifactUUID]string{
 		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpath,
 	}).WithPrivateIPAddrPlaceholder(
-		privateIPAddrPlaceholder,
+		privateIPAddressPlaceholder,
 	).Build()
 
 	return containerConfig

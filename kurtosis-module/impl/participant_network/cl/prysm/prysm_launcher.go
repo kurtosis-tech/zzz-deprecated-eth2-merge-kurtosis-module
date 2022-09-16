@@ -53,7 +53,7 @@ const (
 
 	metricsPath = "/metrics"
 
-	privateIPAddrPlaceholder = "KURTOSIS_IP_ADDR_PLACEHOLDER"
+	privateIPAddressPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var beaconNodeUsedPorts = map[string]*services.PortSpec{
@@ -226,14 +226,14 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfig(
 		"--chain-config-file=" + genesisConfigFilepath,
 		"--genesis-state=" + genesisSszFilepath,
 		"--http-web3provider=" + elClientEngineRpcUrlStr,
-		"--rpc-host=" + privateIPAddrPlaceholder,
+		"--rpc-host=" + privateIPAddressPlaceholder,
 		fmt.Sprintf("--rpc-port=%v", rpcPortNum),
 		"--grpc-gateway-host=0.0.0.0",
 		fmt.Sprintf("--grpc-gateway-port=%v", httpPortNum),
 		fmt.Sprintf("--p2p-tcp-port=%v", discoveryTCPPortNum),
 		fmt.Sprintf("--p2p-udp-port=%v", discoveryUDPPortNum),
 		fmt.Sprintf("--min-sync-peers=%v", minPeers),
-		"--monitoring-host=" + privateIPAddrPlaceholder,
+		"--monitoring-host=" + privateIPAddressPlaceholder,
 		fmt.Sprintf("--monitoring-port=%v", beaconMonitoringPortNum),
 		"--verbosity=" + logLevel,
 		// Set per Pari's recommendation to reduce noise
@@ -241,7 +241,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfig(
 		fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
 		// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
 		"--disable-monitoring=false",
-		"--monitoring-host=" + privateIPAddrPlaceholder,
+		"--monitoring-host=" + privateIPAddressPlaceholder,
 		fmt.Sprintf("--monitoring-port=%v", beaconMonitoringPortNum),
 		// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 	}
@@ -264,7 +264,7 @@ func (launcher *PrysmCLClientLauncher) getBeaconContainerConfig(
 	).WithFiles(map[services.FilesArtifactUUID]string{
 		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
 	}).WithPrivateIPAddrPlaceholder(
-		privateIPAddrPlaceholder,
+		privateIPAddressPlaceholder,
 	).Build()
 
 	return containerConfig

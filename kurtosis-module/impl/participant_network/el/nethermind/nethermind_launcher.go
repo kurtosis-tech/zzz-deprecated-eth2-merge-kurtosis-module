@@ -38,7 +38,7 @@ const (
 	getNodeInfoMaxRetries         = 30
 	getNodeInfoTimeBetweenRetries = 1 * time.Second
 
-	privateIPAddrPlaceholder = "KURTOSIS_PRIVATE_IP_ADDRESS_PLACEHOLDER"
+	privateIPAddressPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -149,8 +149,8 @@ func (launcher *NethermindELClientLauncher) getContainerConfig(
 		// TODO Set Eth isMining?
 		fmt.Sprintf("--JsonRpc.Port=%v", rpcPortNum),
 		fmt.Sprintf("--JsonRpc.WebSocketsPort=%v", wsPortNum),
-		fmt.Sprintf("--Network.ExternalIp=%v", privateIPAddrPlaceholder),
-		fmt.Sprintf("--Network.LocalIp=%v", privateIPAddrPlaceholder),
+		fmt.Sprintf("--Network.ExternalIp=%v", privateIPAddressPlaceholder),
+		fmt.Sprintf("--Network.LocalIp=%v", privateIPAddressPlaceholder),
 		fmt.Sprintf("--Network.DiscoveryPort=%v", discoveryPortNum),
 		fmt.Sprintf("--Network.P2PPort=%v", discoveryPortNum),
 		"--Merge.Enabled=true",
@@ -178,7 +178,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfig(
 	).WithFiles(map[services.FilesArtifactUUID]string{
 		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpath,
 	}).WithPrivateIPAddrPlaceholder(
-		privateIPAddrPlaceholder,
+		privateIPAddressPlaceholder,
 	).Build()
 
 	return containerConfig, nil

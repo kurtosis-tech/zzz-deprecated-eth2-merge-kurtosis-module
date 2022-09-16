@@ -62,7 +62,7 @@ const (
 
 	metricsPath = "/metrics"
 
-	privateIPAddressPlaceholder = "KURTOSIS_IP_ADDRESS_PLACEHOLDER"
+	privateIPAddressPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var usedPorts = map[string]*services.PortSpec{

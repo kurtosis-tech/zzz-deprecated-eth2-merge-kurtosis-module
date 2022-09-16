@@ -41,7 +41,7 @@ const (
 
 	metricsPath = "/metrics"
 
-	privateIPAddrPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
+	privateIPAddressPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -197,7 +197,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfig(
 		"--api.rest.host=0.0.0.0",
 		"--api.rest.api=*",
 		fmt.Sprintf("--api.rest.port=%v", httpPortNum),
-		"--enr.ip=" + privateIPAddrPlaceholder,
+		"--enr.ip=" + privateIPAddressPlaceholder,
 		fmt.Sprintf("--enr.tcp=%v", discoveryPortNum),
 		fmt.Sprintf("--enr.udp=%v", discoveryPortNum),
 		// Set per Pari's recommendation to reduce noise in the logs
@@ -229,7 +229,7 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfig(
 	).WithFiles(map[services.FilesArtifactUUID]string{
 		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
 	}).WithPrivateIPAddrPlaceholder(
-		privateIPAddrPlaceholder,
+		privateIPAddressPlaceholder,
 	).Build()
 
 	return containerConfig

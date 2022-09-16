@@ -57,7 +57,7 @@ const (
 	beaconSuffixServiceId    = "beacon"
 	validatorSuffixServiceId = "validator"
 
-	privateIPAddrPlaceholder = "KURTOSIS_IP_ADDR_PLACEHOLDER"
+	privateIPAddressPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var beaconUsedPorts = map[string]*services.PortSpec{
@@ -226,7 +226,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfig(
 		"--eth1",
 		// vvvvvvvvvvvvvvvvvvv REMOVE THESE WHEN CONNECTING TO EXTERNAL NET vvvvvvvvvvvvvvvvvvvvv
 		"--disable-enr-auto-update",
-		"--enr-address=" + privateIPAddrPlaceholder,
+		"--enr-address=" + privateIPAddressPlaceholder,
 		fmt.Sprintf("--enr-udp-port=%v", beaconDiscoveryPortNum),
 		fmt.Sprintf("--enr-tcp-port=%v", beaconDiscoveryPortNum),
 		// ^^^^^^^^^^^^^^^^^^^ REMOVE THESE WHEN CONNECTING TO EXTERNAL NET ^^^^^^^^^^^^^^^^^^^^^
@@ -275,7 +275,7 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfig(
 	}).WithEnvironmentVariableOverrides(map[string]string{
 		rustBacktraceEnvvarName: rustFullBacktraceKeyword,
 	}).WithPrivateIPAddrPlaceholder(
-		privateIPAddrPlaceholder,
+		privateIPAddressPlaceholder,
 	).Build()
 	return containerConfig
 }

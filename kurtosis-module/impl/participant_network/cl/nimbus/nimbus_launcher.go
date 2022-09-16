@@ -55,7 +55,7 @@ const (
 
 	metricsPath = "/metrics"
 
-	privateIPAddrPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
+	privateIPAddressPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -214,7 +214,7 @@ func (launcher *NimbusLauncher) getContainerConfig(
 		"--network=" + genesisConfigParentDirpathOnClient,
 		"--data-dir=" + consensusDataDirpathInServiceContainer,
 		"--web3-url=" + elClientEngineRpcUrlStr,
-		"--nat=extip:" + privateIPAddrPlaceholder,
+		"--nat=extip:" + privateIPAddressPlaceholder,
 		"--enr-auto-update=false",
 		"--rest",
 		"--rest-address=0.0.0.0",
@@ -263,7 +263,7 @@ func (launcher *NimbusLauncher) getContainerConfig(
 		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountpointOnClient,
 		keystoreFiles.FilesArtifactUUID:             validatorKeysMountpointOnClient,
 	}).WithPrivateIPAddrPlaceholder(
-		privateIPAddrPlaceholder,
+		privateIPAddressPlaceholder,
 	).Build()
 
 	return containerConfig
