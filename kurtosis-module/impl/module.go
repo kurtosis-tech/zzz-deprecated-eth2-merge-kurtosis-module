@@ -104,7 +104,12 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		allClClientContexts = append(allClClientContexts, participant.GetCLClientContext())
 	}
 	logrus.Infof("Successfully added %v participants", numParticipants)
-
+	
+	// TODO This is a temporary hack to add only EL nodes until the product supports easily decomposing this module
+	if paramsObj.ExecutionLayerOnly {
+		return "{}", nil
+	}
+	
 	logrus.Info("Launching transaction spammer...")
 	if err := transaction_spammer.LaunchTransanctionSpammer(
 		enclaveCtx,
@@ -115,11 +120,6 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		return "", stacktrace.Propagate(err, "An error occurred launching the transaction spammer")
 	}
 	logrus.Info("Successfully launched transaction spammer")
-
-	// TODO This is a temporary hack to add only EL nodes until the product supports easily decomposing this module
-	if paramsObj.ExecutionLayerOnly {
-		return "{}", nil
-	}
 
 	logrus.Info("Waiting until CL genesis occurs to add forkmon...")
 	// We need to wait until the CL genesis has been reached to launch Forkmon because it has a bug (as of 2022-01-18) where
