@@ -1,5 +1,9 @@
 # TBD
 
+# 0.6.5
+### Changes
+- Disabled the tx spammer for the `executionLayerOnly` mode
+
 # 0.6.4
 ### Features
 - Added the `executionLayerOnly` flag to start just the execution layer
