@@ -37,6 +37,8 @@ const (
 	expectedSecondsForErigonInit                            = 10
 	expectedSecondsAfterNodeStartUntilHttpServerIsAvailable = 20
 	getNodeInfoTimeBetweenRetries                           = 1 * time.Second
+
+	privateIPAddressPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -79,14 +81,14 @@ func (launcher *ErigonELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
 	}
 
-	containerConfigSupplier := launcher.getContainerConfigSupplier(
+	containerConfig := launcher.getContainerConfig(
 		image,
 		existingElClients,
 		logLevel,
 		extraParams,
 	)
 
-	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Erigon EL client with service ID '%v'", serviceId)
 	}
@@ -120,70 +122,69 @@ func (launcher *ErigonELClientLauncher) Launch(
 // ====================================================================================================
 //                                       Private Helper Methods
 // ====================================================================================================
-func (launcher *ErigonELClientLauncher) getContainerConfigSupplier(
+func (launcher *ErigonELClientLauncher) getContainerConfig(
 	image string,
 	// NOTE: If this is nil, the node will be configured as a bootnode
 	existingElClients []*el.ELClientContext,
 	verbosityLevel string,
 	extraParams []string,
-) func(string) (*services.ContainerConfig, error) {
-	result := func(privateIpAddr string) (*services.ContainerConfig, error) {
-		genesisJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetErigonGenesisJsonRelativeFilepath())
-		jwtSecretJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetJWTSecretRelativeFilepath())
+) *services.ContainerConfig {
+	genesisJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetErigonGenesisJsonRelativeFilepath())
+	jwtSecretJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetJWTSecretRelativeFilepath())
 
-		initDatadirCmdStr := fmt.Sprintf(
-			"erigon init --datadir=%v %v",
-			executionDataDirpathOnClientContainer,
-			genesisJsonFilepathOnClient,
-		)
+	initDatadirCmdStr := fmt.Sprintf(
+		"erigon init --datadir=%v %v",
+		executionDataDirpathOnClientContainer,
+		genesisJsonFilepathOnClient,
+	)
 
-		bootnode1ElContext := existingElClients[0]
-		launchNodeCmdArgs := []string{
-			"erigon",
-			"--verbosity=" + verbosityLevel,
-			"--datadir=" + executionDataDirpathOnClientContainer,
-			"--networkid=" + launcher.networkId,
-			"--http",
-			"--http.addr=0.0.0.0",
-			"--http.corsdomain=*",
-			//// WARNING: The admin info endpoint is enabled so that we can easily get ENR/enode, which means
-			////  that users should NOT store private information in these Kurtosis nodes!
-			"--http.api=admin,engine,net,eth",
-			"--ws",
-			"--allow-insecure-unlock",
-			"--nat=extip:" + privateIpAddr,
-			fmt.Sprintf("--engine.port=%v", engineRpcPortNum),
-			"--engine.addr=0.0.0.0",
-			fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretJsonFilepathOnClient),
-			"--nodiscover",
-			fmt.Sprintf(
-				"--staticpeers=%v",
-				bootnode1ElContext.GetEnode()),
-		}
-		if len(extraParams) > 0 {
-			launchNodeCmdArgs = append(launchNodeCmdArgs, extraParams...)
-		}
-		launchNodeCmdStr := strings.Join(launchNodeCmdArgs, " ")
-
-		subcommandStrs := []string{
-			initDatadirCmdStr,
-			launchNodeCmdStr,
-		}
-		commandStr := strings.Join(subcommandStrs, " && ")
-
-		containerConfig := services.NewContainerConfigBuilder(
-			image,
-		).WithUsedPorts(
-			usedPorts,
-		).WithEntrypointOverride(
-			entrypointArgs,
-		).WithCmdOverride([]string{
-			commandStr,
-		}).WithFiles(map[services.FilesArtifactUUID]string{
-			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpath,
-		}).Build()
-
-		return containerConfig, nil
+	bootnode1ElContext := existingElClients[0]
+	launchNodeCmdArgs := []string{
+		"erigon",
+		"--verbosity=" + verbosityLevel,
+		"--datadir=" + executionDataDirpathOnClientContainer,
+		"--networkid=" + launcher.networkId,
+		"--http",
+		"--http.addr=0.0.0.0",
+		"--http.corsdomain=*",
+		//// WARNING: The admin info endpoint is enabled so that we can easily get ENR/enode, which means
+		////  that users should NOT store private information in these Kurtosis nodes!
+		"--http.api=admin,engine,net,eth",
+		"--ws",
+		"--allow-insecure-unlock",
+		"--nat=extip:" + privateIPAddressPlaceholder,
+		fmt.Sprintf("--engine.port=%v", engineRpcPortNum),
+		"--engine.addr=0.0.0.0",
+		fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretJsonFilepathOnClient),
+		"--nodiscover",
+		fmt.Sprintf(
+			"--staticpeers=%v",
+			bootnode1ElContext.GetEnode()),
 	}
-	return result
+	if len(extraParams) > 0 {
+		launchNodeCmdArgs = append(launchNodeCmdArgs, extraParams...)
+	}
+	launchNodeCmdStr := strings.Join(launchNodeCmdArgs, " ")
+
+	subcommandStrs := []string{
+		initDatadirCmdStr,
+		launchNodeCmdStr,
+	}
+	commandStr := strings.Join(subcommandStrs, " && ")
+
+	containerConfig := services.NewContainerConfigBuilder(
+		image,
+	).WithUsedPorts(
+		usedPorts,
+	).WithEntrypointOverride(
+		entrypointArgs,
+	).WithCmdOverride([]string{
+		commandStr,
+	}).WithFiles(map[services.FilesArtifactUUID]string{
+		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpath,
+	}).WithPrivateIPAddrPlaceholder(
+		privateIPAddressPlaceholder,
+	).Build()
+
+	return containerConfig
 }

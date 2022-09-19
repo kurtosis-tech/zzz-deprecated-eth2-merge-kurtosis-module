@@ -1,5 +1,8 @@
 # TBD
 
+### Changes
+* Upgraded to `module-api-lib` to 0.22.2 & core to `1.59.2`
+
 # 0.6.4
 ### Features
 - Added the `executionLayerOnly` flag to start just the execution layer

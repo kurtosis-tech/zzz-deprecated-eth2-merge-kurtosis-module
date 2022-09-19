@@ -31,24 +31,8 @@ var (
 )
 
 func (launcher *MEVBoostLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, serviceId services.ServiceID, networkId string) (*MEVBoostContext, error) {
-	containerConfigSupplier := func(string) (*services.ContainerConfig, error) {
-		command := []string{"mev-boost"}
-		networkName, ok := networkIdToName[networkId]
-		if !ok {
-			networkName = fmt.Sprintf("network-%s", networkId)
-		}
-		command = append(command, fmt.Sprintf("-%s", networkName))
-		if launcher.ShouldCheckRelay {
-			command = append(command, "-relay-check")
-		}
-		if len(launcher.RelayEndpoints) != 0 {
-			command = append(command, "-relays", strings.Join(launcher.RelayEndpoints, ","))
-		}
-		containerConfig := services.NewContainerConfigBuilder(flashbotsMevBoostImage).WithUsedPorts(usedPorts).WithCmdOverride(command).Build()
-		return containerConfig, nil
-	}
-
-	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	containerConfig := launcher.getContainerConfig(networkId)
+	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the mev-boost instance with service ID '%v'", serviceId)
 	}
@@ -58,4 +42,21 @@ func (launcher *MEVBoostLauncher) Launch(enclaveCtx *enclaves.EnclaveContext, se
 		privateIPAddress: privateIPAddress,
 		port:             flashbotsMevBoostPort,
 	}, nil
+}
+
+func (launcher *MEVBoostLauncher) getContainerConfig(networkId string) *services.ContainerConfig {
+	command := []string{"mev-boost"}
+	networkName, ok := networkIdToName[networkId]
+	if !ok {
+		networkName = fmt.Sprintf("network-%s", networkId)
+	}
+	command = append(command, fmt.Sprintf("-%s", networkName))
+	if launcher.ShouldCheckRelay {
+		command = append(command, "-relay-check")
+	}
+	if len(launcher.RelayEndpoints) != 0 {
+		command = append(command, "-relays", strings.Join(launcher.RelayEndpoints, ","))
+	}
+	containerConfig := services.NewContainerConfigBuilder(flashbotsMevBoostImage).WithUsedPorts(usedPorts).WithCmdOverride(command).Build()
+	return containerConfig
 }
