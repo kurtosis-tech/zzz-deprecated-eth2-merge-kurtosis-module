@@ -1,4 +1,6 @@
 # TBD
+### Changes
+* Upgraded to `module-api-lib` to `0.22.4`, engine to `1.34.4` and core to `1.59.2`
 
 # 0.6.5
 ### Changes
