@@ -61,6 +61,8 @@ const (
 	minPeers = 1
 
 	metricsPath = "/metrics"
+
+	privateIPAddressPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -107,7 +109,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 	}
 
 	extraParams := append(extraBeaconParams, extraValidatorParams...)
-	containerConfigSupplier := launcher.getContainerConfigSupplier(
+	containerConfig := launcher.getContainerConfig(
 		image,
 		bootnodeContext,
 		elClientContext,
@@ -116,7 +118,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 		keystoreFiles,
 		extraParams,
 	)
-	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Teku CL client with service ID '%v'", serviceId)
 	}
@@ -163,7 +165,7 @@ func (launcher *TekuCLClientLauncher) Launch(
 // ====================================================================================================
 //                                   Private Helper Methods
 // ====================================================================================================
-func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
+func (launcher *TekuCLClientLauncher) getContainerConfig(
 	image string,
 	bootnodeContext *cl.CLClientContext, // If this is empty, the node will be launched as a bootnode
 	elClientContext *el.ELClientContext,
@@ -171,100 +173,99 @@ func (launcher *TekuCLClientLauncher) getContainerConfigSupplier(
 	logLevel string,
 	keystoreFiles *cl2.KeystoreFiles,
 	extraParams []string,
-) func(string) (*services.ContainerConfig, error) {
-	containerConfigSupplier := func(privateIpAddr string) (*services.ContainerConfig, error) {
-		elClientRpcUrlStr := fmt.Sprintf(
-			"http://%v:%v",
-			elClientContext.GetIPAddress(),
-			elClientContext.GetRPCPortNum(),
-		)
+) *services.ContainerConfig {
+	elClientRpcUrlStr := fmt.Sprintf(
+		"http://%v:%v",
+		elClientContext.GetIPAddress(),
+		elClientContext.GetRPCPortNum(),
+	)
 
-		elClientEngineRpcUrlStr := fmt.Sprintf(
-			"http://%v:%v",
-			elClientContext.GetIPAddress(),
-			elClientContext.GetEngineRPCPortNum(),
-		)
+	elClientEngineRpcUrlStr := fmt.Sprintf(
+		"http://%v:%v",
+		elClientContext.GetIPAddress(),
+		elClientContext.GetEngineRPCPortNum(),
+	)
 
-		genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetConfigYMLRelativeFilepath())
-		genesisSszFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetGenesisSSZRelativeFilepath())
-		jwtSecretFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetJWTSecretRelativeFilepath())
-		validatorKeysDirpath := path.Join(validatorKeysDirpathOnServiceContainer, keystoreFiles.TekuKeysRelativeDirpath)
-		validatorSecretsDirpath := path.Join(validatorKeysDirpathOnServiceContainer, keystoreFiles.TekuSecretsRelativeDirpath)
-		cmdArgs := []string{
-			// Needed because the generated keys are owned by root and the Teku image runs as the 'teku' user
-			"cp",
-			"-R",
-			validatorKeysDirpath,
+	genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetConfigYMLRelativeFilepath())
+	genesisSszFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetGenesisSSZRelativeFilepath())
+	jwtSecretFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.clGenesisData.GetJWTSecretRelativeFilepath())
+	validatorKeysDirpath := path.Join(validatorKeysDirpathOnServiceContainer, keystoreFiles.TekuKeysRelativeDirpath)
+	validatorSecretsDirpath := path.Join(validatorKeysDirpathOnServiceContainer, keystoreFiles.TekuSecretsRelativeDirpath)
+	cmdArgs := []string{
+		// Needed because the generated keys are owned by root and the Teku image runs as the 'teku' user
+		"cp",
+		"-R",
+		validatorKeysDirpath,
+		destValidatorKeysDirpathInServiceContainer,
+		"&&",
+		// Needed because the generated keys are owned by root and the Teku image runs as the 'teku' user
+		"cp",
+		"-R",
+		validatorSecretsDirpath,
+		destValidatorSecretsDirpathInServiceContainer,
+		"&&",
+		tekuBinaryFilepathInImage,
+		"--Xee-version kilnv2",
+		"--logging=" + logLevel,
+		"--log-destination=CONSOLE",
+		"--network=" + genesisConfigFilepath,
+		"--initial-state=" + genesisSszFilepath,
+		"--data-path=" + consensusDataDirpathOnServiceContainer,
+		"--data-storage-mode=PRUNE",
+		"--p2p-enabled=true",
+		// Set per Pari's recommendation, to reduce noise in the logs
+		"--p2p-subscribe-all-subnets-enabled=true",
+		fmt.Sprintf("--p2p-peer-lower-bound=%v", minPeers),
+		"--eth1-endpoints=" + elClientRpcUrlStr,
+		"--p2p-advertised-ip=" + privateIPAddressPlaceholder,
+		"--rest-api-enabled=true",
+		"--rest-api-docs-enabled=true",
+		"--rest-api-interface=0.0.0.0",
+		fmt.Sprintf("--rest-api-port=%v", httpPortNum),
+		"--rest-api-host-allowlist=*",
+		"--data-storage-non-canonical-blocks-enabled=true",
+		fmt.Sprintf(
+			"--validator-keys=%v:%v",
 			destValidatorKeysDirpathInServiceContainer,
-			"&&",
-			// Needed because the generated keys are owned by root and the Teku image runs as the 'teku' user
-			"cp",
-			"-R",
-			validatorSecretsDirpath,
 			destValidatorSecretsDirpathInServiceContainer,
-			"&&",
-			tekuBinaryFilepathInImage,
-			"--Xee-version kilnv2",
-			"--logging=" + logLevel,
-			"--log-destination=CONSOLE",
-			"--network=" + genesisConfigFilepath,
-			"--initial-state=" + genesisSszFilepath,
-			"--data-path=" + consensusDataDirpathOnServiceContainer,
-			"--data-storage-mode=PRUNE",
-			"--p2p-enabled=true",
-			// Set per Pari's recommendation, to reduce noise in the logs
-			"--p2p-subscribe-all-subnets-enabled=true",
-			fmt.Sprintf("--p2p-peer-lower-bound=%v", minPeers),
-			"--eth1-endpoints=" + elClientRpcUrlStr,
-			"--p2p-advertised-ip=" + privateIpAddr,
-			"--rest-api-enabled=true",
-			"--rest-api-docs-enabled=true",
-			"--rest-api-interface=0.0.0.0",
-			fmt.Sprintf("--rest-api-port=%v", httpPortNum),
-			"--rest-api-host-allowlist=*",
-			"--data-storage-non-canonical-blocks-enabled=true",
-			fmt.Sprintf(
-				"--validator-keys=%v:%v",
-				destValidatorKeysDirpathInServiceContainer,
-				destValidatorSecretsDirpathInServiceContainer,
-			),
-			fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretFilepath),
-			"--ee-endpoint=" + elClientEngineRpcUrlStr,
-			"--validators-proposer-default-fee-recipient=" + validatingRewardsAccount,
-			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
-			"--metrics-enabled",
-			"--metrics-interface=0.0.0.0",
-			"--metrics-host-allowlist='*'",
-			"--metrics-categories=BEACON,PROCESS,LIBP2P,JVM,NETWORK,PROCESS",
-			fmt.Sprintf("--metrics-port=%v", metricsPortNum),
-			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
-		}
-		if bootnodeContext != nil {
-			cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes="+bootnodeContext.GetENR())
-		}
-		if mevBoostContext != nil {
-			cmdArgs = append(cmdArgs, "--validators-builder-registration-default-enabled=true")
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--builder-endpoint='%s'", mevBoostContext.Endpoint()))
-		}
-		if len(extraParams) > 0 {
-			cmdArgs = append(cmdArgs, extraParams...)
-		}
-		cmdStr := strings.Join(cmdArgs, " ")
-
-		containerConfig := services.NewContainerConfigBuilder(
-			image,
-		).WithUsedPorts(
-			usedPorts,
-		).WithEntrypointOverride([]string{
-			"sh", "-c",
-		}).WithCmdOverride([]string{
-			cmdStr,
-		}).WithFiles(map[services.FilesArtifactUUID]string{
-			launcher.clGenesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
-			keystoreFiles.FilesArtifactUUID:               validatorKeysDirpathOnServiceContainer,
-		}).Build()
-
-		return containerConfig, nil
+		),
+		fmt.Sprintf("--ee-jwt-secret-file=%v", jwtSecretFilepath),
+		"--ee-endpoint=" + elClientEngineRpcUrlStr,
+		"--validators-proposer-default-fee-recipient=" + validatingRewardsAccount,
+		// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
+		"--metrics-enabled",
+		"--metrics-interface=0.0.0.0",
+		"--metrics-host-allowlist='*'",
+		"--metrics-categories=BEACON,PROCESS,LIBP2P,JVM,NETWORK,PROCESS",
+		fmt.Sprintf("--metrics-port=%v", metricsPortNum),
+		// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 	}
-	return containerConfigSupplier
+	if bootnodeContext != nil {
+		cmdArgs = append(cmdArgs, "--p2p-discovery-bootnodes="+bootnodeContext.GetENR())
+	}
+	if mevBoostContext != nil {
+		cmdArgs = append(cmdArgs, "--validators-builder-registration-default-enabled=true")
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--builder-endpoint='%s'", mevBoostContext.Endpoint()))
+	}
+	if len(extraParams) > 0 {
+		cmdArgs = append(cmdArgs, extraParams...)
+	}
+	cmdStr := strings.Join(cmdArgs, " ")
+
+	containerConfig := services.NewContainerConfigBuilder(
+		image,
+	).WithUsedPorts(
+		usedPorts,
+	).WithEntrypointOverride([]string{
+		"sh", "-c",
+	}).WithCmdOverride([]string{
+		cmdStr,
+	}).WithFiles(map[services.FilesArtifactUUID]string{
+		launcher.clGenesisData.GetFilesArtifactUUID(): genesisDataMountDirpathOnServiceContainer,
+		keystoreFiles.FilesArtifactUUID:               validatorKeysDirpathOnServiceContainer,
+	}).WithPrivateIPAddrPlaceholder(
+		privateIPAddressPlaceholder,
+	).Build()
+
+	return containerConfig
 }

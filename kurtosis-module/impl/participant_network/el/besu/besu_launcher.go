@@ -41,6 +41,8 @@ const (
 
 	getNodeInfoMaxRetries         = 20
 	getNodeInfoTimeBetweenRetries = 1 * time.Second
+
+	privateIPAddressPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -84,7 +86,7 @@ func (launcher *BesuELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
 	}
 
-	containerConfigSupplier := launcher.getContainerConfigSupplier(
+	containerConfig, err := launcher.getContainerConfig(
 		image,
 		launcher.networkId,
 		existingElClients,
@@ -92,7 +94,11 @@ func (launcher *BesuELClientLauncher) Launch(
 		extraParams,
 	)
 
-	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	if err != nil {
+		stacktrace.Propagate(err, "There was an error while generating the container config")
+	}
+
+	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Besu EL client with service ID '%v'", serviceId)
 	}
@@ -126,80 +132,79 @@ func (launcher *BesuELClientLauncher) Launch(
 // ====================================================================================================
 //                                       Private Helper Methods
 // ====================================================================================================
-func (launcher *BesuELClientLauncher) getContainerConfigSupplier(
+func (launcher *BesuELClientLauncher) getContainerConfig(
 	image string,
 	networkId string,
 	existingElClients []*el.ELClientContext,
 	logLevel string,
 	extraParams []string,
-) func(string) (*services.ContainerConfig, error) {
-	result := func(privateIpAddr string) (*services.ContainerConfig, error) {
-		if len(existingElClients) == 0 {
-			return nil, stacktrace.NewError("Besu nodes cannot be boot nodes")
-		}
-		if len(existingElClients) < 2 {
-			return nil, stacktrace.NewError("Due to a bug in Besu peering, Besu requires two boot nodes")
-		}
-		bootnode1ElContext := existingElClients[0]
-		bootnode2ElContext := existingElClients[1]
-
-		genesisJsonFilepathOnClient := path.Join(genesisDataDirpathOnClientContainer, launcher.genesisData.GetBesuGenesisJsonRelativeFilepath())
-		jwtSecretJsonFilepathOnClient := path.Join(genesisDataDirpathOnClientContainer, launcher.genesisData.GetJWTSecretRelativeFilepath())
-
-		launchNodeCmdArgs := []string{
-			"besu",
-			"--logging=" + logLevel,
-			"--data-path=" + executionDataDirpathOnClientContainer,
-			"--genesis-file=" + genesisJsonFilepathOnClient,
-			"--network-id=" + networkId,
-			"--host-allowlist=*",
-			"--miner-enabled=true",
-			"--miner-coinbase=" + miningRewardsAccount,
-			"--rpc-http-enabled=true",
-			"--rpc-http-host=0.0.0.0",
-			fmt.Sprintf("--rpc-http-port=%v", rpcPortNum),
-			"--rpc-http-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,ENGINE",
-			"--rpc-http-cors-origins=*",
-			"--rpc-ws-enabled=true",
-			"--rpc-ws-host=0.0.0.0",
-			fmt.Sprintf("--rpc-ws-port=%v", wsPortNum),
-			"--rpc-ws-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,ENGINE",
-			"--p2p-enabled=true",
-			"--p2p-host=" + privateIpAddr,
-			fmt.Sprintf("--p2p-port=%v", discoveryPortNum),
-			"--engine-rpc-enabled=true",
-			fmt.Sprintf("--engine-jwt-secret=%v", jwtSecretJsonFilepathOnClient),
-			"--engine-host-allowlist=*",
-			fmt.Sprintf("--engine-rpc-port=%v", engineHttpRpcPortNum),
-		}
-		if len(existingElClients) > 0 {
-			launchNodeCmdArgs = append(
-				launchNodeCmdArgs,
-				fmt.Sprintf(
-					"--bootnodes=%v,%v",
-					bootnode1ElContext.GetEnode(),
-					bootnode2ElContext.GetEnode(),
-				),
-			)
-		}
-		if len(extraParams) > 0 {
-			launchNodeCmdArgs = append(launchNodeCmdArgs, extraParams...)
-		}
-		launchNodeCmdStr := strings.Join(launchNodeCmdArgs, " ")
-
-		containerConfig := services.NewContainerConfigBuilder(
-			image,
-		).WithUsedPorts(
-			usedPorts,
-		).WithEntrypointOverride(
-			entrypointArgs,
-		).WithCmdOverride([]string{
-			launchNodeCmdStr,
-		}).WithFiles(map[services.FilesArtifactUUID]string{
-			launcher.genesisData.GetFilesArtifactUUID(): genesisDataDirpathOnClientContainer,
-		}).Build()
-
-		return containerConfig, nil
+) (*services.ContainerConfig, error){
+	if len(existingElClients) == 0 {
+		return nil, stacktrace.NewError("Besu nodes cannot be boot nodes")
 	}
-	return result
+	if len(existingElClients) < 2 {
+		return nil, stacktrace.NewError("Due to a bug in Besu peering, Besu requires two boot nodes")
+	}
+	bootnode1ElContext := existingElClients[0]
+	bootnode2ElContext := existingElClients[1]
+
+	genesisJsonFilepathOnClient := path.Join(genesisDataDirpathOnClientContainer, launcher.genesisData.GetBesuGenesisJsonRelativeFilepath())
+	jwtSecretJsonFilepathOnClient := path.Join(genesisDataDirpathOnClientContainer, launcher.genesisData.GetJWTSecretRelativeFilepath())
+
+	launchNodeCmdArgs := []string{
+		"besu",
+		"--logging=" + logLevel,
+		"--data-path=" + executionDataDirpathOnClientContainer,
+		"--genesis-file=" + genesisJsonFilepathOnClient,
+		"--network-id=" + networkId,
+		"--host-allowlist=*",
+		"--miner-enabled=true",
+		"--miner-coinbase=" + miningRewardsAccount,
+		"--rpc-http-enabled=true",
+		"--rpc-http-host=0.0.0.0",
+		fmt.Sprintf("--rpc-http-port=%v", rpcPortNum),
+		"--rpc-http-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,ENGINE",
+		"--rpc-http-cors-origins=*",
+		"--rpc-ws-enabled=true",
+		"--rpc-ws-host=0.0.0.0",
+		fmt.Sprintf("--rpc-ws-port=%v", wsPortNum),
+		"--rpc-ws-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,ENGINE",
+		"--p2p-enabled=true",
+		"--p2p-host=" + privateIPAddressPlaceholder,
+		fmt.Sprintf("--p2p-port=%v", discoveryPortNum),
+		"--engine-rpc-enabled=true",
+		fmt.Sprintf("--engine-jwt-secret=%v", jwtSecretJsonFilepathOnClient),
+		"--engine-host-allowlist=*",
+		fmt.Sprintf("--engine-rpc-port=%v", engineHttpRpcPortNum),
+	}
+	if len(existingElClients) > 0 {
+		launchNodeCmdArgs = append(
+			launchNodeCmdArgs,
+			fmt.Sprintf(
+				"--bootnodes=%v,%v",
+				bootnode1ElContext.GetEnode(),
+				bootnode2ElContext.GetEnode(),
+			),
+		)
+	}
+	if len(extraParams) > 0 {
+		launchNodeCmdArgs = append(launchNodeCmdArgs, extraParams...)
+	}
+	launchNodeCmdStr := strings.Join(launchNodeCmdArgs, " ")
+
+	containerConfig := services.NewContainerConfigBuilder(
+		image,
+	).WithUsedPorts(
+		usedPorts,
+	).WithEntrypointOverride(
+		entrypointArgs,
+	).WithCmdOverride([]string{
+		launchNodeCmdStr,
+	}).WithFiles(map[services.FilesArtifactUUID]string{
+		launcher.genesisData.GetFilesArtifactUUID(): genesisDataDirpathOnClientContainer,
+	}).WithPrivateIPAddrPlaceholder(
+		privateIPAddressPlaceholder,
+	).Build()
+
+	return containerConfig, nil
 }

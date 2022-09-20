@@ -37,6 +37,8 @@ const (
 
 	getNodeInfoMaxRetries         = 30
 	getNodeInfoTimeBetweenRetries = 1 * time.Second
+
+	privateIPAddressPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var usedPorts = map[string]*services.PortSpec{
@@ -77,9 +79,12 @@ func (launcher *NethermindELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred getting the client log level using participant log level '%v' and global log level '%v'", participantLogLevel, globalLogLevel)
 	}
 
-	containerConfigSupplier := launcher.getContainerConfigSupplier(image, existingElClients, logLevel, extraParams)
+	containerConfig, err := launcher.getContainerConfig(image, existingElClients, logLevel, extraParams)
+	if err != nil {
+		return nil, stacktrace.Propagate(err,"There was an error while generating the container config")
+	}
 
-	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Geth EL client with service ID '%v'", serviceId)
 	}
@@ -113,69 +118,68 @@ func (launcher *NethermindELClientLauncher) Launch(
 // ====================================================================================================
 //                                       Private Helper Methods
 // ====================================================================================================
-func (launcher *NethermindELClientLauncher) getContainerConfigSupplier(
+func (launcher *NethermindELClientLauncher) getContainerConfig(
 	image string,
 	existingElClients []*el.ELClientContext,
 	logLevel string,
 	extraParams []string,
-) func(string) (*services.ContainerConfig, error) {
-	result := func(privateIpAddr string) (*services.ContainerConfig, error) {
-		if len(existingElClients) == 0 {
-			return nil, stacktrace.NewError("Nethermind nodes cannot be boot nodes")
-		}
-		if len(existingElClients) < 2 {
-			return nil, stacktrace.NewError("Due to a bug in Nethermind peering, Nethermind requires two boot nodes (see https://discord.com/channels/783719264308953108/933134266580234290/958049716065665094https://discord.com/channels/783719264308953108/933134266580234290/958049716065665094 )")
-		}
-		bootnode1ElContext := existingElClients[0]
-		bootnode2ElContext := existingElClients[1]
-
-		genesisJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetNethermindGenesisJsonRelativeFilepath())
-		jwtSecretJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetJWTSecretRelativeFilepath())
-
-		commandArgs := []string{
-			"--config=kiln",
-			"--log=" + logLevel,
-			"--datadir=" + executionDataDirpathOnClientContainer,
-			"--Init.ChainSpecPath=" + genesisJsonFilepathOnClient,
-			"--Init.WebSocketsEnabled=true",
-			"--Init.DiagnosticMode=None",
-			"--JsonRpc.Enabled=true",
-			"--JsonRpc.EnabledModules=net,eth,consensus,subscribe,web3,admin",
-			"--JsonRpc.Host=0.0.0.0",
-			// TODO Set Eth isMining?
-			fmt.Sprintf("--JsonRpc.Port=%v", rpcPortNum),
-			fmt.Sprintf("--JsonRpc.WebSocketsPort=%v", wsPortNum),
-			fmt.Sprintf("--Network.ExternalIp=%v", privateIpAddr),
-			fmt.Sprintf("--Network.LocalIp=%v", privateIpAddr),
-			fmt.Sprintf("--Network.DiscoveryPort=%v", discoveryPortNum),
-			fmt.Sprintf("--Network.P2PPort=%v", discoveryPortNum),
-			"--Merge.Enabled=true",
-			fmt.Sprintf("--Merge.TerminalTotalDifficulty=%v", launcher.totalTerminalDifficulty),
-			"--Merge.TerminalBlockNumber=null",
-			fmt.Sprintf("--JsonRpc.JwtSecretFile=%v", jwtSecretJsonFilepathOnClient),
-			fmt.Sprintf("--JsonRpc.AdditionalRpcUrls=[\"http://0.0.0.0:%v|http;ws|net;eth;subscribe;engine;web3;client\"]", engineRpcPortNum),
-			"--Network.OnlyStaticPeers=true",
-			fmt.Sprintf(
-				"--Network.StaticPeers=%v,%v",
-				bootnode1ElContext.GetEnode(),
-				bootnode2ElContext.GetEnode(),
-			),
-		}
-		if len(extraParams) > 0 {
-			commandArgs = append(commandArgs, extraParams...)
-		}
-
-		containerConfig := services.NewContainerConfigBuilder(
-			image,
-		).WithUsedPorts(
-			usedPorts,
-		).WithCmdOverride(
-			commandArgs,
-		).WithFiles(map[services.FilesArtifactUUID]string{
-			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpath,
-		}).Build()
-
-		return containerConfig, nil
+) (*services.ContainerConfig, error) {
+	if len(existingElClients) == 0 {
+		return nil, stacktrace.NewError("Nethermind nodes cannot be boot nodes")
 	}
-	return result
+	if len(existingElClients) < 2 {
+		return nil, stacktrace.NewError("Due to a bug in Nethermind peering, Nethermind requires two boot nodes (see https://discord.com/channels/783719264308953108/933134266580234290/958049716065665094https://discord.com/channels/783719264308953108/933134266580234290/958049716065665094 )")
+	}
+	bootnode1ElContext := existingElClients[0]
+	bootnode2ElContext := existingElClients[1]
+
+	genesisJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetNethermindGenesisJsonRelativeFilepath())
+	jwtSecretJsonFilepathOnClient := path.Join(genesisDataMountDirpath, launcher.genesisData.GetJWTSecretRelativeFilepath())
+
+	commandArgs := []string{
+		"--config=kiln",
+		"--log=" + logLevel,
+		"--datadir=" + executionDataDirpathOnClientContainer,
+		"--Init.ChainSpecPath=" + genesisJsonFilepathOnClient,
+		"--Init.WebSocketsEnabled=true",
+		"--Init.DiagnosticMode=None",
+		"--JsonRpc.Enabled=true",
+		"--JsonRpc.EnabledModules=net,eth,consensus,subscribe,web3,admin",
+		"--JsonRpc.Host=0.0.0.0",
+		// TODO Set Eth isMining?
+		fmt.Sprintf("--JsonRpc.Port=%v", rpcPortNum),
+		fmt.Sprintf("--JsonRpc.WebSocketsPort=%v", wsPortNum),
+		fmt.Sprintf("--Network.ExternalIp=%v", privateIPAddressPlaceholder),
+		fmt.Sprintf("--Network.LocalIp=%v", privateIPAddressPlaceholder),
+		fmt.Sprintf("--Network.DiscoveryPort=%v", discoveryPortNum),
+		fmt.Sprintf("--Network.P2PPort=%v", discoveryPortNum),
+		"--Merge.Enabled=true",
+		fmt.Sprintf("--Merge.TerminalTotalDifficulty=%v", launcher.totalTerminalDifficulty),
+		"--Merge.TerminalBlockNumber=null",
+		fmt.Sprintf("--JsonRpc.JwtSecretFile=%v", jwtSecretJsonFilepathOnClient),
+		fmt.Sprintf("--JsonRpc.AdditionalRpcUrls=[\"http://0.0.0.0:%v|http;ws|net;eth;subscribe;engine;web3;client\"]", engineRpcPortNum),
+		"--Network.OnlyStaticPeers=true",
+		fmt.Sprintf(
+			"--Network.StaticPeers=%v,%v",
+			bootnode1ElContext.GetEnode(),
+			bootnode2ElContext.GetEnode(),
+		),
+	}
+	if len(extraParams) > 0 {
+		commandArgs = append(commandArgs, extraParams...)
+	}
+
+	containerConfig := services.NewContainerConfigBuilder(
+		image,
+	).WithUsedPorts(
+		usedPorts,
+	).WithCmdOverride(
+		commandArgs,
+	).WithFiles(map[services.FilesArtifactUUID]string{
+		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountDirpath,
+	}).WithPrivateIPAddrPlaceholder(
+		privateIPAddressPlaceholder,
+	).Build()
+
+	return containerConfig, nil
 }

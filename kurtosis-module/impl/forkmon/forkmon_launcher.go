@@ -70,34 +70,30 @@ func LaunchForkmon(
 		return stacktrace.Propagate(err, "An error occurred rendering Forkmon config file template to '%v'", forkmonConfigFilename)
 	}
 
-	containerConfigSupplier := getContainerConfigSupplier(configArtifactUuid)
-	if err != nil {
-		return stacktrace.Propagate(err, "An error occurred getting the container config supplier")
-	}
+	containerConfig := getContainerConfig(configArtifactUuid)
 
-	_, err = enclaveCtx.AddService(serviceID, containerConfigSupplier)
+	_, err = enclaveCtx.AddService(serviceID, containerConfig)
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred launching the forkmon service")
 	}
 	return nil
 }
 
-func getContainerConfigSupplier(
+func getContainerConfig(
 	configArtifactUuid services.FilesArtifactUUID,
-) func(privateIpAddr string) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string) (*services.ContainerConfig, error) {
-		configFilepath := path.Join(forkmonConfigMountDirpathOnService, forkmonConfigFilename)
-		containerConfig := services.NewContainerConfigBuilder(
-			imageName,
-		).WithCmdOverride([]string{
-			"--config-path",
-			configFilepath,
-		}).WithUsedPorts(
-			usedPorts,
-		).WithFiles(map[services.FilesArtifactUUID]string{
-			configArtifactUuid: forkmonConfigMountDirpathOnService,
-		}).Build()
+) *services.ContainerConfig {
 
-		return containerConfig, nil
-	}
+	configFilepath := path.Join(forkmonConfigMountDirpathOnService, forkmonConfigFilename)
+	containerConfig := services.NewContainerConfigBuilder(
+		imageName,
+	).WithCmdOverride([]string{
+		"--config-path",
+		configFilepath,
+	}).WithUsedPorts(
+		usedPorts,
+	).WithFiles(map[services.FilesArtifactUUID]string{
+		configArtifactUuid: forkmonConfigMountDirpathOnService,
+	}).Build()
+
+	return containerConfig
 }

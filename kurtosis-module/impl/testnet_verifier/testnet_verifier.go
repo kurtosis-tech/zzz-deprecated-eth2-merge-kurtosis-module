@@ -23,9 +23,9 @@ const (
 )
 
 func LaunchAsynchronousTestnetVerifier(params *module_io.ExecuteParams, enclaveCtx *enclaves.EnclaveContext, elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64) error {
-	containerConfigSupplier := getAsynchronousVerificationContainerConfigSupplier(params, elClientCtxs, clClientCtxs, ttd)
+	containerConfig := getAsynchronousVerificationContainerConfig(params, elClientCtxs, clClientCtxs, ttd)
 
-	_, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	_, err := enclaveCtx.AddService(serviceId, containerConfig)
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred adding the testnet verifier service")
 	}
@@ -34,9 +34,9 @@ func LaunchAsynchronousTestnetVerifier(params *module_io.ExecuteParams, enclaveC
 }
 
 func RunSynchronousTestnetVerification(params *module_io.ExecuteParams, enclaveCtx *enclaves.EnclaveContext, elClientCtxs []*el.ELClientContext, clClientCtxs []*cl.CLClientContext, ttd uint64) (int32, string, error) {
-	containerConfigSupplier := getSynchronousVerificationContainerConfigSupplier()
+	containerConfig := getSynchronousVerificationContainerConfig()
 
-	svcCtx, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	svcCtx, err := enclaveCtx.AddService(serviceId, containerConfig)
 	if err != nil {
 		return 1, "", stacktrace.Propagate(err, "An error occurred adding the testnet verifier service")
 	}
@@ -73,28 +73,24 @@ func getCmd(params *module_io.ExecuteParams, elClientCtxs []*el.ELClientContext,
 	return cmd
 }
 
-func getAsynchronousVerificationContainerConfigSupplier(
+func getAsynchronousVerificationContainerConfig(
 	params *module_io.ExecuteParams,
 	elClientCtxs []*el.ELClientContext,
 	clClientCtxs []*cl.CLClientContext,
 	ttd uint64,
-) func(string) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string) (*services.ContainerConfig, error) {
-		cmd := getCmd(params, elClientCtxs, clClientCtxs, ttd, false)
-		result := services.NewContainerConfigBuilder(
-			imageName,
-		).WithCmdOverride(cmd).Build()
-		return result, nil
-	}
+) *services.ContainerConfig {
+	cmd := getCmd(params, elClientCtxs, clClientCtxs, ttd, false)
+	result := services.NewContainerConfigBuilder(
+		imageName,
+	).WithCmdOverride(cmd).Build()
+	return result
 }
 
-func getSynchronousVerificationContainerConfigSupplier() func(string) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string) (*services.ContainerConfig, error) {
-		result := services.NewContainerConfigBuilder(
-			imageName,
-		).WithEntrypointOverride(
-			synchronousEntrypointArgs,
-		).Build()
-		return result, nil
-	}
+func getSynchronousVerificationContainerConfig() *services.ContainerConfig {
+	result := services.NewContainerConfigBuilder(
+		imageName,
+	).WithEntrypointOverride(
+		synchronousEntrypointArgs,
+	).Build()
+	return result
 }

@@ -54,8 +54,8 @@ func LaunchPrometheus(
 		return "", stacktrace.Propagate(err, "An error occurred rendering the Prometheus template config file to '%v'", configFilename)
 	}
 
-	containerConfigSupplier := getContainerConfigSupplier(configArtifactUuid)
-	serviceCtx, err := enclaveCtx.AddService(serviceID, containerConfigSupplier)
+	containerConfig := getContainerConfig(configArtifactUuid)
+	serviceCtx, err := enclaveCtx.AddService(serviceID, containerConfig)
 	if err != nil {
 		return "", stacktrace.Propagate(err, "An error occurred launching the prometheus service")
 	}
@@ -74,30 +74,28 @@ func LaunchPrometheus(
 //                                       Private Helper Functions
 //
 // ====================================================================================================
-func getContainerConfigSupplier(
+func getContainerConfig(
 	configFileArtifactUuid services.FilesArtifactUUID,
-) func(privateIpAddr string) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string) (*services.ContainerConfig, error) {
-		configFilepath := path.Join(configDirMountpointOnPrometheus, path.Base(configFilename))
-		containerConfig := services.NewContainerConfigBuilder(
-			imageName,
-		).WithCmdOverride([]string{
-			//You can check all the cli flags starting the container and going to the flags section
-			//in Prometheus admin page "{{prometheusPublicURL}}/flags" section
-			"--config.file=" + configFilepath,
-			"--storage.tsdb.path=/prometheus",
-			"--storage.tsdb.retention.time=1d",
-			"--storage.tsdb.retention.size=512MB",
-			"--storage.tsdb.wal-compression",
-			"--web.console.libraries=/etc/prometheus/console_libraries",
-			"--web.console.templates=/etc/prometheus/consoles",
-			"--web.enable-lifecycle",
-		}).WithUsedPorts(
-			usedPorts,
-		).WithFiles(map[services.FilesArtifactUUID]string{
-			configFileArtifactUuid: configDirMountpointOnPrometheus,
-		}).Build()
+) *services.ContainerConfig {
+	configFilepath := path.Join(configDirMountpointOnPrometheus, path.Base(configFilename))
+	containerConfig := services.NewContainerConfigBuilder(
+		imageName,
+	).WithCmdOverride([]string{
+		//You can check all the cli flags starting the container and going to the flags section
+		//in Prometheus admin page "{{prometheusPublicURL}}/flags" section
+		"--config.file=" + configFilepath,
+		"--storage.tsdb.path=/prometheus",
+		"--storage.tsdb.retention.time=1d",
+		"--storage.tsdb.retention.size=512MB",
+		"--storage.tsdb.wal-compression",
+		"--web.console.libraries=/etc/prometheus/console_libraries",
+		"--web.console.templates=/etc/prometheus/consoles",
+		"--web.enable-lifecycle",
+	}).WithUsedPorts(
+		usedPorts,
+	).WithFiles(map[services.FilesArtifactUUID]string{
+		configFileArtifactUuid: configDirMountpointOnPrometheus,
+	}).Build()
 
-		return containerConfig, nil
-	}
+	return containerConfig
 }

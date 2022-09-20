@@ -18,9 +18,9 @@ const (
 
 // TODO upgrade the spammer to be able to take in multiple EL addreses
 func LaunchTransanctionSpammer(enclaveCtx *enclaves.EnclaveContext, prefundedAddresses []*genesis_consts.PrefundedAccount, elClientCtx *el.ELClientContext) error {
-	containerConfigSupplier := getContainerConfigSupplier(prefundedAddresses, elClientCtx)
+	containerConfig := getContainerConfig(prefundedAddresses, elClientCtx)
 
-	_, err := enclaveCtx.AddService(serviceId, containerConfigSupplier)
+	_, err := enclaveCtx.AddService(serviceId, containerConfig)
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred adding the transaction spammer service")
 	}
@@ -28,10 +28,10 @@ func LaunchTransanctionSpammer(enclaveCtx *enclaves.EnclaveContext, prefundedAdd
 	return nil
 }
 
-func getContainerConfigSupplier(
+func getContainerConfig(
 	prefundedAddresses []*genesis_consts.PrefundedAccount,
 	elClientCtx *el.ELClientContext,
-) func(string) (*services.ContainerConfig, error) {
+) *services.ContainerConfig {
 	privateKeysStrs := []string{}
 	addressStrs := []string{}
 
@@ -42,15 +42,13 @@ func getContainerConfigSupplier(
 
 	commaSeparatedPrivateKeys := strings.Join(privateKeysStrs, ",")
 	commaSeparatedAddresses := strings.Join(addressStrs, ",")
-	return func(privateIpAddr string) (*services.ContainerConfig, error) {
-		result := services.NewContainerConfigBuilder(
-			imageName,
-		).WithCmdOverride([]string{
-			fmt.Sprintf("http://%v:%v", elClientCtx.GetIPAddress(), elClientCtx.GetRPCPortNum()),
-			"spam",
-			commaSeparatedPrivateKeys,
-			commaSeparatedAddresses,
-		}).Build()
-		return result, nil
-	}
+	result := services.NewContainerConfigBuilder(
+		imageName,
+	).WithCmdOverride([]string{
+		fmt.Sprintf("http://%v:%v", elClientCtx.GetIPAddress(), elClientCtx.GetRPCPortNum()),
+		"spam",
+		commaSeparatedPrivateKeys,
+		commaSeparatedAddresses,
+	}).Build()
+	return result
 }

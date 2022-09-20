@@ -56,6 +56,8 @@ const (
 
 	beaconSuffixServiceId    = "beacon"
 	validatorSuffixServiceId = "validator"
+
+	privateIPAddressPlaceholder = "KURTOSIS_PRIVATE_IP_ADDR_PLACEHOLDER"
 )
 
 var beaconUsedPorts = map[string]*services.PortSpec{
@@ -106,7 +108,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 	}
 
 	// Launch Beacon node
-	beaconContainerConfigSupplier := launcher.getBeaconContainerConfigSupplier(
+	beaconContainerConfig := launcher.getBeaconContainerConfig(
 		image,
 		bootnodeContext,
 		elClientContext,
@@ -114,7 +116,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 		logLevel,
 		extraBeaconParams,
 	)
-	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfigSupplier)
+	beaconServiceCtx, err := enclaveCtx.AddService(beaconNodeServiceId, beaconContainerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse Beacon node with service ID '%v'", beaconNodeServiceId)
 	}
@@ -132,7 +134,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 
 	// Launch validator node
 	beaconHttpUrl := fmt.Sprintf("http://%v:%v", beaconServiceCtx.GetPrivateIPAddress(), beaconHttpPort.GetNumber())
-	validatorContainerConfigSupplier := launcher.getValidatorContainerConfigSupplier(
+	validatorContainerConfig := launcher.getValidatorContainerConfig(
 		image,
 		logLevel,
 		beaconHttpUrl,
@@ -140,7 +142,7 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 		mevBoostContext,
 		extraValidatorParams,
 	)
-	validatorServiceCtx, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfigSupplier)
+	validatorServiceCtx, err := enclaveCtx.AddService(validatorNodeServiceId, validatorContainerConfig)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred launching the Lighthouse validator node with service ID '%v'", validatorNodeServiceId)
 	}
@@ -183,156 +185,154 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 // ====================================================================================================
 //                                   Private Helper Methods
 // ====================================================================================================
-func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfigSupplier(
+func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfig(
 	image string,
 	bootClClientCtx *cl.CLClientContext,
 	elClientCtx *el.ELClientContext,
 	mevBoostContext *mev_boost.MEVBoostContext,
 	logLevel string,
 	extraParams []string,
-) func(string) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string) (*services.ContainerConfig, error) {
-		elClientRpcUrlStr := fmt.Sprintf(
-			"http://%v:%v",
-			elClientCtx.GetIPAddress(),
-			elClientCtx.GetRPCPortNum(),
-		)
+) *services.ContainerConfig {
+	elClientRpcUrlStr := fmt.Sprintf(
+		"http://%v:%v",
+		elClientCtx.GetIPAddress(),
+		elClientCtx.GetRPCPortNum(),
+	)
 
-		elClientEngineRpcUrlStr := fmt.Sprintf(
-			"http://%v:%v",
-			elClientCtx.GetIPAddress(),
-			elClientCtx.GetEngineRPCPortNum(),
-		)
+	elClientEngineRpcUrlStr := fmt.Sprintf(
+		"http://%v:%v",
+		elClientCtx.GetIPAddress(),
+		elClientCtx.GetEngineRPCPortNum(),
+	)
 
-		// For some reason, Lighthouse takes in the parent directory of the config file (rather than the path to the config file itself)
-		genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClients, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
-		jwtSecretFilepath := path.Join(genesisDataMountpointOnClients, launcher.genesisData.GetJWTSecretRelativeFilepath())
+	// For some reason, Lighthouse takes in the parent directory of the config file (rather than the path to the config file itself)
+	genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClients, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
+	jwtSecretFilepath := path.Join(genesisDataMountpointOnClients, launcher.genesisData.GetJWTSecretRelativeFilepath())
 
-		// NOTE: If connecting to the merge devnet remotely we DON'T want the following flags; when they're not set, the node's external IP address is auto-detected
-		//  from the peers it communicates with but when they're set they basically say "override the autodetection and
-		//  use what I specify instead." This requires having a know external IP address and port, which we definitely won't
-		//  have with a network running in Kurtosis.
-		//    "--disable-enr-auto-update",
-		//    "--enr-address=" + externalIpAddress,
-		//    fmt.Sprintf("--enr-udp-port=%v", beaconDiscoveryPortNum),
-		//    fmt.Sprintf("--enr-tcp-port=%v", beaconDiscoveryPortNum),
-		cmdArgs := []string{
-			lighthouseBinaryCommand,
-			"beacon_node",
-			"--debug-level=" + logLevel,
-			"--datadir=" + consensusDataDirpathOnBeaconServiceContainer,
-			"--testnet-dir=" + genesisConfigParentDirpathOnClient,
-			"--eth1",
-			// vvvvvvvvvvvvvvvvvvv REMOVE THESE WHEN CONNECTING TO EXTERNAL NET vvvvvvvvvvvvvvvvvvvvv
-			"--disable-enr-auto-update",
-			"--enr-address=" + privateIpAddr,
-			fmt.Sprintf("--enr-udp-port=%v", beaconDiscoveryPortNum),
-			fmt.Sprintf("--enr-tcp-port=%v", beaconDiscoveryPortNum),
-			// ^^^^^^^^^^^^^^^^^^^ REMOVE THESE WHEN CONNECTING TO EXTERNAL NET ^^^^^^^^^^^^^^^^^^^^^
-			"--listen-address=0.0.0.0",
-			fmt.Sprintf("--port=%v", beaconDiscoveryPortNum), // NOTE: Remove for connecting to external net!
-			"--http",
-			"--http-address=0.0.0.0",
-			fmt.Sprintf("--http-port=%v", beaconHttpPortNum),
-			"--merge",
-			"--http-allow-sync-stalled",
-			// NOTE: This comes from:
-			//   https://github.com/sigp/lighthouse/blob/7c88f582d955537f7ffff9b2c879dcf5bf80ce13/scripts/local_testnet/beacon_node.sh
-			// and the option says it's "useful for testing in smaller networks" (unclear what happens in larger networks)
-			"--disable-packet-filter",
-			"--execution-endpoints=" + elClientEngineRpcUrlStr,
-			"--eth1-endpoints=" + elClientRpcUrlStr,
-			"--jwt-secrets=" + jwtSecretFilepath,
-			"--suggested-fee-recipient=" + validatingRewardsAccount,
-			// Set per Paris' recommendation to reduce noise in the logs
-			"--subscribe-all-subnets",
-			// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
-			"--metrics",
-			"--metrics-address=0.0.0.0",
-			"--metrics-allow-origin=*",
-			fmt.Sprintf("--metrics-port=%v", beaconMetricsPortNum),
-			// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
-		}
-		if bootClClientCtx != nil {
-			cmdArgs = append(cmdArgs, "--boot-nodes="+bootClClientCtx.GetENR())
-		}
-		if mevBoostContext != nil {
-			cmdArgs = append(cmdArgs, "--builder", mevBoostContext.Endpoint())
-		}
-		if len(extraParams) > 0 {
-			cmdArgs = append(cmdArgs, extraParams...)
-		}
-
-		containerConfig := services.NewContainerConfigBuilder(
-			image,
-		).WithUsedPorts(
-			beaconUsedPorts,
-		).WithCmdOverride(
-			cmdArgs,
-		).WithFiles(map[services.FilesArtifactUUID]string{
-			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountpointOnClients,
-		}).WithEnvironmentVariableOverrides(map[string]string{
-			rustBacktraceEnvvarName: rustFullBacktraceKeyword,
-		}).Build()
-		return containerConfig, nil
+	// NOTE: If connecting to the merge devnet remotely we DON'T want the following flags; when they're not set, the node's external IP address is auto-detected
+	//  from the peers it communicates with but when they're set they basically say "override the autodetection and
+	//  use what I specify instead." This requires having a know external IP address and port, which we definitely won't
+	//  have with a network running in Kurtosis.
+	//    "--disable-enr-auto-update",
+	//    "--enr-address=" + externalIpAddress,
+	//    fmt.Sprintf("--enr-udp-port=%v", beaconDiscoveryPortNum),
+	//    fmt.Sprintf("--enr-tcp-port=%v", beaconDiscoveryPortNum),
+	cmdArgs := []string{
+		lighthouseBinaryCommand,
+		"beacon_node",
+		"--debug-level=" + logLevel,
+		"--datadir=" + consensusDataDirpathOnBeaconServiceContainer,
+		"--testnet-dir=" + genesisConfigParentDirpathOnClient,
+		"--eth1",
+		// vvvvvvvvvvvvvvvvvvv REMOVE THESE WHEN CONNECTING TO EXTERNAL NET vvvvvvvvvvvvvvvvvvvvv
+		"--disable-enr-auto-update",
+		"--enr-address=" + privateIPAddressPlaceholder,
+		fmt.Sprintf("--enr-udp-port=%v", beaconDiscoveryPortNum),
+		fmt.Sprintf("--enr-tcp-port=%v", beaconDiscoveryPortNum),
+		// ^^^^^^^^^^^^^^^^^^^ REMOVE THESE WHEN CONNECTING TO EXTERNAL NET ^^^^^^^^^^^^^^^^^^^^^
+		"--listen-address=0.0.0.0",
+		fmt.Sprintf("--port=%v", beaconDiscoveryPortNum), // NOTE: Remove for connecting to external net!
+		"--http",
+		"--http-address=0.0.0.0",
+		fmt.Sprintf("--http-port=%v", beaconHttpPortNum),
+		"--merge",
+		"--http-allow-sync-stalled",
+		// NOTE: This comes from:
+		//   https://github.com/sigp/lighthouse/blob/7c88f582d955537f7ffff9b2c879dcf5bf80ce13/scripts/local_testnet/beacon_node.sh
+		// and the option says it's "useful for testing in smaller networks" (unclear what happens in larger networks)
+		"--disable-packet-filter",
+		"--execution-endpoints=" + elClientEngineRpcUrlStr,
+		"--eth1-endpoints=" + elClientRpcUrlStr,
+		"--jwt-secrets=" + jwtSecretFilepath,
+		"--suggested-fee-recipient=" + validatingRewardsAccount,
+		// Set per Paris' recommendation to reduce noise in the logs
+		"--subscribe-all-subnets",
+		// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
+		"--metrics",
+		"--metrics-address=0.0.0.0",
+		"--metrics-allow-origin=*",
+		fmt.Sprintf("--metrics-port=%v", beaconMetricsPortNum),
+		// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 	}
+	if bootClClientCtx != nil {
+		cmdArgs = append(cmdArgs, "--boot-nodes="+bootClClientCtx.GetENR())
+	}
+	if mevBoostContext != nil {
+		cmdArgs = append(cmdArgs, "--builder", mevBoostContext.Endpoint())
+	}
+	if len(extraParams) > 0 {
+		cmdArgs = append(cmdArgs, extraParams...)
+	}
+
+	containerConfig := services.NewContainerConfigBuilder(
+		image,
+	).WithUsedPorts(
+		beaconUsedPorts,
+	).WithCmdOverride(
+		cmdArgs,
+	).WithFiles(map[services.FilesArtifactUUID]string{
+		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountpointOnClients,
+	}).WithEnvironmentVariableOverrides(map[string]string{
+		rustBacktraceEnvvarName: rustFullBacktraceKeyword,
+	}).WithPrivateIPAddrPlaceholder(
+		privateIPAddressPlaceholder,
+	).Build()
+	return containerConfig
 }
 
-func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfigSupplier(
+func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfig(
 	image string,
 	logLevel string,
 	beaconClientHttpUrl string,
 	nodeKeystoreFiles *cl2.KeystoreFiles,
 	mevBoostContext *mev_boost.MEVBoostContext,
 	extraParams []string,
-) func(string) (*services.ContainerConfig, error) {
-	return func(privateIpAddr string) (*services.ContainerConfig, error) {
-		// For some reason, Lighthouse takes in the parent directory of the config file (rather than the path to the config file itself)
-		genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClients, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
-		validatorKeysDirpath := path.Join(validatorKeysMountpointOnClients, nodeKeystoreFiles.RawKeysRelativeDirpath)
-		validatorSecretsDirpath := path.Join(validatorKeysMountpointOnClients, nodeKeystoreFiles.RawSecretsRelativeDirpath)
-		cmdArgs := []string{
-			"lighthouse",
-			"validator_client",
-			"--debug-level=" + logLevel,
-			"--testnet-dir=" + genesisConfigParentDirpathOnClient,
-			"--validators-dir=" + validatorKeysDirpath,
-			// NOTE: When secrets-dir is specified, we can't add the --data-dir flag
-			"--secrets-dir=" + validatorSecretsDirpath,
-			// The node won't have a slashing protection database and will fail to start otherwise
-			"--init-slashing-protection",
-			"--http",
-			"--unencrypted-http-transport",
-			"--http-address=0.0.0.0",
-			fmt.Sprintf("--http-port=%v", validatorHttpPortNum),
-			"--beacon-nodes=" + beaconClientHttpUrl,
-			"--enable-doppelganger-protection=false",
-			// vvvvvvvvvvvvvvvvvvv PROMETHEUS CONFIG vvvvvvvvvvvvvvvvvvvvv
-			"--metrics",
-			"--metrics-address=0.0.0.0",
-			"--metrics-allow-origin=*",
-			fmt.Sprintf("--metrics-port=%v", validatorMetricsPortNum),
-			// ^^^^^^^^^^^^^^^^^^^ PROMETHEUS CONFIG ^^^^^^^^^^^^^^^^^^^^^
-		}
-		if mevBoostContext != nil {
-			cmdArgs = append(cmdArgs, "--builder-proposals")
-		}
-		if len(extraParams) > 0 {
-			cmdArgs = append(cmdArgs, extraParams...)
-		}
-
-		containerConfig := services.NewContainerConfigBuilder(
-			image,
-		).WithUsedPorts(
-			validatorUsedPorts,
-		).WithCmdOverride(
-			cmdArgs,
-		).WithFiles(map[services.FilesArtifactUUID]string{
-			launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountpointOnClients,
-			nodeKeystoreFiles.FilesArtifactUUID:         validatorKeysMountpointOnClients,
-		}).WithEnvironmentVariableOverrides(map[string]string{
-			rustBacktraceEnvvarName: rustFullBacktraceKeyword,
-		}).Build()
-		return containerConfig, nil
+) *services.ContainerConfig {
+	// For some reason, Lighthouse takes in the parent directory of the config file (rather than the path to the config file itself)
+	genesisConfigParentDirpathOnClient := path.Join(genesisDataMountpointOnClients, path.Dir(launcher.genesisData.GetConfigYMLRelativeFilepath()))
+	validatorKeysDirpath := path.Join(validatorKeysMountpointOnClients, nodeKeystoreFiles.RawKeysRelativeDirpath)
+	validatorSecretsDirpath := path.Join(validatorKeysMountpointOnClients, nodeKeystoreFiles.RawSecretsRelativeDirpath)
+	cmdArgs := []string{
+		"lighthouse",
+		"validator_client",
+		"--debug-level=" + logLevel,
+		"--testnet-dir=" + genesisConfigParentDirpathOnClient,
+		"--validators-dir=" + validatorKeysDirpath,
+		// NOTE: When secrets-dir is specified, we can't add the --data-dir flag
+		"--secrets-dir=" + validatorSecretsDirpath,
+		// The node won't have a slashing protection database and will fail to start otherwise
+		"--init-slashing-protection",
+		"--http",
+		"--unencrypted-http-transport",
+		"--http-address=0.0.0.0",
+		fmt.Sprintf("--http-port=%v", validatorHttpPortNum),
+		"--beacon-nodes=" + beaconClientHttpUrl,
+		"--enable-doppelganger-protection=false",
+		// vvvvvvvvvvvvvvvvvvv PROMETHEUS CONFIG vvvvvvvvvvvvvvvvvvvvv
+		"--metrics",
+		"--metrics-address=0.0.0.0",
+		"--metrics-allow-origin=*",
+		fmt.Sprintf("--metrics-port=%v", validatorMetricsPortNum),
+		// ^^^^^^^^^^^^^^^^^^^ PROMETHEUS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 	}
+	if mevBoostContext != nil {
+		cmdArgs = append(cmdArgs, "--builder-proposals")
+	}
+	if len(extraParams) > 0 {
+		cmdArgs = append(cmdArgs, extraParams...)
+	}
+
+	containerConfig := services.NewContainerConfigBuilder(
+		image,
+	).WithUsedPorts(
+		validatorUsedPorts,
+	).WithCmdOverride(
+		cmdArgs,
+	).WithFiles(map[services.FilesArtifactUUID]string{
+		launcher.genesisData.GetFilesArtifactUUID(): genesisDataMountpointOnClients,
+		nodeKeystoreFiles.FilesArtifactUUID:         validatorKeysMountpointOnClients,
+	}).WithEnvironmentVariableOverrides(map[string]string{
+		rustBacktraceEnvvarName: rustFullBacktraceKeyword,
+	}).Build()
+	return containerConfig
 }
