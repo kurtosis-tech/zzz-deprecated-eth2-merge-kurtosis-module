@@ -1,6 +1,6 @@
 package cl_validator_keystores
 
-import "github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
+import "github.com/kurtosis-tech/kurtosis-sdk/api/golang/core/lib/services"
 
 // One of these will be created per node we're trying to start
 type KeystoreFiles struct {
