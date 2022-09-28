@@ -1,6 +1,6 @@
 package el_genesis
 
-import "github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
+import "github.com/kurtosis-tech/kurtosis-sdk/api/golang/core/lib/services"
 
 // Represents the paths to the EL genesis files *on the module container*
 type ELGenesisData struct {

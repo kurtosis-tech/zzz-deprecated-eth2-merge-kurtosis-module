@@ -1,6 +1,6 @@
 package cl_genesis
 
-import "github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
+import "github.com/kurtosis-tech/kurtosis-sdk/api/golang/core/lib/services"
 
 type CLGenesisData struct {
 	filesArtifactUuid services.FilesArtifactUUID
