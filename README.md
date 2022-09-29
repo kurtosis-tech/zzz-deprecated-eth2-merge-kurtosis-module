@@ -43,8 +43,10 @@ Configuration
 
 To configure the module behaviour, you can modify your `eth2-module-params.yaml` file. The full YAML schema that can be passed in is as follows with the defaults ([from here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/module_io/default_params.go) provided:
 
-You can find the latest Kiln compatible docker images here: https://notes.ethereum.org/@launchpad/kiln
+<details>
+    <summary>Click to show all configuration options</summary>
 
+<!-- Yes, it's weird that none of this is indented but it's intentional - indenting anything inside this "details" expandable will cause it to render weird" -->
 ```yaml
 #  Specification of the participants in the network
 participants:
@@ -179,9 +181,12 @@ verificationsEpochLimit: 5
 #  This value will be overridden by participant-specific values
 logLevel: "info"
 ```
+</details>
 
-Development
------------
+You can find the latest Kiln compatible docker images here: https://notes.ethereum.org/@launchpad/kiln
+
+Developing On This Module
+-------------------------
 First, install prerequisites:
 1. Install Go
 1. [Install Kurtosis itself](https://docs.kurtosistech.com/installation.html)
@@ -199,6 +204,16 @@ Then, run the dev loop:
    NOTE 2: The `--execute-params` flag accepts YAML and YAML is a superset of JSON, so you can pass in either.
 
 To get detailed information about the structure of the module, visit [the architecture docs](./docs/architecture.md).
+
+When you're happy with your changes:
+- Add an entry to `docs/changelog.md` under the `# TBD` header describing your changes (this is required for CI checks to pass!)
+- Create a PR
+- Add one of the maintainers of the repo as a "Review Request":
+    - `parithosh` (Ethereum)
+    - `gbouv` (Kurtosis)
+    - `h4ck3rk3y` (Kurtosis)
+    - `mieubrisse` (Kurtosis)
+- Once everything works, merge! 
 
 <!------------------------ Only links below here -------------------------------->
 [docker-installation]: https://docs.docker.com/get-docker/
