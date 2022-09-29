@@ -1,5 +1,9 @@
 # TBD
 
+### Features
+- Added more detailed instructions on how to submit PRs to this repo
+- Hid the giant configuration behind an expandable
+
 # 0.6.7
 
 ### Changes
