@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	// Needed to copy the JWT secret and genesis.json file
+	// Needed to copy the JWT secret and the EL genesis.json file
 	elGenesisDirpathOnGenerator = "/el-genesis"
 
 	configDirpathOnGenerator = "/config"
