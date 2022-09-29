@@ -14,13 +14,12 @@ import (
 )
 
 const (
-	// Needed to copy the JWT secret
+	// Needed to copy the JWT secret and genesis.json file
 	elGenesisDirpathOnGenerator = "/el-genesis"
 
 	configDirpathOnGenerator = "/config"
 	genesisConfigYmlFilename = "config.yaml" // WARNING: Do not change this! It will get copied to the CL genesis data, and the CL clients are hardcoded to look for this filename
 	mnemonicsYmlFilename     = "mnemonics.yaml"
-
 	outputDirpathOnGenerator = "/output"
 	tranchesDiranme          = "tranches"
 	genesisStateFilename     = "genesis.ssz"
@@ -138,6 +137,7 @@ func GenerateCLGenesisData(
 		path.Join(configDirpathOnGenerator, mnemonicsYmlFilename),
 		path.Join(elGenesisDirpathOnGenerator, elGenesisData.GetJWTSecretRelativeFilepath()),
 	}
+
 	for _, filepathOnGenerator := range allFilepathsToCopyToOuptutDirectory {
 		cmd := []string{
 			"cp",
@@ -183,11 +183,10 @@ func GenerateCLGenesisData(
 
 	clGenesisGenerationCmdArgs := []string{
 		clGenesisGenerationBinaryFilepathOnContainer,
-		"phase0",
+		"merge",
 		"--config", path.Join(outputDirpathOnGenerator, genesisConfigYmlFilename),
-		"--eth1-block", eth1Block,
 		"--mnemonics", path.Join(outputDirpathOnGenerator, mnemonicsYmlFilename),
-		"--timestamp", fmt.Sprintf("%v", genesisUnixTimestamp),
+		"--eth1-config", path.Join(elGenesisDirpathOnGenerator, elGenesisData.GetGethGenesisJsonRelativeFilepath()),
 		"--tranches-dir", path.Join(outputDirpathOnGenerator, tranchesDiranme),
 		"--state-output", path.Join(outputDirpathOnGenerator, genesisStateFilename),
 	}

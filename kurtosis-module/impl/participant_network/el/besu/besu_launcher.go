@@ -5,7 +5,6 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -113,7 +112,6 @@ func (launcher *BesuELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the EL client to become available")
 	}
 
-	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
 		"besu",
 		// TODO Figure out how to get the ENR so CL clients can connect to it!!
@@ -123,14 +121,15 @@ func (launcher *BesuELClientLauncher) Launch(
 		rpcPortNum,
 		wsPortNum,
 		engineHttpRpcPortNum,
-		miningWaiter,
 	)
 
 	return result, nil
 }
 
 // ====================================================================================================
-//                                       Private Helper Methods
+//
+//	Private Helper Methods
+//
 // ====================================================================================================
 func (launcher *BesuELClientLauncher) getContainerConfig(
 	image string,
@@ -138,7 +137,7 @@ func (launcher *BesuELClientLauncher) getContainerConfig(
 	existingElClients []*el.ELClientContext,
 	logLevel string,
 	extraParams []string,
-) (*services.ContainerConfig, error){
+) (*services.ContainerConfig, error) {
 	if len(existingElClients) == 0 {
 		return nil, stacktrace.NewError("Besu nodes cannot be boot nodes")
 	}

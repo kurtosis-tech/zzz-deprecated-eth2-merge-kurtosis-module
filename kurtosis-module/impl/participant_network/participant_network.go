@@ -178,32 +178,6 @@ func LaunchParticipantNetwork(
 		logrus.Infof("Added EL client %v of type '%v'", idx, elClientType)
 	}
 	logrus.Infof("Successfully added %v EL clients", numParticipants)
-
-	if shouldWaitForMining {
-		// Wait for all EL clients to start mining before we proceed with adding the CL clients
-		logrus.Infof("Waiting for all EL clients to start mining before adding CL clients... (this will take a few minutes, but is necessary to ensure that the Beacon nodes get slots from the EL clients; you can skip this wait by setting `\"waitForMining\": false` in the params object, but the Beacon nodes likely won't work properly)")
-		perNodeNumRetries := uint32(numParticipants) * elClientMineWaiterMaxNumRetriesPerNode
-		for idx, elClientCtx := range allElClientContexts {
-			miningWaiter := elClientCtx.GetMiningWaiter()
-			if err := miningWaiter.WaitForMining(
-				perNodeNumRetries,
-				elClientMineWaiterTimeBetweenRetries,
-			); err != nil {
-				return nil, 0, stacktrace.Propagate(
-					err,
-					"EL client %v didn't start mining even after %v retries with %v between retries",
-					idx,
-					perNodeNumRetries,
-					elClientMineWaiterTimeBetweenRetries,
-				)
-			}
-			logrus.Infof("EL client %v has begun mining", idx)
-		}
-		logrus.Infof("All EL clients have started mining")
-	} else {
-		logrus.Infof("The wait-for-mining flag was set to false which means we're skipping waiting for the EL clients to start mining; this will speed up the launch but the Beacon nodes likely won't work properly!")
-	}
-
 	// TODO This is a temporary hack to enable starting an EL-node-only network!
 	//  Will be fixed by Kurtosis product work to make the module easily decomposable
 	if shouldStartJustELNodes {

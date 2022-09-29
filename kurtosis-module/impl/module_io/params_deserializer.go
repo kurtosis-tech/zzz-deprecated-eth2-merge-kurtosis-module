@@ -113,21 +113,21 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 		logrus.Warnf("The current slots-per-epoch value is set to '%v'; values that aren't '%v' may cause the network to behave strangely", networkParams.SlotsPerEpoch, expectedSlotsPerEpoch)
 	}
 
-	// Fork epoch validation
-	if networkParams.AltairForkEpoch == 0 {
-		return nil, stacktrace.NewError("Altair fork epoch must be >= 1")
+	if (networkParams.AltairForkEpoch != 0) || (networkParams.MergeForkEpoch != 0) || (networkParams.TotalTerminalDifficulty != 0) {
+		// Fork epoch validation
+		if networkParams.AltairForkEpoch == 0 {
+			return nil, stacktrace.NewError("Altair fork epoch must be >= 1")
+		}
+		if networkParams.MergeForkEpoch == 0 {
+			return nil, stacktrace.NewError("Merge fork epoch must be >= 1")
+		}
+		if networkParams.MergeForkEpoch <= networkParams.AltairForkEpoch {
+			return nil, stacktrace.NewError("Altair fork epoch must be < merge fork epoch")
+		}
+		if networkParams.TotalTerminalDifficulty == 0 {
+			return nil, stacktrace.NewError("Total terminal difficulty must be >= 1")
+		}
 	}
-	if networkParams.MergeForkEpoch == 0 {
-		return nil, stacktrace.NewError("Merge fork epoch must be >= 1")
-	}
-	if networkParams.MergeForkEpoch <= networkParams.AltairForkEpoch {
-		return nil, stacktrace.NewError("Altair fork epoch must be < merge fork epoch")
-	}
-
-	if networkParams.TotalTerminalDifficulty == 0 {
-		return nil, stacktrace.NewError("Total terminal difficulty must be >= 1")
-	}
-	// TODO validation to ensure TTD comes after merge fork epoch
 
 	// Validator validation
 	requiredNumValidators := 2 * networkParams.SlotsPerEpoch
@@ -141,20 +141,6 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 	}
 	if len(strings.TrimSpace(networkParams.PreregisteredValidatorKeysMnemonic)) == 0 {
 		return nil, stacktrace.NewError("Preregistered validator keys mnemonic must not be empty")
-	}
-
-	// TODO Remove this check once Teku fixes its bug! See:
-	//  https://discord.com/channels/697535391594446898/697539289042649190/935029250858299412
-	hasTeku := false
-	for _, participant := range paramsObj.Participants {
-		hasTeku = hasTeku || participant.CLClientType == ParticipantCLClientType_Teku
-	}
-	if hasTeku && networkParams.MergeForkEpoch < tekuMinimumMergeForkEpoch {
-		return nil, stacktrace.NewError(
-			"Merge fork epoch is '%v' but cannot be < %v when a Teku node is present due to the following bug in Teku: https://discord.com/channels/697535391594446898/697539289042649190/935029250858299412",
-			networkParams.MergeForkEpoch,
-			tekuMinimumMergeForkEpoch,
-		)
 	}
 
 	// TODO Remove this once Nethermind no longer breaks if there's only one bootnode

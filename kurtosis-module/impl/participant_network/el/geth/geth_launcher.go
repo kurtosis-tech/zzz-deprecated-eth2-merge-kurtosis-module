@@ -11,7 +11,6 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
@@ -122,7 +121,6 @@ func (launcher *GethELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the EL client to become available")
 	}
 
-	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
 		"geth",
 		nodeInfo.ENR,
@@ -131,7 +129,6 @@ func (launcher *GethELClientLauncher) Launch(
 		rpcPortNum,
 		wsPortNum,
 		engineRpcPortNum,
-		miningWaiter,
 	)
 
 	return result, nil
@@ -207,6 +204,7 @@ func (launcher *GethELClientLauncher) getContainerConfig(
 		"--authrpc.addr=0.0.0.0",
 		"--authrpc.vhosts=*",
 		fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretJsonFilepathOnClient),
+		"--syncmode=full",
 	}
 	var bootnodeEnode string
 	if len(existingElClients) > 0 {

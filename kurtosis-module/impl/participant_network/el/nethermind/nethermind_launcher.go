@@ -5,7 +5,6 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
@@ -81,7 +80,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 
 	containerConfig, err := launcher.getContainerConfig(image, existingElClients, logLevel, extraParams)
 	if err != nil {
-		return nil, stacktrace.Propagate(err,"There was an error while generating the container config")
+		return nil, stacktrace.Propagate(err, "There was an error while generating the container config")
 	}
 
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfig)
@@ -99,7 +98,6 @@ func (launcher *NethermindELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the EL client to become available")
 	}
 
-	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
 		"nethermind",
 		// TODO TODO TODO TODO Get Nethermind ENR, so that CL clients can connect to it!!!
@@ -109,14 +107,15 @@ func (launcher *NethermindELClientLauncher) Launch(
 		rpcPortNum,
 		wsPortNum,
 		engineRpcPortNum,
-		miningWaiter,
 	)
 
 	return result, nil
 }
 
 // ====================================================================================================
-//                                       Private Helper Methods
+//
+//	Private Helper Methods
+//
 // ====================================================================================================
 func (launcher *NethermindELClientLauncher) getContainerConfig(
 	image string,
