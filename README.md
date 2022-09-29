@@ -44,7 +44,9 @@ Configuration
 To configure the module behaviour, you can modify your `eth2-module-params.yaml` file. The full YAML schema that can be passed in is as follows with the defaults ([from here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/module_io/default_params.go) provided:
 
 <details>
-<summary>Click to show all configuration options</summary>
+    <summary>Click to show all configuration options</summary>
+
+<!-- Yes, it's weird that none of this is indented but it's intentional - indenting anything inside this "details" expandable will cause it to render weird" -->
 ```yaml
 #  Specification of the participants in the network
 participants:
