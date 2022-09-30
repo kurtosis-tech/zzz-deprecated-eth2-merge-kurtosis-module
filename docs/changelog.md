@@ -5,6 +5,16 @@
 * Switched to `merged` genesis state instead of `phase0`
 * Removed support for mining 
 
+### Features
+- Added more detailed instructions on how to submit PRs to this repo
+- Hid the giant configuration behind an expandable
+
+# 0.6.7
+
+### Changes
+* Upgrade to module-api-lib 0.23.0
+* Uses core from the new `kurtosis-sdk` over `kurtosis-core-api-lib`
+
 # 0.6.6
 ### Changes
 * Upgraded to `module-api-lib` to `0.22.4`, engine to `1.34.4` and core to `1.59.2`

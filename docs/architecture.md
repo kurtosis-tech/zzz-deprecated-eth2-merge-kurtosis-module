@@ -96,7 +96,7 @@ Once the Ethereum network is up and running, verification logic will be run to e
 <!------------------------ Only links below here -------------------------------->
 
 [module-docs]: https://docs.kurtosistech.com/modules.html
-[enclave-context]: https://docs.kurtosistech.com/kurtosis-core/lib-documentation#enclavecontext
+[enclave-context]: https://docs.kurtosistech.com/kurtosis/core-lib-documentation#enclavecontext
 
 [execute-function]: https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/module.go#L50
 [module-io]: https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/tree/master/kurtosis-module/impl/module_io

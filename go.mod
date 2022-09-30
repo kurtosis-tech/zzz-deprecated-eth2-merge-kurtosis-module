@@ -3,9 +3,9 @@ module github.com/kurtosis-tech/eth2-merge-kurtosis-module
 go 1.15
 
 require (
-	github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang v0.0.0-20220919225033-3cd8799c3fef
-	github.com/kurtosis-tech/kurtosis-engine-api-lib/api/golang v0.0.0-20220919225846-6997fea7a9f3
-	github.com/kurtosis-tech/kurtosis-module-api-lib/golang v0.0.0-20220920171411-c8a87a908bed
+	github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang v0.0.0-20220928135909-4172424c0cc2
+	github.com/kurtosis-tech/kurtosis-module-api-lib/golang v0.0.0-20220928125950-1b59f15b6f40
+	github.com/kurtosis-tech/kurtosis-sdk/api/golang v0.0.0-20220927205154-f24b7016b373
 	github.com/kurtosis-tech/stacktrace v0.0.0-20211028211901-1c67a77b5409
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
