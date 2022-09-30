@@ -183,7 +183,9 @@ func (launcher *LighthouseCLClientLauncher) Launch(
 }
 
 // ====================================================================================================
-//                                   Private Helper Methods
+//
+//	Private Helper Methods
+//
 // ====================================================================================================
 func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfig(
 	image string,
@@ -223,7 +225,6 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfig(
 		"--debug-level=" + logLevel,
 		"--datadir=" + consensusDataDirpathOnBeaconServiceContainer,
 		"--testnet-dir=" + genesisConfigParentDirpathOnClient,
-		"--eth1",
 		// vvvvvvvvvvvvvvvvvvv REMOVE THESE WHEN CONNECTING TO EXTERNAL NET vvvvvvvvvvvvvvvvvvvvv
 		"--disable-enr-auto-update",
 		"--enr-address=" + privateIPAddressPlaceholder,
@@ -235,14 +236,12 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfig(
 		"--http",
 		"--http-address=0.0.0.0",
 		fmt.Sprintf("--http-port=%v", beaconHttpPortNum),
-		"--merge",
 		"--http-allow-sync-stalled",
 		// NOTE: This comes from:
 		//   https://github.com/sigp/lighthouse/blob/7c88f582d955537f7ffff9b2c879dcf5bf80ce13/scripts/local_testnet/beacon_node.sh
 		// and the option says it's "useful for testing in smaller networks" (unclear what happens in larger networks)
 		"--disable-packet-filter",
 		"--execution-endpoints=" + elClientEngineRpcUrlStr,
-		"--eth1-endpoints=" + elClientRpcUrlStr,
 		"--jwt-secrets=" + jwtSecretFilepath,
 		"--suggested-fee-recipient=" + validatingRewardsAccount,
 		// Set per Paris' recommendation to reduce noise in the logs
