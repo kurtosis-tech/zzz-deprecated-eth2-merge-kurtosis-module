@@ -195,11 +195,6 @@ func (launcher *LighthouseCLClientLauncher) getBeaconContainerConfig(
 	logLevel string,
 	extraParams []string,
 ) *services.ContainerConfig {
-	elClientRpcUrlStr := fmt.Sprintf(
-		"http://%v:%v",
-		elClientCtx.GetIPAddress(),
-		elClientCtx.GetRPCPortNum(),
-	)
 
 	elClientEngineRpcUrlStr := fmt.Sprintf(
 		"http://%v:%v",
