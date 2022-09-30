@@ -1,4 +1,9 @@
 # TBD
+# 0.6.7
+### Changes
+* Updated flags
+* Switched to `merged` genesis state instead of `phase0`
+* Removed support for mining 
 
 # 0.6.6
 ### Changes
