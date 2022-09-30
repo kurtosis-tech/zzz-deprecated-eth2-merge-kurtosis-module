@@ -78,7 +78,7 @@ participants:
     #  Defaults by client (note that Prysm is different in that it requires two images - a Beacon and a validator - separated by a comma):
     #  - lighthouse: sigp/lighthouse:latest
     #  - teku: consensys/teku:latest
-    #  - nimbus: parithoshj/nimbus:merge-d3a00f6
+    #  - nimbus: parithoshj/nimbus:merge-a845450
     #  - prysm: gcr.io/prysmaticlabs/prysm/beacon-chain:latest,gcr.io/prysmaticlabs/prysm/validator:latest
     #  - lodestar: chainsafe/lodestar:next
     clImage: ""

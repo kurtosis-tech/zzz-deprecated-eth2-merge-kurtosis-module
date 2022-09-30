@@ -29,7 +29,7 @@ var defaultClImages = map[ParticipantCLClientType]string{
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantCLClientType_Lighthouse: "sigp/lighthouse:latest",
 	ParticipantCLClientType_Teku:       "consensys/teku:latest",
-	ParticipantCLClientType_Nimbus:     "parithoshj/nimbus:merge-d3a00f6",
+	ParticipantCLClientType_Nimbus:     "parithoshj/nimbus:merge-a845450",
 	// NOTE: Prysm actually has two images - a Beacon and a validator - so we pass in a comma-separated
 	//  "beacon_image,validator_image" string
 	ParticipantCLClientType_Prysm:    "gcr.io/prysmaticlabs/prysm/beacon-chain:latest,gcr.io/prysmaticlabs/prysm/validator:latest",
@@ -40,7 +40,8 @@ var defaultClImages = map[ParticipantCLClientType]string{
 }
 
 // To see the exact JSON keys needed to override these values, see the ExecuteParams object and look for the
-//  `yaml:"XXXXXXX"` metadata on the ExecuteParams properties
+//
+//	`yaml:"XXXXXXX"` metadata on the ExecuteParams properties
 func GetDefaultExecuteParams() *ExecuteParams {
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
@@ -81,8 +82,8 @@ func GetDefaultExecuteParams() *ExecuteParams {
 }
 
 // Gets the string of the log level that the client should log at:
-//  - If the participant-specific log level string is present, use that
-//  - If the participant-specific log level string is empty, use the global default
+//   - If the participant-specific log level string is present, use that
+//   - If the participant-specific log level string is empty, use the global default
 func GetClientLogLevelStrOrDefault(participantLogLevel string, globalLogLevel GlobalClientLogLevel, clientLogLevels map[GlobalClientLogLevel]string) (string, error) {
 
 	var (
