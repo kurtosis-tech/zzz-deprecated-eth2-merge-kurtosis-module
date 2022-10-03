@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/genesis_consts"
+	"github.com/kurtosis-tech/kurtosis-sdk/api/golang/core/lib/enclaves"
+	"github.com/kurtosis-tech/kurtosis-sdk/api/golang/core/lib/services"
 	"path"
 	"strings"
 	"time"
@@ -11,8 +13,6 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
-	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/enclaves"
-	"github.com/kurtosis-tech/kurtosis-core-api-lib/api/golang/lib/services"
 	"github.com/kurtosis-tech/stacktrace"
 )
 
