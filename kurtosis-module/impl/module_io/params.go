@@ -98,22 +98,12 @@ type ExecuteParams struct {
 	//  on this at the Kurtosis product level
 	ExecutionLayerOnly bool `yaml:"executionLayerOnly"`
 
-	// If set to false, we won't wait for the EL clients to mine at least 1 block before proceeding with adding the CL clients
-	// This is purely for debug purposes; waiting for blockNumber > 0 is required for the CL network to behave as
-	//  expected, but that wait can be several minutes. Skipping the wait can be a good way to shorten the debug loop on a
-	//  CL client that's failing to start.
-	WaitForMining bool `yaml:"waitForMining"`
-
 	// If set, the module will block until a finalized epoch has occurred.
 	// If `waitForVerifications` is set to true, this extra wait will be skipped.
 	WaitForFinalization bool `yaml:"waitForFinalization"`
 
 	// If set to true, the module will block until all verifications have passed
 	WaitForVerifications bool `yaml:"waitForVerifications"`
-
-	// If set, this will be the maximum number of epochs to wait for the TTD to be reached.
-	// Verifications will be marked as failed if the TTD takes longer.
-	VerificationsTTDEpochLimit uint64 `yaml:"verificationsTTDEpochLimit"`
 
 	// If set, after the merge, this will be the maximum number of epochs wait for the verifications to succeed.
 	VerificationsEpochLimit uint64 `yaml:"verificationsEpochLimit"`
@@ -184,20 +174,6 @@ type NetworkParams struct {
 
 	// Number of slots in an epoch on the Beacon chain
 	SlotsPerEpoch uint32 `yaml:"slotsPerEpoch"`
-
-	// Must come before the merge fork epoch
-	// See https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F
-	AltairForkEpoch uint64 `yaml:"altairForkEpoch"`
-
-	// Must occur before the total terminal difficulty is hit on the Eth1 chain
-	// See https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F
-	MergeForkEpoch uint64 `yaml:"mergeForkEpoch"`
-
-	// Once the total difficulty of all mined blocks crosses this threshold, the Eth1 chain will
-	//  merge with the Beacon chain
-	// Must happen after the merge fork epoch on the Beacon chain
-	// See https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F
-	TotalTerminalDifficulty uint64 `yaml:"totalTerminalDifficulty"`
 
 	// The number of validator keys that each CL validator node should get
 	NumValidatorKeysPerNode uint32 `yaml:"numValidatorKeysPerNode"`

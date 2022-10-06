@@ -43,6 +43,10 @@ Configuration
 
 To configure the module behaviour, you can modify your `eth2-module-params.yaml` file. The full YAML schema that can be passed in is as follows with the defaults ([from here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/module_io/default_params.go) provided:
 
+Note: Following an update starting the network post-merge, `nimbus` and `prysm` clients don't work anymore. Fixes are tracked in the following Github issues:
+- Prysm: [#11508][prysm-issue]
+- Nimbus: [#4193][nimbus-issue]
+
 <details>
     <summary>Click to show all configuration options</summary>
 
@@ -126,20 +130,6 @@ network:
   #  Number of slots in an epoch on the Beacon chain
   slotsPerEpoch: 32
 
-  #  Must come before the merge fork epoch
-  #  See https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F
-  altairForkEpoch: 1
-
-  #  Must occur before the total terminal difficulty is hit on the Eth1 chain
-  #  See https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F
-  mergeForkEpoch: 2
-
-  #  Once the total difficulty of all mined blocks crosses this threshold, the Eth1 chain will
-  #   merge with the Beacon chain
-  #  Must happen after the merge fork epoch on the Beacon chain
-  #  See https://notes.ethereum.org/@ExXcnR0-SJGthjz1dwkA1A/H1MSKgm3F
-  totalTerminalDifficulty: 100000000
-
   #  The number of validator keys that each CL validator node should get
   numValidatorKeysPerNode: 64
 
@@ -156,22 +146,12 @@ network:
 # NOTE: You will probably want to adjust the `totalTerminalDifficulty` much higher to ensure the EL nodes don't go through the Merge (as they won't have CL nodes)
 executionLayerOnly: false
 
-#  If set to false, we won't wait for the EL clients to mine at least 1 block before proceeding with adding the CL clients
-#  This is purely for debug purposes; waiting for blockNumber > 0 is required for the CL network to behave as
-#   expected, but that wait can be several minutes. Skipping the wait can be a good way to shorten the debug loop on a
-#   CL client that's failing to start.
-waitForMining: true
-
 #  If set, the module will block until a finalized epoch has occurred.
 #  If `waitForVerifications` is set to true, this extra wait will be skipped.
 waitForFinalization: false
 
 #  If set to true, the module will block until all verifications have passed
 waitForVerifications: false
-
-#  If set, this will be the maximum number of epochs to wait for the TTD to be reached.
-#  Verifications will be marked as failed if the TTD takes longer.
-verificationsTTDEpochLimit: 5
 
 #  If set, after the merge, this will be the maximum number of epochs wait for the verifications to succeed.
 verificationsEpochLimit: 5
@@ -221,3 +201,5 @@ When you're happy with your changes:
 [module-docs]: https://docs.kurtosistech.com/modules.html
 [enclave-context]: https://docs.kurtosistech.com/kurtosis-core/lib-documentation#enclavecontext
 [using-the-cli]: https://docs.kurtosistech.com/using-the-cli.html
+[prysm-issue]: https://github.com/prysmaticlabs/prysm/issues/11508
+[nimbus-issue]: https://github.com/status-im/nimbus-eth2/issues/4193

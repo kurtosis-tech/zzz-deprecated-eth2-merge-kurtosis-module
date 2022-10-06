@@ -79,16 +79,14 @@ func GenerateELGenesisData(
 	genesisUnixTimestamp uint64,
 	networkId string,
 	depositContractAddress string,
-	totalTerminalDifficulty uint64,
 ) (
 	*ELGenesisData,
 	error,
 ) {
 	templateData := &genesisGenerationConfigTemplateData{
-		NetworkId:               networkId,
-		DepositContractAddress:  depositContractAddress,
-		UnixTimestamp:           genesisUnixTimestamp,
-		TotalTerminalDifficulty: totalTerminalDifficulty,
+		NetworkId:              networkId,
+		DepositContractAddress: depositContractAddress,
+		UnixTimestamp:          genesisUnixTimestamp,
 	}
 
 	genesisConfigFileTemplateAndData := enclaves.NewTemplateAndData(genesisGenerationConfigTemplate, templateData)

@@ -10,10 +10,6 @@ import (
 const (
 	expectedSecondsPerSlot = 12
 	expectedSlotsPerEpoch  = 32
-
-	// TODO Remove this once Teku fixes its bug with merge fork epoch:
-	//  https://discord.com/channels/697535391594446898/697539289042649190/935029250858299412
-	tekuMinimumMergeForkEpoch = 3
 )
 
 func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
@@ -111,22 +107,6 @@ func DeserializeAndValidateParams(paramsStr string) (*ExecuteParams, error) {
 	}
 	if networkParams.SlotsPerEpoch != expectedSlotsPerEpoch {
 		logrus.Warnf("The current slots-per-epoch value is set to '%v'; values that aren't '%v' may cause the network to behave strangely", networkParams.SlotsPerEpoch, expectedSlotsPerEpoch)
-	}
-
-	if (networkParams.AltairForkEpoch != 0) || (networkParams.MergeForkEpoch != 0) || (networkParams.TotalTerminalDifficulty != 0) {
-		// Fork epoch validation
-		if networkParams.AltairForkEpoch == 0 {
-			return nil, stacktrace.NewError("Altair fork epoch must be >= 1")
-		}
-		if networkParams.MergeForkEpoch == 0 {
-			return nil, stacktrace.NewError("Merge fork epoch must be >= 1")
-		}
-		if networkParams.MergeForkEpoch <= networkParams.AltairForkEpoch {
-			return nil, stacktrace.NewError("Altair fork epoch must be < merge fork epoch")
-		}
-		if networkParams.TotalTerminalDifficulty == 0 {
-			return nil, stacktrace.NewError("Total terminal difficulty must be >= 1")
-		}
 	}
 
 	// Validator validation

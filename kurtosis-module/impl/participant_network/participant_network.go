@@ -37,11 +37,6 @@ const (
 
 	bootParticipantIndex = 0
 
-	// The more nodes, the longer DAG generation takes so the longer we have to wait for a node to become available
-	// TODO MAKE THIS CONFIGURABLE BASED ON ESTIMATED TIME-TO-DAG-GENERATION
-	elClientMineWaiterMaxNumRetriesPerNode = uint32(120)
-	elClientMineWaiterTimeBetweenRetries   = 5 * time.Second
-
 	// The time that the CL genesis generation step takes to complete, based off what we've seen
 	clGenesisDataGenerationTime = 2 * time.Minute
 
@@ -63,7 +58,6 @@ func LaunchParticipantNetwork(
 	networkParams *module_io.NetworkParams,
 	allParticipantSpecs []*module_io.ParticipantParams,
 	globalLogLevel module_io.GlobalClientLogLevel,
-	shouldWaitForMining bool,
 ) (
 	resultParticipants []*Participant,
 	resultClGenesisUnixTimestamp uint64,
@@ -115,7 +109,6 @@ func LaunchParticipantNetwork(
 		elGenesisTimestamp,
 		networkParams.NetworkID,
 		networkParams.DepositContractAddress,
-		networkParams.TotalTerminalDifficulty,
 	)
 	if err != nil {
 		return nil, 0, stacktrace.Propagate(err, "An error occurred generating EL client genesis data")
@@ -143,7 +136,6 @@ func LaunchParticipantNetwork(
 		),
 		module_io.ParticipantELClientType_Nethermind: nethermind.NewNethermindELClientLauncher(
 			elGenesisData,
-			networkParams.TotalTerminalDifficulty,
 		),
 		module_io.ParticipantELClientType_Besu: besu.NewBesuELClientLauncher(
 			elGenesisData,
@@ -212,10 +204,7 @@ func LaunchParticipantNetwork(
 		clGenesisTimestamp,
 		networkParams.NetworkID,
 		networkParams.DepositContractAddress,
-		networkParams.TotalTerminalDifficulty,
 		networkParams.SecondsPerSlot,
-		networkParams.AltairForkEpoch,
-		networkParams.MergeForkEpoch,
 		networkParams.PreregisteredValidatorKeysMnemonic,
 		networkParams.NumValidatorKeysPerNode,
 	)

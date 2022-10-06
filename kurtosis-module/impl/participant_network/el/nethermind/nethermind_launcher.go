@@ -56,12 +56,11 @@ var nethermindLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type NethermindELClientLauncher struct {
-	genesisData             *el_genesis.ELGenesisData
-	totalTerminalDifficulty uint64
+	genesisData *el_genesis.ELGenesisData
 }
 
-func NewNethermindELClientLauncher(genesisData *el_genesis.ELGenesisData, totalTerminalDifficulty uint64) *NethermindELClientLauncher {
-	return &NethermindELClientLauncher{genesisData: genesisData, totalTerminalDifficulty: totalTerminalDifficulty}
+func NewNethermindELClientLauncher(genesisData *el_genesis.ELGenesisData) *NethermindELClientLauncher {
+	return &NethermindELClientLauncher{genesisData: genesisData}
 }
 
 func (launcher *NethermindELClientLauncher) Launch(
@@ -153,7 +152,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfig(
 		fmt.Sprintf("--Network.DiscoveryPort=%v", discoveryPortNum),
 		fmt.Sprintf("--Network.P2PPort=%v", discoveryPortNum),
 		"--Merge.Enabled=true",
-		fmt.Sprintf("--Merge.TerminalTotalDifficulty=%v", launcher.totalTerminalDifficulty),
+		fmt.Sprintf("--Merge.TerminalTotalDifficulty=0"), // merge has happened already
 		"--Merge.TerminalBlockNumber=null",
 		fmt.Sprintf("--JsonRpc.JwtSecretFile=%v", jwtSecretJsonFilepathOnClient),
 		fmt.Sprintf("--JsonRpc.AdditionalRpcUrls=[\"http://0.0.0.0:%v|http;ws|net;eth;subscribe;engine;web3;client\"]", engineRpcPortNum),
