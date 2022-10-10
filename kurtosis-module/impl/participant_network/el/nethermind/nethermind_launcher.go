@@ -5,7 +5,6 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/kurtosis-sdk/api/golang/core/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-sdk/api/golang/core/lib/services"
@@ -57,12 +56,11 @@ var nethermindLogLevels = map[module_io.GlobalClientLogLevel]string{
 }
 
 type NethermindELClientLauncher struct {
-	genesisData             *el_genesis.ELGenesisData
-	totalTerminalDifficulty uint64
+	genesisData *el_genesis.ELGenesisData
 }
 
-func NewNethermindELClientLauncher(genesisData *el_genesis.ELGenesisData, totalTerminalDifficulty uint64) *NethermindELClientLauncher {
-	return &NethermindELClientLauncher{genesisData: genesisData, totalTerminalDifficulty: totalTerminalDifficulty}
+func NewNethermindELClientLauncher(genesisData *el_genesis.ELGenesisData) *NethermindELClientLauncher {
+	return &NethermindELClientLauncher{genesisData: genesisData}
 }
 
 func (launcher *NethermindELClientLauncher) Launch(
@@ -81,7 +79,7 @@ func (launcher *NethermindELClientLauncher) Launch(
 
 	containerConfig, err := launcher.getContainerConfig(image, existingElClients, logLevel, extraParams)
 	if err != nil {
-		return nil, stacktrace.Propagate(err,"There was an error while generating the container config")
+		return nil, stacktrace.Propagate(err, "There was an error while generating the container config")
 	}
 
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfig)
@@ -99,7 +97,6 @@ func (launcher *NethermindELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the EL client to become available")
 	}
 
-	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
 		"nethermind",
 		// TODO TODO TODO TODO Get Nethermind ENR, so that CL clients can connect to it!!!
@@ -109,14 +106,15 @@ func (launcher *NethermindELClientLauncher) Launch(
 		rpcPortNum,
 		wsPortNum,
 		engineRpcPortNum,
-		miningWaiter,
 	)
 
 	return result, nil
 }
 
 // ====================================================================================================
-//                                       Private Helper Methods
+//
+//	Private Helper Methods
+//
 // ====================================================================================================
 func (launcher *NethermindELClientLauncher) getContainerConfig(
 	image string,
@@ -154,7 +152,7 @@ func (launcher *NethermindELClientLauncher) getContainerConfig(
 		fmt.Sprintf("--Network.DiscoveryPort=%v", discoveryPortNum),
 		fmt.Sprintf("--Network.P2PPort=%v", discoveryPortNum),
 		"--Merge.Enabled=true",
-		fmt.Sprintf("--Merge.TerminalTotalDifficulty=%v", launcher.totalTerminalDifficulty),
+		fmt.Sprintf("--Merge.TerminalTotalDifficulty=0"), // merge has happened already
 		"--Merge.TerminalBlockNumber=null",
 		fmt.Sprintf("--JsonRpc.JwtSecretFile=%v", jwtSecretJsonFilepathOnClient),
 		fmt.Sprintf("--JsonRpc.AdditionalRpcUrls=[\"http://0.0.0.0:%v|http;ws|net;eth;subscribe;engine;web3;client\"]", engineRpcPortNum),

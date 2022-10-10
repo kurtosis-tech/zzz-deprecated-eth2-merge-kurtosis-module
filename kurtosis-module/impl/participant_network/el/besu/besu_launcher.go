@@ -5,7 +5,6 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/el_rest_client"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el/mining_waiter"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/el_genesis"
 	"github.com/kurtosis-tech/kurtosis-sdk/api/golang/core/lib/enclaves"
 	"github.com/kurtosis-tech/kurtosis-sdk/api/golang/core/lib/services"
@@ -113,7 +112,6 @@ func (launcher *BesuELClientLauncher) Launch(
 		return nil, stacktrace.Propagate(err, "An error occurred waiting for the EL client to become available")
 	}
 
-	miningWaiter := mining_waiter.NewMiningWaiter(restClient)
 	result := el.NewELClientContext(
 		"besu",
 		// TODO Figure out how to get the ENR so CL clients can connect to it!!
@@ -123,14 +121,15 @@ func (launcher *BesuELClientLauncher) Launch(
 		rpcPortNum,
 		wsPortNum,
 		engineHttpRpcPortNum,
-		miningWaiter,
 	)
 
 	return result, nil
 }
 
 // ====================================================================================================
-//                                       Private Helper Methods
+//
+//	Private Helper Methods
+//
 // ====================================================================================================
 func (launcher *BesuELClientLauncher) getContainerConfig(
 	image string,
@@ -138,7 +137,7 @@ func (launcher *BesuELClientLauncher) getContainerConfig(
 	existingElClients []*el.ELClientContext,
 	logLevel string,
 	extraParams []string,
-) (*services.ContainerConfig, error){
+) (*services.ContainerConfig, error) {
 	if len(existingElClients) == 0 {
 		return nil, stacktrace.NewError("Besu nodes cannot be boot nodes")
 	}
@@ -158,17 +157,15 @@ func (launcher *BesuELClientLauncher) getContainerConfig(
 		"--genesis-file=" + genesisJsonFilepathOnClient,
 		"--network-id=" + networkId,
 		"--host-allowlist=*",
-		"--miner-enabled=true",
-		"--miner-coinbase=" + miningRewardsAccount,
 		"--rpc-http-enabled=true",
 		"--rpc-http-host=0.0.0.0",
 		fmt.Sprintf("--rpc-http-port=%v", rpcPortNum),
-		"--rpc-http-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,ENGINE",
+		"--rpc-http-api=ADMIN,CLIQUE,ETH,NET,DEBUG,TXPOOL,ENGINE",
 		"--rpc-http-cors-origins=*",
 		"--rpc-ws-enabled=true",
 		"--rpc-ws-host=0.0.0.0",
 		fmt.Sprintf("--rpc-ws-port=%v", wsPortNum),
-		"--rpc-ws-api=ADMIN,CLIQUE,MINER,ETH,NET,DEBUG,TXPOOL,ENGINE",
+		"--rpc-ws-api=ADMIN,CLIQUE,ETH,NET,DEBUG,TXPOOL,ENGINE",
 		"--p2p-enabled=true",
 		"--p2p-host=" + privateIPAddressPlaceholder,
 		fmt.Sprintf("--p2p-port=%v", discoveryPortNum),

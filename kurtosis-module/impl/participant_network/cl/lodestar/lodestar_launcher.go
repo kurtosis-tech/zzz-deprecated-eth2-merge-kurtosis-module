@@ -23,15 +23,17 @@ const (
 	validatorKeysMountDirpathOnServiceContainer = "/validator-keys"
 
 	// Port IDs
-	tcpDiscoveryPortID = "tcp-discovery"
-	udpDiscoveryPortID = "udp-discovery"
-	httpPortID         = "http"
-	metricsPortID      = "metrics"
+	tcpDiscoveryPortID     = "tcp-discovery"
+	udpDiscoveryPortID     = "udp-discovery"
+	httpPortID             = "http"
+	metricsPortID          = "metrics"
+	validatorMetricsPortID = "validator-metrics"
 
 	// Port nums
-	discoveryPortNum uint16 = 9000
-	httpPortNum             = 4000
-	metricsPortNum   uint16 = 8008
+	discoveryPortNum        uint16 = 9000
+	httpPortNum                    = 4000
+	metricsPortNum          uint16 = 8008
+	validatorMetricsPortNum        = 5064
 
 	maxNumHealthcheckRetries      = 30
 	timeBetweenHealthcheckRetries = 2 * time.Second
@@ -45,17 +47,18 @@ const (
 )
 
 var usedPorts = map[string]*services.PortSpec{
-	tcpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
-	udpDiscoveryPortID: services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
-	httpPortID:         services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
-	metricsPortID:      services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
+	tcpDiscoveryPortID:     services.NewPortSpec(discoveryPortNum, services.PortProtocol_TCP),
+	udpDiscoveryPortID:     services.NewPortSpec(discoveryPortNum, services.PortProtocol_UDP),
+	httpPortID:             services.NewPortSpec(httpPortNum, services.PortProtocol_TCP),
+	metricsPortID:          services.NewPortSpec(metricsPortNum, services.PortProtocol_TCP),
+	validatorMetricsPortID: services.NewPortSpec(validatorMetricsPortNum, services.PortProtocol_TCP),
 }
 var lodestarLogLevels = map[module_io.GlobalClientLogLevel]string{
 	module_io.GlobalClientLogLevel_Error: "error",
 	module_io.GlobalClientLogLevel_Warn:  "warn",
 	module_io.GlobalClientLogLevel_Info:  "info",
 	module_io.GlobalClientLogLevel_Debug: "debug",
-	module_io.GlobalClientLogLevel_Trace: "silly",
+	module_io.GlobalClientLogLevel_Trace: "trace",
 }
 
 type LodestarClientLauncher struct {
@@ -153,7 +156,9 @@ func (launcher *LodestarClientLauncher) Launch(
 }
 
 // ====================================================================================================
-//                                   Private Helper Methods
+//
+//	Private Helper Methods
+//
 // ====================================================================================================
 func (launcher *LodestarClientLauncher) getBeaconContainerConfig(
 	image string,
@@ -184,37 +189,37 @@ func (launcher *LodestarClientLauncher) getBeaconContainerConfig(
 		"--logLevel=" + logLevel,
 		fmt.Sprintf("--port=%v", discoveryPortNum),
 		fmt.Sprintf("--discoveryPort=%v", discoveryPortNum),
-		"--rootDir=" + consensusDataDirpathOnServiceContainer,
+		"--dataDir=" + consensusDataDirpathOnServiceContainer,
 		"--paramsFile=" + genesisConfigFilepath,
 		"--genesisStateFile=" + genesisSszFilepath,
 		"--eth1.depositContractDeployBlock=0",
 		"--network.connectToDiscv5Bootnodes=true",
-		"--network.discv5.enabled=true",
-		"--eth1.enabled=true",
+		"--discv5=true",
+		"--eth1=true",
 		"--eth1.providerUrls=" + elClientRpcUrlStr,
 		"--execution.urls=" + elClientEngineRpcUrlStr,
-		"--api.rest.enabled=true",
-		"--api.rest.host=0.0.0.0",
-		"--api.rest.api=*",
-		fmt.Sprintf("--api.rest.port=%v", httpPortNum),
+		"--rest=true",
+		"--rest.address=0.0.0.0",
+		"--rest.namespace=*",
+		fmt.Sprintf("--rest.port=%v", httpPortNum),
 		"--enr.ip=" + privateIPAddressPlaceholder,
 		fmt.Sprintf("--enr.tcp=%v", discoveryPortNum),
 		fmt.Sprintf("--enr.udp=%v", discoveryPortNum),
 		// Set per Pari's recommendation to reduce noise in the logs
-		"--network.subscribeAllSubnets=true",
+		"--subscribeAllSubnets=true",
 		fmt.Sprintf("--jwt-secret=%v", jwtSecretFilepath),
 		// vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
-		"--metrics.enabled",
-		"--metrics.listenAddr=0.0.0.0",
-		fmt.Sprintf("--metrics.serverPort=%v", metricsPortNum),
+		"--metrics",
+		"--metrics.address=0.0.0.0",
+		fmt.Sprintf("--metrics.port=%v", metricsPortNum),
 		// ^^^^^^^^^^^^^^^^^^^ METRICS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 	}
 	if bootnodeContext != nil {
-		cmdArgs = append(cmdArgs, "--network.discv5.bootEnrs="+bootnodeContext.GetENR())
+		cmdArgs = append(cmdArgs, "--bootnodes="+bootnodeContext.GetENR())
 	}
 	if mevBoostContext != nil {
-		cmdArgs = append(cmdArgs, "--builder.enabled")
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--builder-urls '%s'", mevBoostContext.Endpoint()))
+		cmdArgs = append(cmdArgs, "--builder")
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--builder.urls '%s'", mevBoostContext.Endpoint()))
 	}
 	if len(extraParams) > 0 {
 		cmdArgs = append(cmdArgs, extraParams...)
@@ -248,18 +253,23 @@ func (launcher *LodestarClientLauncher) getValidatorContainerConfig(
 
 	genesisConfigFilepath := path.Join(genesisDataMountDirpathOnServiceContainer, launcher.genesisData.GetConfigYMLRelativeFilepath())
 	validatorKeysDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.RawKeysRelativeDirpath)
-	validatorSecretsDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.LodestarSecretsRelativeDirpath)
+	validatorSecretsDirpath := path.Join(validatorKeysMountDirpathOnServiceContainer, keystoreFiles.RawSecretsRelativeDirpath)
 	cmdArgs := []string{
 		"validator",
 		"--logLevel=" + logLevel,
-		"--rootDir=" + rootDirpath,
+		"--dataDir=" + rootDirpath,
 		"--paramsFile=" + genesisConfigFilepath,
 		"--server=" + beaconEndpoint,
 		"--keystoresDir=" + validatorKeysDirpath,
 		"--secretsDir=" + validatorSecretsDirpath,
+		// vvvvvvvvvvvvvvvvvvv PROMETHEUS CONFIG vvvvvvvvvvvvvvvvvvvvv
+		"--metrics",
+		"--metrics.address=0.0.0.0",
+		fmt.Sprintf("--metrics.port=%v", validatorMetricsPortNum),
+		// ^^^^^^^^^^^^^^^^^^^ PROMETHEUS CONFIG ^^^^^^^^^^^^^^^^^^^^^
 	}
 	if mevBoostContext != nil {
-		cmdArgs = append(cmdArgs, "--builder.enabled")
+		cmdArgs = append(cmdArgs, "--builder")
 		// TODO required to work?
 		// cmdArgs = append(cmdArgs, "--defaultFeeRecipient <your ethereum address>")
 	}

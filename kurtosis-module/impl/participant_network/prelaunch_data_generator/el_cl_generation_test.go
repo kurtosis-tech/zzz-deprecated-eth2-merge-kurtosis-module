@@ -89,7 +89,6 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 		uint64(time.Now().Unix()),
 		networkParams.NetworkID,
 		networkParams.DepositContractAddress,
-		networkParams.TotalTerminalDifficulty,
 	)
 	require.NoError(t, err)
 
@@ -102,10 +101,7 @@ func TestPrelaunchGenesisGeneration(t *testing.T) {
 		uint64(time.Now().Unix()),
 		networkParams.NetworkID,
 		networkParams.DepositContractAddress,
-		networkParams.TotalTerminalDifficulty,
 		networkParams.SecondsPerSlot,
-		networkParams.AltairForkEpoch,
-		networkParams.MergeForkEpoch,
 		networkParams.PreregisteredValidatorKeysMnemonic,
 		networkParams.NumValidatorKeysPerNode,
 	)

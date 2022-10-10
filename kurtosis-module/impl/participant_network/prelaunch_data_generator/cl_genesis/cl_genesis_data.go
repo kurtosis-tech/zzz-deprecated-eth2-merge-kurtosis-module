@@ -6,8 +6,8 @@ type CLGenesisData struct {
 	filesArtifactUuid services.FilesArtifactUUID
 
 	// Various filepaths, relative to the root of the files artifact
-	jwtSecretRelativeFilepath string
-	configYmlRelativeFilepath string
+	jwtSecretRelativeFilepath  string
+	configYmlRelativeFilepath  string
 	genesisSszRelativeFilepath string
 }
 

@@ -9,7 +9,7 @@ CONFIG_NAME: testnet # needs to exist because of Prysm. Otherwise it conflicts w
 MIN_GENESIS_ACTIVE_VALIDATOR_COUNT: {{ .NumValidatorKeysToPreregister }}
 MIN_GENESIS_TIME: {{ .UnixTimestamp }}
 GENESIS_FORK_VERSION: 0x10005555
-GENESIS_DELAY: 0
+GENESIS_DELAY: 120
 
 # Forking
 # ---------------------------------------------------------------
@@ -17,13 +17,17 @@ GENESIS_DELAY: 0
 #  - These may be re-assigned to another fork-version later
 #  - Temporarily set to max uint64 value: 2**64 - 1
 
+# Note: The module runs a merged chain so ALTAIR_FORK_EPOCH, BELLATRIX_FORK_EPOCH and TERMINAL_TOTAL_DIFFICULTY
+# are all hardcoded to zero.
+
 # Altair
 ALTAIR_FORK_VERSION: 0x11005555
-ALTAIR_FORK_EPOCH: {{ .AltairForkEpoch }}
+ALTAIR_FORK_EPOCH: 0
 # Merge
 BELLATRIX_FORK_VERSION: 0x12005555
-BELLATRIX_FORK_EPOCH: {{ .MergeForkEpoch }}
-TERMINAL_TOTAL_DIFFICULTY: {{ .TotalTerminalDifficulty }}
+BELLATRIX_FORK_EPOCH: 0
+
+TERMINAL_TOTAL_DIFFICULTY: 0
 # 0x0000...000 indicates that we use TERMINAL_TOTAL_DIFFICULTY instead of a block has to trigger the merge
 # See also: https://eips.ethereum.org/EIPS/eip-3675
 TERMINAL_BLOCK_HASH: 0x0000000000000000000000000000000000000000000000000000000000000000

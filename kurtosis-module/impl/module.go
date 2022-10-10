@@ -88,7 +88,6 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		networkParams,
 		paramsObj.Participants,
 		paramsObj.ClientLogLevel,
-		paramsObj.WaitForMining,
 	)
 	if err != nil {
 		return "", stacktrace.Propagate(
@@ -104,12 +103,12 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 		allClClientContexts = append(allClClientContexts, participant.GetCLClientContext())
 	}
 	logrus.Infof("Successfully added %v participants", numParticipants)
-	
+
 	// TODO This is a temporary hack to add only EL nodes until the product supports easily decomposing this module
 	if paramsObj.ExecutionLayerOnly {
 		return "{}", nil
 	}
-	
+
 	logrus.Info("Launching transaction spammer...")
 	if err := transaction_spammer.LaunchTransanctionSpammer(
 		enclaveCtx,
@@ -178,7 +177,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 
 	if paramsObj.WaitForVerifications {
 		logrus.Info("Running synchronous testnet verification...")
-		retCode, output, err := testnet_verifier.RunSynchronousTestnetVerification(paramsObj, enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty)
+		retCode, output, err := testnet_verifier.RunSynchronousTestnetVerification(paramsObj, enclaveCtx, allElClientContexts, allClClientContexts)
 		if err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred running the merge testnet verification")
 		}
@@ -197,7 +196,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	} else {
 
 		logrus.Info("Launching asynchronous merge testnet verifier...")
-		if err := testnet_verifier.LaunchAsynchronousTestnetVerifier(paramsObj, enclaveCtx, allElClientContexts, allClClientContexts, networkParams.TotalTerminalDifficulty); err != nil {
+		if err := testnet_verifier.LaunchAsynchronousTestnetVerifier(paramsObj, enclaveCtx, allElClientContexts, allClClientContexts); err != nil {
 			return "", stacktrace.Propagate(err, "An error occurred launching the merge testnet verifier")
 		}
 		logrus.Info("Successfully launched merge testnet verifier")

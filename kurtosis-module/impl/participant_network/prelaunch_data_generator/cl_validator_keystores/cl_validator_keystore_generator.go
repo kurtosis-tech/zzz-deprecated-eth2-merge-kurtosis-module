@@ -23,20 +23,19 @@ const (
 
 	successfulExecCmdExitCode = 0
 
-	rawKeysDirname = "keys"
+	rawKeysDirname    = "keys"
 	rawSecretsDirname = "secrets"
 
-	lodestarSecretsDirname = "lodestar-secrets"
-
 	nimbusKeysDirname = "nimbus-keys"
-	prysmDirname = "prysm"
+	prysmDirname      = "prysm"
 
-	tekuKeysDirname = "teku-keys"
+	tekuKeysDirname    = "teku-keys"
 	tekuSecretsDirname = "teku-secrets"
 )
 
 // Generates keystores for the given number of nodes from the given mnemonic, where each keystore contains approximately
-//  num_keys / num_nodes keys
+//
+//	num_keys / num_nodes keys
 func GenerateCLValidatorKeystores(
 	ctx context.Context,
 	enclaveCtx *enclaves.EnclaveContext,
@@ -108,7 +107,6 @@ func GenerateCLValidatorKeystores(
 			artifactUuid,
 			path.Join(baseDirnameInArtifact, rawKeysDirname),
 			path.Join(baseDirnameInArtifact, rawSecretsDirname),
-			path.Join(baseDirnameInArtifact, lodestarSecretsDirname),
 			path.Join(baseDirnameInArtifact, nimbusKeysDirname),
 			path.Join(baseDirnameInArtifact, prysmDirname),
 			path.Join(baseDirnameInArtifact, tekuKeysDirname),

@@ -10,8 +10,6 @@ type KeystoreFiles struct {
 	RawKeysRelativeDirpath    string
 	RawSecretsRelativeDirpath string
 
-	LodestarSecretsRelativeDirpath string
-
 	NimbusKeysRelativeDirpath string
 
 	PrysmRelativeDirpath string
@@ -20,6 +18,6 @@ type KeystoreFiles struct {
 	TekuSecretsRelativeDirpath string
 }
 
-func NewKeystoreFiles(filesArtifactUUID services.FilesArtifactUUID, rawKeysRelativeDirpath string, rawSecretsRelativeDirpath string, lodestarSecretsRelativeDirpath string, nimbusKeysRelativeDirpath string, prysmRelativeDirpath string, tekuKeysRelativeDirpath string, tekuSecretsRelativeDirpath string) *KeystoreFiles {
-	return &KeystoreFiles{FilesArtifactUUID: filesArtifactUUID, RawKeysRelativeDirpath: rawKeysRelativeDirpath, RawSecretsRelativeDirpath: rawSecretsRelativeDirpath, LodestarSecretsRelativeDirpath: lodestarSecretsRelativeDirpath, NimbusKeysRelativeDirpath: nimbusKeysRelativeDirpath, PrysmRelativeDirpath: prysmRelativeDirpath, TekuKeysRelativeDirpath: tekuKeysRelativeDirpath, TekuSecretsRelativeDirpath: tekuSecretsRelativeDirpath}
+func NewKeystoreFiles(filesArtifactUUID services.FilesArtifactUUID, rawKeysRelativeDirpath string, rawSecretsRelativeDirpath string, nimbusKeysRelativeDirpath string, prysmRelativeDirpath string, tekuKeysRelativeDirpath string, tekuSecretsRelativeDirpath string) *KeystoreFiles {
+	return &KeystoreFiles{FilesArtifactUUID: filesArtifactUUID, RawKeysRelativeDirpath: rawKeysRelativeDirpath, RawSecretsRelativeDirpath: rawSecretsRelativeDirpath, NimbusKeysRelativeDirpath: nimbusKeysRelativeDirpath, PrysmRelativeDirpath: prysmRelativeDirpath, TekuKeysRelativeDirpath: tekuKeysRelativeDirpath, TekuSecretsRelativeDirpath: tekuSecretsRelativeDirpath}
 }

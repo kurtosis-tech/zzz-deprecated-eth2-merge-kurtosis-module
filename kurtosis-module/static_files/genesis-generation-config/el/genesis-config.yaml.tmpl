@@ -11,7 +11,8 @@ eth1_premine_addrs: {}
 chain_id: {{ .NetworkId }}
 deposit_contract_address: "{{ .DepositContractAddress }}"
 eth1_genesis_timestamp: {{ .UnixTimestamp }}
-terminal_total_difficulty: {{ .TotalTerminalDifficulty }}
+# Note: The module runs a merged chain so terminal_total_difficulty is hardcoded to zero.
+terminal_total_difficulty: 0
 
 # Set to 10 per Pari's recommendation
 # To read more about what this is and does, see: https://notes.ethereum.org/cmyGUbKVTTqhUGDg_GYThg

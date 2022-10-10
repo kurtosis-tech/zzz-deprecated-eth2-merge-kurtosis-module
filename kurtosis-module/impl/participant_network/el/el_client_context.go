@@ -8,11 +8,10 @@ type ELClientContext struct {
 	rpcPortNum       uint16
 	wsPortNum        uint16
 	engineRpcPortNum uint16
-	miningWaiter     ELClientMiningWaiter
 }
 
-func NewELClientContext(clientName string, enr string, enode string, ipAddr string, rpcPortNum uint16, wsPortNum uint16, engineRpcPortNum uint16, miningWaiter ELClientMiningWaiter) *ELClientContext {
-	return &ELClientContext{clientName: clientName, enr: enr, enode: enode, ipAddr: ipAddr, rpcPortNum: rpcPortNum, wsPortNum: wsPortNum, engineRpcPortNum: engineRpcPortNum, miningWaiter: miningWaiter}
+func NewELClientContext(clientName string, enr string, enode string, ipAddr string, rpcPortNum uint16, wsPortNum uint16, engineRpcPortNum uint16) *ELClientContext {
+	return &ELClientContext{clientName: clientName, enr: enr, enode: enode, ipAddr: ipAddr, rpcPortNum: rpcPortNum, wsPortNum: wsPortNum, engineRpcPortNum: engineRpcPortNum}
 
 }
 
@@ -37,7 +36,4 @@ func (ctx *ELClientContext) GetWSPortNum() uint16 {
 }
 func (ctx *ELClientContext) GetEngineRPCPortNum() uint16 {
 	return ctx.engineRpcPortNum
-}
-func (ctx *ELClientContext) GetMiningWaiter() ELClientMiningWaiter {
-	return ctx.miningWaiter
 }

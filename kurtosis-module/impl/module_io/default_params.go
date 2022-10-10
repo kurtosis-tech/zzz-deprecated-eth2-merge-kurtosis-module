@@ -29,7 +29,7 @@ var defaultClImages = map[ParticipantCLClientType]string{
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantCLClientType_Lighthouse: "sigp/lighthouse:latest",
 	ParticipantCLClientType_Teku:       "consensys/teku:latest",
-	ParticipantCLClientType_Nimbus:     "parithoshj/nimbus:merge-d3a00f6",
+	ParticipantCLClientType_Nimbus:     "parithoshj/nimbus:merge-a845450",
 	// NOTE: Prysm actually has two images - a Beacon and a validator - so we pass in a comma-separated
 	//  "beacon_image,validator_image" string
 	ParticipantCLClientType_Prysm:    "gcr.io/prysmaticlabs/prysm/beacon-chain:latest,gcr.io/prysmaticlabs/prysm/validator:latest",
@@ -40,7 +40,8 @@ var defaultClImages = map[ParticipantCLClientType]string{
 }
 
 // To see the exact JSON keys needed to override these values, see the ExecuteParams object and look for the
-//  `yaml:"XXXXXXX"` metadata on the ExecuteParams properties
+//
+//	`yaml:"XXXXXXX"` metadata on the ExecuteParams properties
 func GetDefaultExecuteParams() *ExecuteParams {
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
@@ -61,19 +62,14 @@ func GetDefaultExecuteParams() *ExecuteParams {
 			DepositContractAddress:             "0x4242424242424242424242424242424242424242",
 			SecondsPerSlot:                     12,
 			SlotsPerEpoch:                      32,
-			AltairForkEpoch:                    1,
-			MergeForkEpoch:                     2,
-			TotalTerminalDifficulty:            100000000,
 			NumValidatorKeysPerNode:            64,
 			PreregisteredValidatorKeysMnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete",
 		},
-		ExecutionLayerOnly:         false,
-		WaitForMining:              true,
-		WaitForFinalization:        false,
-		WaitForVerifications:       false,
-		VerificationsTTDEpochLimit: 5,
-		VerificationsEpochLimit:    5,
-		ClientLogLevel:             GlobalClientLogLevel_Info,
+		ExecutionLayerOnly:      false,
+		WaitForFinalization:     false,
+		WaitForVerifications:    false,
+		VerificationsEpochLimit: 5,
+		ClientLogLevel:          GlobalClientLogLevel_Info,
 	}
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//       If you change these in any way, modify the example JSON config in the README to reflect this!
@@ -81,8 +77,8 @@ func GetDefaultExecuteParams() *ExecuteParams {
 }
 
 // Gets the string of the log level that the client should log at:
-//  - If the participant-specific log level string is present, use that
-//  - If the participant-specific log level string is empty, use the global default
+//   - If the participant-specific log level string is present, use that
+//   - If the participant-specific log level string is empty, use the global default
 func GetClientLogLevelStrOrDefault(participantLogLevel string, globalLogLevel GlobalClientLogLevel, clientLogLevels map[GlobalClientLogLevel]string) (string, error) {
 
 	var (
