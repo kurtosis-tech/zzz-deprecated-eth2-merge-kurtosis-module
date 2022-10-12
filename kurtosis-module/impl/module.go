@@ -3,10 +3,8 @@ package impl
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/prelaunch_data_generator/genesis_consts"
 	"io/ioutil"
-	"strings"
 	"time"
 
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/forkmon"
@@ -14,11 +12,9 @@ import (
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/module_io"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/cl/cl_client_rest_client"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/participant_network/el"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/prometheus"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/static_files"
-	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/testnet_verifier"
 	"github.com/kurtosis-tech/eth2-merge-kurtosis-module/kurtosis-module/impl/transaction_spammer"
 	"github.com/kurtosis-tech/kurtosis-sdk/api/golang/core/lib/enclaves"
 	"github.com/kurtosis-tech/stacktrace"
@@ -81,9 +77,6 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Infof("Adding %v participants logging at level '%v'...", numParticipants, paramsObj.ClientLogLevel)
 	participants, clGenesisUnixTimestamp, err := participant_network.LaunchParticipantNetwork(
 		ctx,
-		// TODO this is a temporary hack to enable starting an EL-only network; we're working on fixing this in a productized
-		//  way in Kurtosis itself
-		paramsObj.ExecutionLayerOnly,
 		enclaveCtx,
 		networkParams,
 		paramsObj.Participants,
@@ -104,8 +97,8 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 	logrus.Infof("Successfully added %v participants", numParticipants)
 
-	// TODO This is a temporary hack to add only EL nodes until the product supports easily decomposing this module
-	if paramsObj.ExecutionLayerOnly {
+	// TODO This is a temporary hack to only starts the Ethereum network until the product supports easily decomposing this module
+	if !paramsObj.LaunchAdditionalServices {
 		return "{}", nil
 	}
 
@@ -175,45 +168,6 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 	logrus.Infof("Successfully launched Grafana. The eth2 merge module dashboard can be reached via path '%v'", grafanaDashboardPathUrl)
 
-	if paramsObj.WaitForVerifications {
-		logrus.Info("Running synchronous testnet verification...")
-		retCode, output, err := testnet_verifier.RunSynchronousTestnetVerification(paramsObj, enclaveCtx, allElClientContexts, allClClientContexts)
-		if err != nil {
-			return "", stacktrace.Propagate(err, "An error occurred running the merge testnet verification")
-		}
-		logrus.Info("Testnet verification has finished...")
-		if retCode != 0 {
-			logrus.Error("Some verifications were not successful")
-			lines := strings.Split(output, "\n")
-			for _, l := range lines {
-				if strings.Contains(l, "lvl=crit") {
-					logrus.Error(l)
-				}
-			}
-			return "", fmt.Errorf("Some verifications were not successful")
-		}
-		logrus.Info("Successfully ran merge testnet verification, all verifications were successful")
-	} else {
-
-		logrus.Info("Launching asynchronous merge testnet verifier...")
-		if err := testnet_verifier.LaunchAsynchronousTestnetVerifier(paramsObj, enclaveCtx, allElClientContexts, allClClientContexts); err != nil {
-			return "", stacktrace.Propagate(err, "An error occurred launching the merge testnet verifier")
-		}
-		logrus.Info("Successfully launched merge testnet verifier")
-
-		if paramsObj.WaitForFinalization {
-			logrus.Info("Waiting for the first finalized epoch...")
-			// TODO Make sure that ALL Beacon clients have finalized, not just the first one!!!
-			firstClClientCtx := allClClientContexts[0]
-			firstClClientRestClient := firstClClientCtx.GetRESTClient()
-			if err := waitUntilFirstFinalizedEpoch(firstClClientRestClient, networkParams.SecondsPerSlot, networkParams.SlotsPerEpoch); err != nil {
-				return "", stacktrace.Propagate(err, "An error occurred waiting until the first finalized epoch occurred")
-			}
-			logrus.Info("First finalized epoch occurred successfully")
-		}
-
-	}
-
 	responseObj := &module_io.ExecuteResponse{
 		GrafanaInfo: &module_io.GrafanaInfo{
 			DashboardPath: grafanaDashboardPathUrl,
@@ -227,39 +181,4 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	}
 
 	return string(responseStr), nil
-}
-
-func waitUntilFirstFinalizedEpoch(
-	restClient *cl_client_rest_client.CLClientRESTClient,
-	secondsPerSlot uint32,
-	slotsPerEpoch uint32,
-) error {
-	// If we wait long enough that we've just entered this epoch, we've waited too long - finality should already have happened
-	waitedTooLongEpoch := firstHeadEpochWhereFinalizedEpochIsPossible + 1 + finalizedEpochTolerance
-	timeoutSeconds := waitedTooLongEpoch * uint64(slotsPerEpoch) * uint64(secondsPerSlot)
-	timeout := time.Duration(timeoutSeconds) * time.Second
-	deadline := time.Now().Add(timeout)
-
-	for time.Now().Before(deadline) {
-		currentSlot, err := restClient.GetCurrentSlot()
-		if err != nil {
-			return stacktrace.Propagate(err, "An error occurred getting the current slot using the REST client, which should never happen")
-		}
-		currentEpoch := currentSlot / uint64(slotsPerEpoch)
-		finalizedEpoch, err := restClient.GetFinalizedEpoch()
-		if err != nil {
-			return stacktrace.Propagate(err, "An error occurred getting the finalized epoch using the REST client, which should never happen")
-		}
-		if finalizedEpoch > 0 {
-			return nil
-		}
-		logrus.Debugf(
-			"Finalized epoch hasn't occurred yet; current slot = '%v', current epoch = '%v', and finalized epoch = '%v'",
-			currentSlot,
-			currentEpoch,
-			finalizedEpoch,
-		)
-		time.Sleep(timeBetweenFinalizedEpochChecks)
-	}
-	return stacktrace.NewError("Waited for %v for a finalized epoch to occur, but it didn't happen", timeout)
 }

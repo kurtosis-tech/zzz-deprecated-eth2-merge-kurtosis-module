@@ -137,24 +137,14 @@ network:
   #   validator keys already preregistered as validators
   preregisteredValidatorKeysMnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
 
-# If set to true:
-#  - only the EL nodes & the transaction spammer will be started
-#  - everything CL nodes & after will be skipped (including Forkmon)
+# True by defaults such that in addition to the Ethereum network:
+#  - A transaction spammer is launched to fake transactions sent to the network
+#  - Forkmon will be launched after CL genesis has happened
+#  - A prometheus will be started, coupled with grafana
+# If set to false:
+#  - only Ethereum network (EL and CL nodes) will be launched. Nothing else (no transaction spammer)
 #  - params for the CL nodes will be ignored (e.g. CL node image, CL node extra params)
-#  - the response will be missing URLs for things started after the EL ndoes
-#  - EL-node-only params like loglevel and `waitForMining` will still be used
-# NOTE: You will probably want to adjust the `totalTerminalDifficulty` much higher to ensure the EL nodes don't go through the Merge (as they won't have CL nodes)
-executionLayerOnly: false
-
-#  If set, the module will block until a finalized epoch has occurred.
-#  If `waitForVerifications` is set to true, this extra wait will be skipped.
-waitForFinalization: false
-
-#  If set to true, the module will block until all verifications have passed
-waitForVerifications: false
-
-#  If set, after the merge, this will be the maximum number of epochs wait for the verifications to succeed.
-verificationsEpochLimit: 5
+launchAdditionalServices: true
 
 #  The global log level that all clients should log at
 #  Valid values are "error", "warn", "info", "debug", and "trace"
