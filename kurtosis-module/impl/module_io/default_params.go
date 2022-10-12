@@ -66,9 +66,6 @@ func GetDefaultExecuteParams() *ExecuteParams {
 			PreregisteredValidatorKeysMnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete",
 		},
 		LaunchAdditionalServices: true,
-		WaitForFinalization:      false,
-		WaitForVerifications:     false,
-		VerificationsEpochLimit:  5,
 		ClientLogLevel:           GlobalClientLogLevel_Info,
 	}
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

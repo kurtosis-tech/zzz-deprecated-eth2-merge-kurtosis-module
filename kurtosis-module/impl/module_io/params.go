@@ -100,16 +100,6 @@ type ExecuteParams struct {
 	//  on this at the Kurtosis product level
 	LaunchAdditionalServices bool `yaml:"launchAdditionalServices"`
 
-	// If set, the module will block until a finalized epoch has occurred.
-	// If `waitForVerifications` is set to true, this extra wait will be skipped.
-	WaitForFinalization bool `yaml:"waitForFinalization"`
-
-	// If set to true, the module will block until all verifications have passed
-	WaitForVerifications bool `yaml:"waitForVerifications"`
-
-	// If set, after the merge, this will be the maximum number of epochs wait for the verifications to succeed.
-	VerificationsEpochLimit uint64 `yaml:"verificationsEpochLimit"`
-
 	// The log level that the started clients should log at
 	ClientLogLevel GlobalClientLogLevel `yaml:"logLevel"`
 }

@@ -146,16 +146,6 @@ network:
 #  - params for the CL nodes will be ignored (e.g. CL node image, CL node extra params)
 launchAdditionalServices: true
 
-#  If set, the module will block until a finalized epoch has occurred.
-#  If `waitForVerifications` is set to true, this extra wait will be skipped.
-waitForFinalization: false
-
-#  If set to true, the module will block until all verifications have passed
-waitForVerifications: false
-
-#  If set, after the merge, this will be the maximum number of epochs wait for the verifications to succeed.
-verificationsEpochLimit: 5
-
 #  The global log level that all clients should log at
 #  Valid values are "error", "warn", "info", "debug", and "trace"
 #  This value will be overridden by participant-specific values
