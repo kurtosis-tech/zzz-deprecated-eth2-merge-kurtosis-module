@@ -1,9 +1,15 @@
 # TBD
 
+### Breaking Changes
+* The config flag `executionLayerOnly` has been removed
+* A new config flag `launchAdditionalService` has been added. True by default, it controls the launch of services
+additional service like Forkmon, Prometheus and Grafana, as well as the transaction spammer. Is set to false, only the
+Ethereum network (EL _and_ CL nodes) are launched
+
 ### Changes
 * Updated flags
 * Switched to `merged` genesis state instead of `phase0`
-* Removed support for mining 
+* Removed support for mining
 
 ### Features
 - Added more detailed instructions on how to submit PRs to this repo

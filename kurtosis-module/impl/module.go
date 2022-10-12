@@ -81,9 +81,6 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Infof("Adding %v participants logging at level '%v'...", numParticipants, paramsObj.ClientLogLevel)
 	participants, clGenesisUnixTimestamp, err := participant_network.LaunchParticipantNetwork(
 		ctx,
-		// TODO this is a temporary hack to enable starting an EL-only network; we're working on fixing this in a productized
-		//  way in Kurtosis itself
-		paramsObj.ExecutionLayerOnly,
 		enclaveCtx,
 		networkParams,
 		paramsObj.Participants,
@@ -105,7 +102,7 @@ func (e Eth2KurtosisModule) Execute(enclaveCtx *enclaves.EnclaveContext, seriali
 	logrus.Infof("Successfully added %v participants", numParticipants)
 
 	// TODO This is a temporary hack to add only EL nodes until the product supports easily decomposing this module
-	if paramsObj.ExecutionLayerOnly {
+	if !paramsObj.LaunchAdditionalServices {
 		return "{}", nil
 	}
 

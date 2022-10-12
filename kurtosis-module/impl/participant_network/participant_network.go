@@ -52,8 +52,6 @@ var clClientContextForBootClClients *cl.CLClientContext = nil
 
 func LaunchParticipantNetwork(
 	ctx context.Context,
-	// TODO this is a hack to allow for starting just the EL nodes! This will be fixed by Kurtosis product work
-	shouldStartJustELNodes bool,
 	enclaveCtx *enclaves.EnclaveContext,
 	networkParams *module_io.NetworkParams,
 	allParticipantSpecs []*module_io.ParticipantParams,
@@ -170,23 +168,6 @@ func LaunchParticipantNetwork(
 		logrus.Infof("Added EL client %v of type '%v'", idx, elClientType)
 	}
 	logrus.Infof("Successfully added %v EL clients", numParticipants)
-	// TODO This is a temporary hack to enable starting an EL-node-only network!
-	//  Will be fixed by Kurtosis product work to make the module easily decomposable
-	if shouldStartJustELNodes {
-		resultParticipants := []*Participant{}
-		for idx, participantSpec := range allParticipantSpecs {
-			elClientCtx := allElClientContexts[idx]
-			participant := NewParticipant(
-				participantSpec.ELClientType,
-				participantSpec.CLClientType,
-				elClientCtx,
-				nil,
-				nil,
-			)
-			resultParticipants = append(resultParticipants, participant)
-		}
-		return resultParticipants, 0, nil
-	}
 
 	// We create the CL genesis data after the EL network is ready so that the CL genesis timestamp will be close
 	//  to the time the CL nodes are started
