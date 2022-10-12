@@ -1,5 +1,5 @@
 # TBD
-# 0.6.7
+
 ### Changes
 * Updated flags
 * Switched to `merged` genesis state instead of `phase0`
