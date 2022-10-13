@@ -1,5 +1,7 @@
 # TBD
 
+# 0.7.0
+
 ### Breaking Changes
 * The config flag `executionLayerOnly` has been removed
 * A new config flag `launchAdditionalService` has been added. True by default, it controls the launch of services
