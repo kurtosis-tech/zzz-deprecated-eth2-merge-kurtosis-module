@@ -250,7 +250,7 @@ func LaunchParticipantNetwork(
 		// Launch CL client
 		var newClClientCtx *cl.CLClientContext
 		var clClientLaunchErr error
-		if idx == bootParticipantIndex {
+		if idx == 0 {
 			newClClientCtx, clClientLaunchErr = clLauncher.Launch(
 				enclaveCtx,
 				clClientServiceId,
@@ -265,14 +265,14 @@ func LaunchParticipantNetwork(
 				participantSpec.ValidatorExtraParams,
 			)
 		} else {
-			bootClClientCtx := allClClientContexts[bootParticipantIndex]
+			bootClClientCtx := allClClientContexts[idx-1]
 			newClClientCtx, clClientLaunchErr = clLauncher.Launch(
 				enclaveCtx,
 				clClientServiceId,
 				participantSpec.CLClientImage,
 				participantSpec.CLClientLogLevel,
 				globalLogLevel,
-				bootClClientCtx,
+				bootClClientCtx, // TODO: update
 				elClientCtx,
 				mevBoostCtx,
 				newClNodeValidatorKeystores,
