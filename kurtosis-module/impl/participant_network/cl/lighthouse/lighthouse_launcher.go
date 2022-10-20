@@ -301,7 +301,8 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfig(
 		"--http-address=0.0.0.0",
 		fmt.Sprintf("--http-port=%v", validatorHttpPortNum),
 		"--beacon-nodes=" + beaconClientHttpUrl,
-		"--enable-doppelganger-protection=false",
+		//"--enable-doppelganger-protection", // Disabled to not have to wait 2 epochs before validator can start
+		// burn address - If unset, the validator will scream in its logs
 		"--suggested-fee-recipient=0x0000000000000000000000000000000000000000",
 		// vvvvvvvvvvvvvvvvvvv PROMETHEUS CONFIG vvvvvvvvvvvvvvvvvvvvv
 		"--metrics",
