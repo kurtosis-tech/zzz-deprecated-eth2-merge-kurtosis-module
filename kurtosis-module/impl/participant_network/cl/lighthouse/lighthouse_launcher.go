@@ -302,6 +302,7 @@ func (launcher *LighthouseCLClientLauncher) getValidatorContainerConfig(
 		fmt.Sprintf("--http-port=%v", validatorHttpPortNum),
 		"--beacon-nodes=" + beaconClientHttpUrl,
 		"--enable-doppelganger-protection=false",
+		"--suggested-fee-recipient=0x0000000000000000000000000000000000000000",
 		// vvvvvvvvvvvvvvvvvvv PROMETHEUS CONFIG vvvvvvvvvvvvvvvvvvvvv
 		"--metrics",
 		"--metrics-address=0.0.0.0",
