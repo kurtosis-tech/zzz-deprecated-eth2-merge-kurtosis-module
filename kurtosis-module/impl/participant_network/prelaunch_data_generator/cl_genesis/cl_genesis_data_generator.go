@@ -57,7 +57,7 @@ func GenerateCLGenesisData(
 	depositContractAddress string,
 	secondsPerSlot uint32,
 	preregisteredValidatorKeysMnemonic string,
-	numValidatorKeysToPreregister uint32,
+	totalNumValidatorKeysToPreregister uint32,
 ) (
 	*CLGenesisData,
 	error,
@@ -66,7 +66,7 @@ func GenerateCLGenesisData(
 		NetworkId:                          networkId,
 		SecondsPerSlot:                     secondsPerSlot,
 		UnixTimestamp:                      genesisUnixTimestamp,
-		NumValidatorKeysToPreregister:      numValidatorKeysToPreregister,
+		NumValidatorKeysToPreregister:      totalNumValidatorKeysToPreregister,
 		PreregisteredValidatorKeysMnemonic: preregisteredValidatorKeysMnemonic,
 		DepositContractAddress:             depositContractAddress,
 	}
