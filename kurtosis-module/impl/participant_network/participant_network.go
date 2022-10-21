@@ -176,6 +176,7 @@ func LaunchParticipantNetwork(
 	clGenesisTimestamp := uint64(time.Now().Unix()) +
 		uint64(clGenesisDataGenerationTime.Seconds()) +
 		uint64(numParticipants)*uint64(clNodeStartupTime.Seconds())
+	totalNumberOfValidatorKeys := networkParams.NumValidatorKeysPerNode * uint32(len(allParticipantSpecs))
 	clGenesisData, err := cl_genesis.GenerateCLGenesisData(
 		ctx,
 		enclaveCtx,
@@ -187,7 +188,7 @@ func LaunchParticipantNetwork(
 		networkParams.DepositContractAddress,
 		networkParams.SecondsPerSlot,
 		networkParams.PreregisteredValidatorKeysMnemonic,
-		networkParams.NumValidatorKeysPerNode,
+		totalNumberOfValidatorKeys,
 	)
 	if err != nil {
 		return nil, 0, stacktrace.Propagate(err, "An error occurred generating the CL client genesis data")

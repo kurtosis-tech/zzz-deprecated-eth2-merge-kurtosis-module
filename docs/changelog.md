@@ -1,5 +1,10 @@
 # TBD
 
+### Fixes
+* Add the `--suggested-fee-recipient` flag to lighthouse validator to avoid noisy errors in its logs
+* Disable `doppelganger-protection` for real in lighthouse
+* Fix total number of validator keys in genesis files
+
 # 0.7.0
 
 ### Breaking Changes
