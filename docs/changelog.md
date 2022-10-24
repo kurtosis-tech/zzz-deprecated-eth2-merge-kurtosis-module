@@ -1,5 +1,7 @@
 # TBD
 
+# 0.7.1
+
 ### Fixes
 * Add the `--suggested-fee-recipient` flag to lighthouse validator to avoid noisy errors in its logs
 * Disable `doppelganger-protection` for real in lighthouse
