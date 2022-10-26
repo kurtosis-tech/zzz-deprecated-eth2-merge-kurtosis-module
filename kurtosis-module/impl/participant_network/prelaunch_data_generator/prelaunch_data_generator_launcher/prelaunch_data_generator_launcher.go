@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	image = "skylenet/ethereum-genesis-generator:latest"
+	image = "ethpandaops/ethereum-genesis-generator:latest"
 
 	serviceIdPrefix = "prelaunch-data-generator-"
 )
