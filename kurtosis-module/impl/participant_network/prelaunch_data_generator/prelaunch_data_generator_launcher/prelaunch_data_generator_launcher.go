@@ -8,9 +8,8 @@ import (
 	"time"
 )
 
-
 const (
-	image = "skylenet/ethereum-genesis-generator:latest"
+	image = "ethpandaops/ethereum-genesis-generator:latest"
 
 	serviceIdPrefix = "prelaunch-data-generator-"
 )
@@ -47,7 +46,7 @@ func LaunchPrelaunchDataGenerator(
 
 func getContainerConfig(
 	filesArtifactMountpoints map[services.FilesArtifactUUID]string,
-)  *services.ContainerConfig {
+) *services.ContainerConfig {
 	containerConfig := services.NewContainerConfigBuilder(
 		image,
 	).WithEntrypointOverride(

@@ -1,5 +1,11 @@
 # TBD
 
+### Fixes
+* Fix ethereum-genesis-generator config params following recent update (`eth1_premine` -> `el_premine`, `eth1_premine_addrs` -> `el_premine_addrs` and `eth1_genesis_timestamp` -> `genesis_timestamp`)
+
+### Changes
+* Update image of ethereum-genesis-generator from `skylenet/ethereum-genesis-generator:latest` to `ethpandaops/ethereum-genesis-generator:latest`
+
 # 0.7.1
 
 ### Fixes
