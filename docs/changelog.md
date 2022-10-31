@@ -1,5 +1,8 @@
 # TBD
 
+### Changes
+- Cleanup templating values that are now unused.
+
 # 0.7.2
 
 ### Fixes
