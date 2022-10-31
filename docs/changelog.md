@@ -1,5 +1,7 @@
 # TBD
 
+# 0.7.2
+
 ### Fixes
 * Fix ethereum-genesis-generator config params following recent update (`eth1_premine` -> `el_premine`, `eth1_premine_addrs` -> `el_premine_addrs` and `eth1_genesis_timestamp` -> `genesis_timestamp`)
 
