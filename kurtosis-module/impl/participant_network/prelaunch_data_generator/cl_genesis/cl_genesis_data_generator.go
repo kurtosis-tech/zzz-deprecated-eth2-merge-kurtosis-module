@@ -38,9 +38,6 @@ type clGenesisConfigTemplateData struct {
 	NetworkId                          string
 	SecondsPerSlot                     uint32
 	UnixTimestamp                      uint64
-	TotalTerminalDifficulty            uint64
-	AltairForkEpoch                    uint64
-	MergeForkEpoch                     uint64
 	NumValidatorKeysToPreregister      uint32
 	PreregisteredValidatorKeysMnemonic string
 	DepositContractAddress             string
