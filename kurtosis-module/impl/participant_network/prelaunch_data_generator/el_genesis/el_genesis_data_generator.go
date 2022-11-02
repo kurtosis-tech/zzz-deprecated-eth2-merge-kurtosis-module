@@ -29,10 +29,9 @@ const (
 )
 
 type genesisGenerationConfigTemplateData struct {
-	NetworkId               string
-	DepositContractAddress  string
-	UnixTimestamp           uint64
-	TotalTerminalDifficulty uint64
+	NetworkId              string
+	DepositContractAddress string
+	UnixTimestamp          uint64
 }
 
 type genesisGenerationCmd func(genesisConfigFilepathOnGenerator string) []string
