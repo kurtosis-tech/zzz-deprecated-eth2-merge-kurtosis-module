@@ -18,7 +18,7 @@ const (
 
 	outputDirpathOnGenerator = "/output"
 
-	gethGenesisFilename       = "geth.json"
+	gethGenesisFilename       = "genesis.json"
 	erigonGenesisFilename     = "erigon.json"
 	nethermindGenesisFilename = "nethermind.json"
 	besuGenesisFilename       = "besu.json"
