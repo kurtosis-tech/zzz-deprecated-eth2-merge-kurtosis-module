@@ -4,6 +4,9 @@
 * Update image of ethereum-genesis-generator from `ethpandaops/ethereum-genesis-generator:latest` to `ethpandaops/ethereum-genesis-generator:v1.0.2`
 * Cleanup templating values that are now unused.
 
+### Fixes
+* Return the outcome of a stacktrace.Propagate instead of just creating it in the `besu_launcher`
+
 # 0.7.2
 
 ### Fixes
