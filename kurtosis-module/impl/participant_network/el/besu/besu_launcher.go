@@ -94,7 +94,7 @@ func (launcher *BesuELClientLauncher) Launch(
 	)
 
 	if err != nil {
-		stacktrace.Propagate(err, "There was an error while generating the container config")
+		return nil, stacktrace.Propagate(err, "There was an error while generating the container config")
 	}
 
 	serviceCtx, err := enclaveCtx.AddService(serviceId, containerConfig)
