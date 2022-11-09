@@ -266,6 +266,7 @@ func LaunchParticipantNetwork(
 				participantSpec.ValidatorExtraParams,
 			)
 		} else {
+			// in lighthouse this is used for the bootnodes ENR
 			bootClClientCtx := allClClientContexts[bootParticipantIndex]
 			newClClientCtx, clClientLaunchErr = clLauncher.Launch(
 				enclaveCtx,
