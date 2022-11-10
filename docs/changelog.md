@@ -6,6 +6,7 @@
 
 ### Fixes
 * Return the outcome of a stacktrace.Propagate instead of just creating it in the `besu_launcher`
+* Fixed a bug with Erigon where it wouldn't function as a bootnode
 
 # 0.7.2
 
