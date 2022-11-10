@@ -137,7 +137,6 @@ func (launcher *ErigonELClientLauncher) getContainerConfig(
 		genesisJsonFilepathOnClient,
 	)
 
-	bootnode1ElContext := existingElClients[0]
 	launchNodeCmdArgs := []string{
 		"erigon",
 		"--verbosity=" + verbosityLevel,
@@ -156,10 +155,16 @@ func (launcher *ErigonELClientLauncher) getContainerConfig(
 		"--engine.addr=0.0.0.0",
 		fmt.Sprintf("--authrpc.jwtsecret=%v", jwtSecretJsonFilepathOnClient),
 		"--nodiscover",
-		fmt.Sprintf(
+	}
+
+	if len(existingElClients) > 0 {
+		bootnode1ElContext := existingElClients[0]
+		launchNodeCmdArgs = append(launchNodeCmdArgs, fmt.Sprintf(
 			"--staticpeers=%v",
 			bootnode1ElContext.GetEnode()),
+		)
 	}
+
 	if len(extraParams) > 0 {
 		launchNodeCmdArgs = append(launchNodeCmdArgs, extraParams...)
 	}
