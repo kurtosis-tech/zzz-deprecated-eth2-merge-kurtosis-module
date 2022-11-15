@@ -1,5 +1,7 @@
 # TBD
 
+# 0.7.3
+
 ### Changes
 * Update image of ethereum-genesis-generator from `ethpandaops/ethereum-genesis-generator:latest` to `ethpandaops/ethereum-genesis-generator:v1.0.2`
 * Cleanup templating values that are now unused.
