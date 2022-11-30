@@ -29,7 +29,7 @@ var defaultClImages = map[ParticipantCLClientType]string{
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ParticipantCLClientType_Lighthouse: "sigp/lighthouse:latest",
 	ParticipantCLClientType_Teku:       "consensys/teku:latest",
-	ParticipantCLClientType_Nimbus:     "parithoshj/nimbus:merge-a845450",
+	ParticipantCLClientType_Nimbus:     "statusim/nimbus-eth2:multiarch-latest",
 	// NOTE: Prysm actually has two images - a Beacon and a validator - so we pass in a comma-separated
 	//  "beacon_image,validator_image" string
 	ParticipantCLClientType_Prysm:    "gcr.io/prysmaticlabs/prysm/beacon-chain:latest,gcr.io/prysmaticlabs/prysm/validator:latest",

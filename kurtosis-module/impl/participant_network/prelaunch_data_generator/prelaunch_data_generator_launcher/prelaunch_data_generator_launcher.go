@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	image = "ethpandaops/ethereum-genesis-generator:1.0.2"
+	image = "ethpandaops/ethereum-genesis-generator:v1.0.3"
 
 	serviceIdPrefix = "prelaunch-data-generator-"
 )
