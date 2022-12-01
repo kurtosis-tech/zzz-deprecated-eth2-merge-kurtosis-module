@@ -43,9 +43,8 @@ Configuration
 
 To configure the module behaviour, you can modify your `eth2-module-params.yaml` file. The full YAML schema that can be passed in is as follows with the defaults ([from here](https://github.com/kurtosis-tech/eth2-merge-kurtosis-module/blob/master/kurtosis-module/impl/module_io/default_params.go) provided:
 
-Note: Following an update starting the network post-merge, `nimbus` and `prysm` clients don't work anymore. Fixes are tracked in the following Github issues:
+Note: Following an update starting the network post-merge, The `prysm` client doesn't work anymore. Fixes are tracked in the following Github issues:
 - Prysm: [#11508][prysm-issue]
-- Nimbus: [#4193][nimbus-issue]
 
 <details>
     <summary>Click to show all configuration options</summary>
@@ -84,7 +83,7 @@ participants:
     #  Defaults by client (note that Prysm is different in that it requires two images - a Beacon and a validator - separated by a comma):
     #  - lighthouse: sigp/lighthouse:latest
     #  - teku: consensys/teku:latest
-    #  - nimbus: parithoshj/nimbus:merge-a845450
+    #  - nimbus: statusim/nimbus-eth2:multiarch-latest
     #  - prysm: gcr.io/prysmaticlabs/prysm/beacon-chain:latest,gcr.io/prysmaticlabs/prysm/validator:latest
     #  - lodestar: chainsafe/lodestar:next
     clImage: ""
@@ -202,4 +201,3 @@ When you're happy with your changes:
 [enclave-context]: https://docs.kurtosistech.com/kurtosis-core/lib-documentation#enclavecontext
 [using-the-cli]: https://docs.kurtosistech.com/using-the-cli.html
 [prysm-issue]: https://github.com/prysmaticlabs/prysm/issues/11508
-[nimbus-issue]: https://github.com/status-im/nimbus-eth2/issues/4193

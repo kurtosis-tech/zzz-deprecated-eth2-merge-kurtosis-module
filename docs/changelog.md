@@ -1,5 +1,8 @@
 # TBD
 
+### Fixes
+* Updates genesis tool version to allow for nimbus support
+
 # 0.7.3
 
 ### Changes
