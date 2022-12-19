@@ -1,3 +1,7 @@
+# DEPRECATION NOTICE
+
+This has been of https://github.com/kurtosis-tech/eth2-package
+
 Ethereum 2 Merge Module
 =======================
 
